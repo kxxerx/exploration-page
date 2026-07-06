@@ -1,4 +1,4 @@
-// exploration-site: v1.5 anonymous community polish
+// exploration-site: v1.6 notifications and stability fixes
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -51,6 +51,8 @@ let communityPage = 1;
 let communityListCache = [];
 let currentCommunityDetailId = null;
 let currentCommunityCommentsExpanded = false;
+let notificationMode = "party";
+let notificationPage = 1;
 const ROOM_PAGE_SIZE = 10;
 const COMMUNITY_PAGE_SIZE = 10;
 const COMMENT_PREVIEW_LIMIT = 5;
@@ -210,6 +212,27 @@ function setVisible(selector, visible) {
   const node = qs(selector);
   if (node) node.hidden = !visible;
 }
+function forceRoomMode() {
+  document.body.classList.add("in-room");
+  const app = qs("#appPanel");
+  const login = qs("#loginPanel");
+  const room = qs("#roomPanel");
+  if (app) { app.hidden = true; app.style.display = "none"; }
+  if (login) { login.hidden = true; login.style.display = "none"; }
+  if (room) { room.hidden = false; room.style.display = "block"; }
+}
+
+function forceLoungeMode() {
+  if (currentRoom) return forceRoomMode();
+  document.body.classList.remove("in-room");
+  qs("#appPanel") && (qs("#appPanel").style.display = "");
+  qs("#roomPanel") && (qs("#roomPanel").style.display = "");
+  const app = qs("#appPanel");
+  const room = qs("#roomPanel");
+  if (app) app.style.display = "";
+  if (room) room.style.display = "";
+}
+
 
 function showOnAirSplash() {
   const node = qs("#onAirSplash");
@@ -238,7 +261,7 @@ function showLoggedOutView() {
 
 function showLoggedInLounge() {
   if (currentRoom) return;
-  document.body.classList.remove("in-room");
+  forceLoungeMode();
   setVisible("#loginPanel", false);
   setVisible("#sideLoginPanel", false);
   setVisible("#appPanel", true);
@@ -318,7 +341,7 @@ async function loadProfile() {
     return null;
   }
 
-  profile.role = String(profile.role || "user").toLowerCase();
+  profile.role = String(profile.role || "user").trim().toLowerCase();
   currentProfile = profile;
   applyVisitorModeClass(profile);
   const adminNav = qs("#adminNavButton");
@@ -566,6 +589,7 @@ function renderPartyDetail(post) {
 }
 
 function renderPartyComments(comments = []) {
+  comments = [...(comments || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const box = qs("#partyCommentList");
   if (!box) return;
   if (!comments.length) {
@@ -723,6 +747,7 @@ async function loadCommunityComments(postId) {
 }
 
 function renderCommunityComments(comments = []) {
+  comments = [...(comments || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const box = qs("#communityCommentList");
   if (!box) return;
   if (!comments.length) {
@@ -870,12 +895,12 @@ async function loadMyRooms() {
   }).join("");
 }
 
-async function openRoom(roomId) {
-  document.body.classList.add("in-room");
+async function openRoom(roomId, options = {}) {
+  const { showSplash = true } = options;
+  forceRoomMode();
+  if (showSplash) showOnAirSplash();
   await closeRealtime();
-  setVisible("#loginPanel", false);
-  setVisible("#appPanel", false);
-  setVisible("#roomPanel", true);
+  forceRoomMode();
   await loadRoomBundle(roomId);
   setupRealtime(roomId);
   startHeartbeat(roomId);
@@ -942,9 +967,7 @@ async function loadRoomBundle(roomId, options = {}) {
   if (roomError) throw roomError;
 
   currentRoom = room;
-  document.body.classList.add("in-room");
-  setVisible("#appPanel", false);
-  setVisible("#roomPanel", true);
+  forceRoomMode();
   await loadScenario(room.scenario_id);
   await Promise.all([loadMembers(), loadRoomState(), loadMessages()]);
   renderRoom();
@@ -1371,13 +1394,20 @@ function openReportModal(targetType, targetId) {
   const reasonInput = qs("#reportReason");
   const detailInput = qs("#reportDetail");
   if (!targetTypeInput || !targetIdInput || !reasonInput || !detailInput) {
-    showMessage("신고 창을 찾지 못했습니다. 새로고침 후 다시 시도해 주세요.", "error");
+    ensureReportModal();
+  }
+  const typeInput = qs("#reportTargetType");
+  const idInput = qs("#reportTargetId");
+  const rInput = qs("#reportReason");
+  const dInput = qs("#reportDetail");
+  if (!typeInput || !idInput || !rInput || !dInput) {
+    showMessage("신고 창을 열 수 없습니다. 배포 파일을 다시 덮어써 주세요.", "error");
     return;
   }
-  targetTypeInput.value = targetType;
-  targetIdInput.value = targetId;
-  reasonInput.value = targetType === "room_message" ? "troll" : "abuse";
-  detailInput.value = "";
+  typeInput.value = targetType;
+  idInput.value = targetId;
+  rInput.value = targetType === "room_message" ? "troll" : "abuse";
+  dInput.value = "";
   openModal("#reportModal");
 }
 
@@ -1392,6 +1422,11 @@ async function submitReport({ targetType, targetId, reason, detail }) {
   closeModal("#reportModal");
   showMessage("신고를 접수했습니다. 검토 전까지 해당 내용은 숨김 처리됩니다.", "success");
   if (targetType === "party_post") await loadPartyPosts();
+  if (targetType === "community_post") await loadCommunityPosts();
+  if (targetType === "community_comment" && currentCommunityDetailId) {
+    const comments = await loadCommunityComments(currentCommunityDetailId);
+    renderCommunityComments(comments);
+  }
   if (targetType === "party_comment" && currentPartyDetailId) {
     const comments = await loadPartyComments(currentPartyDetailId);
     renderPartyComments(comments);
@@ -1460,6 +1495,7 @@ function closeModal(selector) {
 }
 
 function switchTab(target) {
+  if (currentRoom) { forceRoomMode(); return; }
   document.querySelectorAll("[data-tab-target]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.tabTarget === target);
   });
@@ -1473,7 +1509,103 @@ function switchTab(target) {
   if (target === "community") loadCommunityPosts();
   if (target === "mine") loadMyRooms();
   if (target === "admin") loadAdminReports();
+  if (target === "notifications") loadNotifications(notificationMode);
 }
+
+function ensureReportModal() {
+  if (qs("#reportModal")) return;
+  const modal = document.createElement("dialog");
+  modal.id = "reportModal";
+  modal.className = "modal-card";
+  modal.innerHTML = `
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>신고하기</h2>
+    <form id="reportForm" class="stacked-form">
+      <input id="reportTargetType" type="hidden">
+      <input id="reportTargetId" type="hidden">
+      <label>신고 사유
+        <select id="reportReason" required>
+          <option value="abuse">욕설/비방</option>
+          <option value="sexual">성적 발언</option>
+          <option value="ad">광고/도배</option>
+          <option value="troll">진행 방해</option>
+          <option value="other">기타</option>
+        </select>
+      </label>
+      <label>상세 내용
+        <textarea id="reportDetail" rows="4" maxlength="500"></textarea>
+      </label>
+      <button type="submit" class="primary-action">신고 제출</button>
+    </form>`;
+  document.body.appendChild(modal);
+}
+
+function ensureDynamicShell() {
+  ensureReportModal();
+  const nav = qs("#mainNav");
+  if (nav && !qs('[data-tab-target="notifications"]')) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-tab";
+    btn.dataset.tabTarget = "notifications";
+    btn.textContent = "알림";
+    const mine = qs('[data-tab-target="mine"]');
+    nav.insertBefore(btn, mine || qs("#adminNavButton") || null);
+    btn.addEventListener("click", () => switchTab("notifications"));
+  }
+  const stage = qs(".broadcast-stage");
+  if (stage && !qs('#tabNotifications')) {
+    const sec = document.createElement("section");
+    sec.id = "tabNotifications";
+    sec.className = "tab-panel";
+    sec.dataset.tabPanel = "notifications";
+    sec.hidden = true;
+    sec.innerHTML = `
+      <div class="list-toolbar notification-toolbar">
+        <div class="segmented-tabs" role="tablist">
+          <button type="button" class="mini-button is-active" data-notification-mode="party">파티글 알림</button>
+          <button type="button" class="mini-button" data-notification-mode="community">게시판 알림</button>
+        </div>
+        <button id="refreshNotifications" type="button" class="icon-button" aria-label="알림 새로고침" title="새로고침">↻</button>
+      </div>
+      <div id="notificationList" class="notification-list muted">알림을 불러오는 중...</div>`;
+    const minePanel = qs('#tabMine');
+    stage.insertBefore(sec, minePanel || qs('#tabAdmin') || null);
+  }
+}
+
+async function loadNotifications(mode = notificationMode) {
+  const box = qs("#notificationList");
+  if (!box || !currentProfile) return;
+  notificationMode = mode || "party";
+  document.querySelectorAll("[data-notification-mode]").forEach((btn) => btn.classList.toggle("is-active", btn.dataset.notificationMode === notificationMode));
+  box.textContent = "알림을 불러오는 중...";
+  box.classList.add("muted");
+  const rpc = notificationMode === "community" ? "list_exploration_community_notifications" : "list_exploration_party_notifications";
+  const { data, error } = await supabase.rpc(rpc, { p_limit: 30 });
+  if (error) {
+    box.textContent = `알림을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+  const items = data || [];
+  if (!items.length) {
+    box.textContent = notificationMode === "community" ? "익명 게시판 알림이 없습니다." : "파티글 알림이 없습니다.";
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = items.map((item) => `
+    <article class="notification-item">
+      <div>
+        <strong>${safeText(item.title || "알림")}</strong>
+        <p>${safeText(item.body || "")}</p>
+        <span class="small muted">${formatDate(item.created_at)}</span>
+      </div>
+      ${item.link_type === "party_post" ? `<button type="button" class="ghost-button" data-detail-party="${safeAttr(item.link_id)}">열기</button>` : ""}
+      ${item.link_type === "community_post" ? `<button type="button" class="ghost-button" data-detail-community="${safeAttr(item.link_id)}">열기</button>` : ""}
+    </article>`).join("");
+}
+
+ensureDynamicShell();
 
 // Event bindings
 qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
@@ -1489,8 +1621,7 @@ qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
   }
   showMessage("탐사 로그인 완료.", "success");
   await loadProfile();
-  showOnAirSplash();
-  await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
+  await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms(), loadNotifications()]);
 });
 
 qs("#refreshProfile")?.addEventListener("click", async () => {
@@ -1523,6 +1654,15 @@ document.querySelectorAll("[data-tab-target]").forEach((button) => {
   button.addEventListener("click", () => switchTab(button.dataset.tabTarget));
 });
 
+document.addEventListener("click", async (event) => {
+  const modeBtn = event.target.closest("[data-notification-mode]");
+  if (modeBtn) { await loadNotifications(modeBtn.dataset.notificationMode); return; }
+  const refresh = event.target.closest("#refreshNotifications");
+  if (refresh) { await loadNotifications(notificationMode); return; }
+  const reportButton = event.target.closest("[data-report-target]");
+  if (reportButton) { openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId); return; }
+});
+
 
 qs("#openCreateCommunityModal")?.addEventListener("click", () => openModal("#createCommunityModal"));
 
@@ -1538,6 +1678,7 @@ qs("#createCommunityForm")?.addEventListener("submit", async (event) => {
     qs("#createCommunityForm").reset();
     showMessage("익명 게시글을 올렸습니다.", "success");
     await loadCommunityPosts(1);
+    await loadNotifications("community");
   } catch (error) { showMessage(error.message, "error"); }
 });
 
@@ -1637,6 +1778,7 @@ qs("#communityCommentForm")?.addEventListener("submit", async (event) => {
     const comments = await loadCommunityComments(currentCommunityDetailId);
     renderCommunityComments(comments);
     await loadCommunityPosts(communityPage);
+    await loadNotifications("community");
   } catch (error) { showMessage(error.message, "error"); }
 });
 
@@ -1747,6 +1889,7 @@ qs("#createPartyForm")?.addEventListener("submit", async (event) => {
     closeModal("#createPartyModal");
     qs("#createPartyForm").reset();
     await loadPartyPosts();
+    await loadNotifications("party");
     showMessage("익명 모집글을 올렸습니다.", "success");
   } catch (error) {
     showMessage(error.message, "error");
@@ -2047,14 +2190,15 @@ qs("#partyDetailBody")?.addEventListener("click", (event) => {
   openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
 });
 
-qs("#reportForm")?.addEventListener("submit", async (event) => {
+document.addEventListener("submit", async (event) => {
+  if (!event.target.closest("#reportForm")) return;
   event.preventDefault();
   try {
     await submitReport({
-      targetType: qs("#reportTargetType").value,
-      targetId: qs("#reportTargetId").value,
-      reason: qs("#reportReason").value,
-      detail: qs("#reportDetail").value.trim()
+      targetType: qs("#reportTargetType")?.value,
+      targetId: qs("#reportTargetId")?.value,
+      reason: qs("#reportReason")?.value,
+      detail: qs("#reportDetail")?.value.trim()
     });
   } catch (error) {
     showMessage(error.message, "error");
@@ -2116,7 +2260,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
     try {
       await loadProfile();
-      await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
+      await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms(), loadNotifications()]);
     } catch (error) {
       showMessage(error.message, "error");
     }
@@ -2127,8 +2271,7 @@ try {
   await loadScenarioList();
   await loadProfile();
   if (currentProfile) {
-    showOnAirSplash();
-    await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
+    await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms(), loadNotifications()]);
   }
 } catch (error) {
   showMessage(error.message, "error");

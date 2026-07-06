@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v1.5 community/polish -->
+  <!-- pollution-exploration-standalone: v1.6 notifications/fixes -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>탐사 홈페이지</title>
@@ -36,6 +36,7 @@
       <button type="button" class="nav-tab is-active" data-tab-target="rooms">목록</button>
       <button type="button" class="nav-tab" data-tab-target="party">파티 찾기</button>
       <button type="button" class="nav-tab" data-tab-target="community">익명 게시판</button>
+      <button type="button" class="nav-tab" data-tab-target="notifications">알림</button>
       <button type="button" class="nav-tab" data-tab-target="mine">내 탐사방</button>
       <button id="adminNavButton" type="button" class="nav-tab" data-tab-target="admin" hidden>관리자</button>
     </nav>
@@ -74,6 +75,17 @@
           </div>
           <div id="communityList" class="community-list muted">게시글을 불러오는 중...</div>
           <div id="communityPagination" class="pagination-row" hidden></div>
+        </section>
+
+        <section id="tabNotifications" class="tab-panel" data-tab-panel="notifications" hidden>
+          <div class="list-toolbar notification-toolbar">
+            <div class="segmented-tabs" role="tablist">
+              <button type="button" class="mini-button is-active" data-notification-mode="party">파티글 알림</button>
+              <button type="button" class="mini-button" data-notification-mode="community">게시판 알림</button>
+            </div>
+            <button id="refreshNotifications" type="button" class="icon-button" aria-label="알림 새로고침" title="새로고침">↻</button>
+          </div>
+          <div id="notificationList" class="notification-list muted">알림을 불러오는 중...</div>
         </section>
 
         <section id="tabMine" class="tab-panel" data-tab-panel="mine" hidden>
