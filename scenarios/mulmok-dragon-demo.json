@@ -1,0 +1,117 @@
+{
+  "id": "mulmok-dragon-demo",
+  "title": "물목 해안가: 탐사 데모",
+  "version": "0.1.0",
+  "status": "published",
+  "startSection": "intro",
+  "sections": {
+    "intro": {
+      "title": "물목 해안가 입구",
+      "commonText": "밤바람은 바닷비린내를 싣고 옵니다. 낡은 출입금지 표지판 너머로 물목 해안가가 이어집니다.\n\n두 사람은 같은 길 위에 서 있지만, 같은 것을 보고 있다고 장담할 수는 없습니다.",
+      "visibilityBlocks": [
+        {
+          "condition": { "organization_code": "disaster_agency" },
+          "text": "재난관리국 요원인 당신은 이 지역이 과거 '반복 침수형 괴이현상'으로 분류되었다는 기록을 떠올립니다."
+        },
+        {
+          "condition": { "organization_code": "baekildream", "department_code": "field_exploration" },
+          "text": "백일몽 현장탐사팀 소속인 당신은 해안가의 습도가 꿈 내부 균열과 비슷하게 출렁인다는 것을 눈치챕니다."
+        },
+        {
+          "condition": { "visitor_type": "entity" },
+          "text": "괴이인 당신에게 이 바다는 너무 조용합니다. 누군가 숨을 죽인 채 당신의 이름을 흉내 내는 것 같습니다."
+        }
+      ],
+      "choices": [
+        { "label": "해안가 안쪽으로 들어간다", "next": "shore", "scope": "room" },
+        { "label": "출입금지 표지판을 조사한다", "next": "sign", "scope": "room" },
+        { "label": "재난관리국 기록 번호를 확인한다", "next": "agency_note", "scope": "room", "requires": { "organization_code": "disaster_agency" }, "note": "재난관리국 소속에게만 보입니다." }
+      ]
+    },
+    "sign": {
+      "title": "출입금지 표지판",
+      "commonText": "표지판은 오래전에 세워진 것처럼 보입니다. 붉은 글씨는 거의 지워졌지만, 아래쪽에는 새로 긁은 흔적이 남아 있습니다.\n\n'물목은 입구가 아니다.'",
+      "visibilityBlocks": [
+        {
+          "condition": { "department_code": "security" },
+          "text": "보안팀 소속인 당신은 긁힌 방향이 안쪽에서 바깥쪽으로 향한다는 점을 알아봅니다. 누군가 나가려다 실패했습니다."
+        }
+      ],
+      "choices": [
+        { "label": "해안가 안쪽으로 들어간다", "next": "shore", "scope": "room" },
+        { "label": "처음 위치로 돌아간다", "next": "intro", "scope": "room" }
+      ]
+    },
+    "agency_note": {
+      "title": "재난관리국 기록",
+      "commonText": "기록 번호는 즉시 떠오르지 않습니다. 하지만 이곳이 단순한 실종 신고 현장이 아니라는 사실만큼은 확실합니다.",
+      "visibilityBlocks": [
+        {
+          "condition": { "organization_code": "disaster_agency" },
+          "text": "분류명: 해룡성 잔류 반응.\n위험도: 누적형.\n권고: 현장 판단보다 동행자 상태 확인을 우선할 것."
+        }
+      ],
+      "choices": [
+        { "label": "동행자의 상태를 확인한다", "next": "check_partner", "scope": "room" },
+        { "label": "해안가 안쪽으로 들어간다", "next": "shore", "scope": "room" }
+      ]
+    },
+    "check_partner": {
+      "title": "동행자 확인",
+      "commonText": "당신은 동행자를 돌아봅니다. 표면적으로는 아무 문제도 없어 보입니다. 문제는, 표면이 언제나 가장 먼저 거짓말을 한다는 점입니다.",
+      "visibilityBlocks": [
+        {
+          "condition": { "visitor_type": "infected" },
+          "text": "오염자인 당신은 상대가 당신을 보는 시선보다, 당신 뒤편을 보는 시선이 더 신경 쓰입니다."
+        }
+      ],
+      "choices": [
+        { "label": "해안가 안쪽으로 들어간다", "next": "shore", "scope": "room" }
+      ]
+    },
+    "shore": {
+      "title": "젖은 해안길",
+      "commonText": "해안길은 비에 젖은 것이 아닙니다. 마치 바다가 한 번 이 길 위로 기어 올라왔다가 다시 물러난 것 같습니다.\n\n멀리서 물소리가 들립니다. 파도 소리라기엔 너무 규칙적입니다.",
+      "visibilityBlocks": [
+        {
+          "condition": { "organization_code": "baekildream" },
+          "text": "백일몽 소속인 당신은 이 규칙적인 물소리가 특정 수면 유도음과 비슷하다는 걸 알아차립니다."
+        },
+        {
+          "condition": { "organization_code": "entity" },
+          "text": "괴이인 당신은 물소리 안에 섞인 낮은 목소리를 듣습니다. 그것은 경고가 아니라 환영 인사입니다."
+        }
+      ],
+      "choices": [
+        { "label": "물소리가 나는 곳으로 간다", "next": "water_sound", "scope": "room" },
+        { "label": "오늘은 여기까지만 조사하고 철수한다", "next": "normal_end", "scope": "room" }
+      ]
+    },
+    "water_sound": {
+      "title": "물소리",
+      "commonText": "바위 틈 아래에 고인 물이 있습니다. 수면에는 달이 비치지 않습니다. 대신, 당신들의 뒷모습이 비칩니다.\n\n그 뒷모습 중 하나가 먼저 고개를 돌립니다.",
+      "choices": [
+        { "label": "물러난다", "next": "good_end", "scope": "room" },
+        { "label": "수면을 들여다본다", "next": "bad_end", "scope": "room" }
+      ]
+    },
+    "normal_end": {
+      "title": "노멀 엔딩: 철수",
+      "commonText": "당신들은 더 깊이 들어가지 않고 철수합니다. 충분한 답은 얻지 못했지만, 적어도 무언가가 이곳에서 기다린다는 사실은 확인했습니다.\n\n엔딩 정산은 아직 자동 적용하지 않습니다. 실제 보상/오염도 규칙을 확정한 뒤 별도 함수로 연결하세요.",
+      "ending": { "type": "normal", "currencyReward": 10, "pollutionDelta": 5 },
+      "choices": []
+    },
+    "good_end": {
+      "title": "굿 엔딩: 돌아보지 않기",
+      "commonText": "당신들은 수면 속 뒷모습이 고개를 돌리는 순간, 동시에 물러납니다.\n\n등 뒤에서 낯선 목소리가 이름을 부르지만 대답하지 않습니다. 그 판단은 옳았습니다.",
+      "ending": { "type": "good", "currencyReward": 20, "pollutionDelta": 3 },
+      "choices": []
+    },
+    "bad_end": {
+      "title": "배드 엔딩: 들여다본 것",
+      "commonText": "수면은 깊지 않습니다. 그런데도 당신은 그 안에서 아주 먼 곳을 봅니다.\n\n다음 순간, 당신의 뒷모습이 먼저 웃습니다.\n\n배드 엔딩 정산 규칙을 연결하면 이 지점에서 상점 오염도를 100으로 만들 수 있습니다.",
+      "ending": { "type": "bad", "setPollutionTo": 100 },
+      "choices": []
+    }
+  }
+}

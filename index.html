@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <!-- pollution-exploration-standalone: v0.3 -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>탐사 홈페이지</title>
+  <link rel="stylesheet" href="css/exploration.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-block">
+      <a class="brand-title" href="index.html" aria-label="탐사 홈으로">탐사 홈페이지</a>
+      <p class="brand-subtitle">마스코트 골든의 기념품샵 계정과 같은 Supabase DB를 사용합니다.</p>
+    </div>
+  </header>
+
+  <main class="container exploration-shell">
+    <h1>탐사 홈페이지</h1>
+    <p class="lead">기념품샵 계정으로 로그인해 탐사방을 만들고, 초대코드로 함께 탐사를 진행합니다.</p>
+    <div id="message" class="message"></div>
+
+    <section id="loginPanel" class="panel" hidden>
+      <h2>로그인</h2>
+      <p class="small muted">기존 기념품샵 아이디와 비밀번호를 그대로 사용합니다. 이메일 말고 아이디만 입력하세요.</p>
+      <form id="explorationLoginForm" class="stacked-form">
+        <label>아이디
+          <input id="explorationLoginId" type="text" autocomplete="username" required>
+        </label>
+        <label>비밀번호
+          <input id="explorationPassword" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">탐사 로그인</button>
+      </form>
+    </section>
+
+    <section id="profilePanel" class="panel" hidden>
+      <div class="panel-heading-row">
+        <h2>현재 탐사자 정보</h2>
+        <div class="button-row compact">
+          <button id="refreshProfile" type="button">새로고침</button>
+          <button id="logoutButton" type="button" class="danger">로그아웃</button>
+        </div>
+      </div>
+      <div id="profileCard" class="soft-card"></div>
+      <p class="small muted">소속 판정은 display_name이 아니라 character_key / organization_code / department_code를 기준으로 합니다.</p>
+    </section>
+
+    <section id="lobbyPanel" class="panel" hidden>
+      <div class="panel-heading-row">
+        <h2>탐사 대기실</h2>
+        <button id="refreshLobby" type="button">방 목록 새로고침</button>
+      </div>
+
+      <div class="exploration-grid two-columns">
+        <section class="soft-card">
+          <h3>방 만들기</h3>
+          <form id="createRoomForm" class="stacked-form">
+            <label>시나리오
+              <select id="scenarioSelect" required></select>
+            </label>
+            <label>방 제목
+              <input id="roomTitle" type="text" maxlength="80" placeholder="예: 금요일 밤 물목 해안가 2인팟">
+            </label>
+            <label>최대 인원
+              <select id="maxPlayers">
+                <option value="2">2명</option>
+                <option value="3">3명</option>
+              </select>
+            </label>
+            <button type="submit">초대코드 방 만들기</button>
+          </form>
+        </section>
+
+        <section class="soft-card">
+          <h3>초대코드로 입장</h3>
+          <form id="joinRoomForm" class="stacked-form">
+            <label>초대코드
+              <input id="inviteCodeInput" type="text" maxlength="20" placeholder="예: A1B2C3D4" required>
+            </label>
+            <button type="submit">방 입장</button>
+          </form>
+        </section>
+      </div>
+
+      <section class="soft-card save-card">
+        <h3>저장 파일로 이어하기</h3>
+        <p class="small muted">저장 파일에는 채팅 로그가 아니라 현재 섹션과 방 플래그만 들어갑니다. 조작 방지는 아직 없습니다.</p>
+        <form id="resumeRoomForm" class="stacked-form">
+          <label>저장 JSON 파일
+            <input id="resumeFileInput" type="file" accept="application/json,.json" required>
+          </label>
+          <label>새 방 제목
+            <input id="resumeRoomTitle" type="text" maxlength="80" placeholder="이어하기 방">
+          </label>
+          <button type="submit">저장 지점에서 새 방 만들기</button>
+        </form>
+      </section>
+
+      <section class="soft-card">
+        <h3>내가 들어간 방</h3>
+        <div id="myRoomsList" class="room-list muted">불러오는 중...</div>
+      </section>
+    </section>
+
+    <section id="roomPanel" class="panel room-panel" hidden>
+      <div class="panel-heading-row">
+        <div>
+          <h2 id="roomTitleView">탐사방</h2>
+          <p id="roomMetaView" class="small muted"></p>
+        </div>
+        <div class="button-row compact">
+          <button id="copyInviteCode" type="button">초대코드 복사</button>
+          <button id="downloadSave" type="button">저장파일 다운로드</button>
+          <button id="downloadChat" type="button">채팅 다운로드</button>
+          <button id="clearChat" type="button" class="danger host-only" hidden>채팅 초기화</button>
+          <button id="leaveRoom" type="button">대기실로</button>
+        </div>
+      </div>
+
+      <div class="exploration-grid room-layout">
+        <aside class="soft-card side-card">
+          <h3>참가자</h3>
+          <div id="memberList" class="member-list muted">불러오는 중...</div>
+        </aside>
+
+        <section class="soft-card story-card">
+          <div id="scenarioTitle" class="scenario-title"></div>
+          <h3 id="sectionTitle">현재 섹션</h3>
+          <div id="storyText" class="story-text"></div>
+          <div id="choiceList" class="choice-list"></div>
+        </section>
+
+        <aside class="soft-card chat-card">
+          <h3>채팅</h3>
+          <div id="chatLog" class="chat-log muted">채팅을 불러오는 중...</div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력" autocomplete="off">
+            <button type="submit">전송</button>
+          </form>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/exploration.js"></script>
+</body>
+</html>

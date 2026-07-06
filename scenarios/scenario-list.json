@@ -1,0 +1,12 @@
+[
+  {
+    "id": "mulmok-dragon-demo",
+    "title": "물목 해안가: 탐사 데모",
+    "description": "탐사 엔진 확인용 짧은 데모 시나리오입니다. 실제 본문으로 교체해서 쓰세요.",
+    "status": "published",
+    "minPlayers": 2,
+    "maxPlayers": 3,
+    "file": "mulmok-dragon-demo.json",
+    "version": "0.1.0"
+  }
+]
