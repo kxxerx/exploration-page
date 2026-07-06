@@ -1,29 +1,30 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v0.5 corrected lounge UI -->
+  <!-- pollution-exploration-standalone: v0.6 broadcast lounge UI -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>심야 괴담 탐사회</title>
+  <title>탐사 홈페이지</title>
   <link rel="stylesheet" href="css/exploration.css">
 </head>
 <body>
   <div id="onAirSplash" class="on-air-splash" aria-hidden="true">
-    <span>ON AIR</span>
+    <div class="tv-frame">
+      <div class="static-layer"></div>
+      <div class="scanline-layer"></div>
+      <div class="on-air-neon">ON AIR</div>
+    </div>
   </div>
 
   <header class="site-header">
     <a class="brand-home" href="index.html" aria-label="첫 화면으로 돌아가기">
       <span class="wheel-logo" aria-hidden="true">
-        <svg viewBox="0 0 64 64" role="img">
-          <circle cx="32" cy="24" r="18"></circle>
-          <circle cx="32" cy="24" r="3"></circle>
-          <path d="M32 6v36M14 24h36M19 11l26 26M45 11L19 37M26 42 17 58M38 42l9 16M13 58h38"></path>
+        <svg viewBox="0 0 72 72" role="img">
+          <circle class="wheel-ring" cx="36" cy="27" r="21"></circle>
+          <circle class="wheel-hub" cx="36" cy="27" r="3.8"></circle>
+          <path class="wheel-line" d="M36 6v42M15 27h42M21 12l30 30M51 12 21 42M30 48 19 66M42 48l11 18M15 66h42"></path>
+          <path class="wheel-light" d="M17 56h38"></path>
         </svg>
-      </span>
-      <span class="brand-copy">
-        <strong>심야 괴담 탐사회</strong>
-        <small>Midnight Case Show</small>
       </span>
     </a>
 
@@ -38,10 +39,10 @@
     <div id="message" class="message" aria-live="polite"></div>
 
     <section id="loginPanel" class="login-screen" hidden>
-      <div class="login-card">
-        <p class="kicker">Admission</p>
+      <div class="login-card broadcast-card">
+        <p class="kicker">Entrance</p>
         <h1>탐사자 입장</h1>
-        <p class="muted">기념품샵에서 쓰던 아이디와 비밀번호로 들어와. 이메일 말고 아이디만 쓰면 된다.</p>
+        <p class="muted">기념품샵에서 쓰던 아이디와 비밀번호로 들어와. 이메일 말고 아이디만 입력하면 된다.</p>
         <form id="explorationLoginForm" class="stacked-form">
           <label>아이디
             <input id="explorationLoginId" type="text" autocomplete="username" required>
@@ -55,26 +56,29 @@
     </section>
 
     <section id="appPanel" class="lounge-layout" hidden>
-      <section class="lounge-main">
+      <section class="broadcast-stage">
         <section id="tabRooms" class="tab-panel is-active" data-tab-panel="rooms">
-          <div class="panel-title">
-            <p class="kicker">Case List</p>
-            <h2>탐사 목록</h2>
-            <p class="muted">시나리오를 고르고 탐사방을 만들거나, 받은 초대코드로 바로 입장해.</p>
+          <div class="panel-title rowed">
+            <div>
+              <p class="kicker">Now Recruiting</p>
+              <h2>현재 탐사방</h2>
+              <p class="muted">공개방은 바로 입장할 수 있고, 비공개방이나 인원 마감 방은 목록에서 비활성화된다.</p>
+            </div>
+            <button id="refreshRoomList" type="button" class="ghost-button">새로고침</button>
           </div>
-          <div id="scenarioGallery" class="scenario-gallery muted">시나리오를 불러오는 중...</div>
+          <div id="roomList" class="room-list muted">탐사방을 불러오는 중...</div>
         </section>
 
         <section id="tabParty" class="tab-panel" data-tab-panel="party" hidden>
-          <div class="panel-title">
-            <p class="kicker">Party Finder</p>
-            <h2>파티 찾기</h2>
-            <p class="muted">익명 구인 기능은 다음 단계에서 붙일 예정. 지금은 UI 자리만 잡아둔다.</p>
+          <div class="panel-title rowed">
+            <div>
+              <p class="kicker">Anonymous Party Board</p>
+              <h2>파티 찾기</h2>
+              <p class="muted">닉네임을 드러내지 않고 같이 갈 탐사자를 찾는 게시판이다.</p>
+            </div>
+            <button id="openCreatePartyModal" type="button" class="primary-action">익명 모집글 쓰기</button>
           </div>
-          <div class="empty-state">
-            <strong>모집 게시판 준비 중</strong>
-            <p>나중에 모집글, 익명 신청, 수락 대기, 회피 목록을 여기 붙이면 된다. 껍데기부터 화려하게 만들어두는 인간의 습성은 유구하니까.</p>
-          </div>
+          <div id="partyList" class="party-list muted">모집글을 불러오는 중...</div>
         </section>
 
         <section id="tabMine" class="tab-panel" data-tab-panel="mine" hidden>
@@ -121,7 +125,7 @@
     <section id="roomPanel" class="room-panel" hidden>
       <div class="room-headline">
         <div>
-          <p class="kicker">On Stage</p>
+          <p class="kicker">Live Room</p>
           <h2 id="roomTitleView">탐사방</h2>
           <p id="roomMetaView" class="muted"></p>
         </div>
@@ -176,7 +180,16 @@
           <option value="3">3명</option>
         </select>
       </label>
-      <button type="submit" class="primary-action">초대코드 방 만들기</button>
+      <label>공개 여부
+        <select id="roomVisibility">
+          <option value="public">공개</option>
+          <option value="private">비공개</option>
+        </select>
+      </label>
+      <label id="roomPasswordField" hidden>비공개 비밀번호 <span class="small muted">숫자만</span>
+        <input id="roomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      </label>
+      <button type="submit" class="primary-action">탐사방 만들기</button>
     </form>
   </dialog>
 
@@ -187,7 +200,30 @@
       <label>초대코드
         <input id="inviteCodeInput" type="text" maxlength="20" placeholder="예: A1B2C3D4" required>
       </label>
+      <label>비공개방 비밀번호 <span class="small muted">공개방이면 비워둬도 됨</span>
+        <input id="joinRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만">
+      </label>
       <button type="submit" class="primary-action">방 입장</button>
+    </form>
+  </dialog>
+
+  <dialog id="createPartyModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>익명 파티 모집</h2>
+    <form id="createPartyForm" class="stacked-form">
+      <label>모집 제목
+        <input id="partyTitle" type="text" maxlength="80" placeholder="예: 주말 밤 2인 탐사 구함" required>
+      </label>
+      <label>희망 시나리오
+        <select id="partyScenarioSelect"></select>
+      </label>
+      <label>희망 시간
+        <input id="partyTime" type="text" maxlength="80" placeholder="예: 토요일 22시 이후">
+      </label>
+      <label>모집 내용
+        <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기를 적어줘."></textarea>
+      </label>
+      <button type="submit" class="primary-action">익명으로 올리기</button>
     </form>
   </dialog>
 

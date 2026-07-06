@@ -1,4 +1,4 @@
-// exploration-site: v0.4 lounge UI
+// exploration-site: v0.6 broadcast UI
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -37,6 +37,8 @@ let currentMembers = [];
 let currentState = null;
 let currentMessages = [];
 let currentInventory = [];
+let roomListCache = [];
+let partyListCache = [];
 let realtimeChannel = null;
 let fallbackPollTimer = null;
 
@@ -78,7 +80,7 @@ function showOnAirSplash() {
   // restart animation
   void node.offsetWidth;
   node.classList.add("is-visible");
-  window.setTimeout(() => node.classList.remove("is-visible"), 1800);
+  window.setTimeout(() => node.classList.remove("is-visible"), 3300);
 }
 
 function showLoggedOutView() {
@@ -228,39 +230,103 @@ async function loadScenarioList() {
   const list = await response.json();
   scenarioList = list.filter((scenario) => scenario.status === "published");
   renderScenarioSelect();
-  renderScenarioGallery();
 }
 
 function renderScenarioSelect() {
-  const select = qs("#scenarioSelect");
-  select.innerHTML = "";
-  scenarioList.forEach((scenario) => {
-    const option = document.createElement("option");
-    option.value = scenario.id;
-    option.textContent = `${scenario.title}${scenario.version ? ` · v${scenario.version}` : ""}`;
-    select.appendChild(option);
+  const selects = [qs("#scenarioSelect"), qs("#partyScenarioSelect")].filter(Boolean);
+  selects.forEach((select) => {
+    select.innerHTML = "";
+    scenarioList.forEach((scenario) => {
+      const option = document.createElement("option");
+      option.value = scenario.id;
+      option.textContent = `${scenario.title}${scenario.version ? ` · v${scenario.version}` : ""}`;
+      select.appendChild(option);
+    });
   });
 }
 
 
-function renderScenarioGallery() {
-  const box = qs("#scenarioGallery");
+async function loadRoomList() {
+  const box = qs("#roomList");
+  if (!box || !currentProfile) return;
+  box.textContent = "탐사방을 불러오는 중...";
+  box.classList.add("muted");
+
+  const { data, error } = await supabase.rpc("list_exploration_rooms");
+  if (error) {
+    box.textContent = `탐사방 목록을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+
+  roomListCache = data || [];
+  renderRoomList();
+}
+
+function renderRoomList() {
+  const box = qs("#roomList");
   if (!box) return;
-  if (!scenarioList.length) {
-    box.textContent = "공개된 시나리오가 없습니다.";
+  if (!roomListCache.length) {
+    box.textContent = "현재 열린 탐사방이 없습니다. 오른쪽 라운지 데스크에서 새 방을 만들 수 있어.";
     box.classList.add("muted");
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = scenarioList.map((scenario) => {
-    const bg = scenario.coverImage ? `style="background-image: linear-gradient(135deg, rgba(158,29,41,.25), rgba(232,179,90,.15)), url('${safeAttr(scenario.coverImage)}')"` : "";
+  box.innerHTML = roomListCache.map((room) => {
+    const scenario = scenarioList.find((item) => item.id === room.scenario_id);
+    const isPrivate = room.visibility === "private";
+    const isFull = Number(room.current_players || 0) >= Number(room.max_players || 0);
+    const isEnded = room.status === "ended";
+    const disabled = isPrivate || isFull || isEnded;
+    const disabledReason = isPrivate ? "비공개" : isFull ? "인원 마감" : isEnded ? "종료" : "";
+    const badges = [
+      `<span class="badge ${isPrivate ? "private" : "public"}">${isPrivate ? "비공개" : "공개"}</span>`,
+      isFull ? `<span class="badge full">마감</span>` : "",
+      `<span class="badge">${safeText(room.status || "waiting")}</span>`
+    ].join("");
     return `
-      <article class="scenario-card">
-        <div class="scenario-cover" ${bg}></div>
-        <div class="scenario-body">
-          <p class="kicker">${safeText(scenario.version ? `v${scenario.version}` : "Scenario")}</p>
-          <h3>${safeText(scenario.title)}</h3>
-          <p>${safeText(scenario.description || "아직 소개문이 없습니다. 인간은 늘 본편보다 소개문을 늦게 씁니다.")}</p>
+      <article class="room-item ${disabled ? "is-disabled" : ""}">
+        <div>
+          <div class="room-title-line"><strong>${safeText(room.title || "이름 없는 탐사방")}</strong>${badges}</div>
+          <div class="room-meta">${safeText(scenario?.title || room.scenario_id)} · ${Number(room.current_players || 0)}/${Number(room.max_players || 0)}명 · ${formatDate(room.created_at)}</div>
+          ${isPrivate ? `<div class="small muted">비공개방은 초대코드와 숫자 비밀번호로만 입장할 수 있습니다.</div>` : ""}
+        </div>
+        <button type="button" data-join-public-room="${safeAttr(room.id)}" ${disabled ? "disabled" : ""}>${disabled ? disabledReason : "입장"}</button>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadPartyPosts() {
+  const box = qs("#partyList");
+  if (!box || !currentProfile) return;
+  box.textContent = "모집글을 불러오는 중...";
+  box.classList.add("muted");
+  const { data, error } = await supabase.rpc("list_exploration_party_posts");
+  if (error) {
+    box.textContent = `모집글을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+  partyListCache = data || [];
+  renderPartyPosts();
+}
+
+function renderPartyPosts() {
+  const box = qs("#partyList");
+  if (!box) return;
+  if (!partyListCache.length) {
+    box.textContent = "아직 올라온 익명 모집글이 없습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = partyListCache.map((post) => {
+    const scenario = scenarioList.find((item) => item.id === post.scenario_id);
+    return `
+      <article class="party-item">
+        <div>
+          <div class="room-title-line"><strong>${safeText(post.title || "익명 모집")}</strong><span class="badge">${safeText(post.anonymous_name || "익명 탐사자")}</span></div>
+          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · ${formatDate(post.created_at)}</div>
+          <p class="small muted">${safeText(post.content || "내용 없음")}</p>
         </div>
       </article>
     `;
@@ -278,7 +344,7 @@ async function loadScenario(scenarioId) {
   return scenario;
 }
 
-async function createRoom({ scenarioId, title, maxPlayers, startSectionKey = null, stateJson = {} }) {
+async function createRoom({ scenarioId, title, maxPlayers, visibility = "public", roomPassword = "", startSectionKey = null, stateJson = {} }) {
   const scenario = await loadScenario(scenarioId);
   const startKey = startSectionKey || scenario.startSection || "intro";
   const { data, error } = await supabase.rpc("create_exploration_room", {
@@ -286,25 +352,36 @@ async function createRoom({ scenarioId, title, maxPlayers, startSectionKey = nul
     p_title: title || `${scenario.title} 탐사방`,
     p_max_players: Number(maxPlayers || 2),
     p_start_section_key: startKey,
-    p_state_json: stateJson || {}
+    p_state_json: stateJson || {},
+    p_visibility: visibility,
+    p_room_password: roomPassword || null
   });
   if (error) throw error;
   closeModal("#createRoomModal");
   closeModal("#resumeRoomModal");
   showMessage(`방을 만들었습니다. 초대코드: ${data.invite_code}`, "success");
   await openRoom(data.room_id);
-  await loadMyRooms();
+  await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
-async function joinRoomByCode(inviteCode) {
+async function joinRoomByCode(inviteCode, roomPassword = "") {
   const { data, error } = await supabase.rpc("join_exploration_room", {
-    p_invite_code: inviteCode.trim().toUpperCase()
+    p_invite_code: inviteCode.trim().toUpperCase(),
+    p_room_password: roomPassword || null
   });
   if (error) throw error;
   closeModal("#joinRoomModal");
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
-  await loadMyRooms();
+  await Promise.all([loadMyRooms(), loadRoomList()]);
+}
+
+async function joinPublicRoomById(roomId) {
+  const { data, error } = await supabase.rpc("join_exploration_room_by_id", { p_room_id: roomId });
+  if (error) throw error;
+  showMessage("탐사방에 입장했습니다.", "success");
+  await openRoom(data.room_id);
+  await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
 async function loadMyRooms() {
@@ -332,7 +409,7 @@ async function loadMyRooms() {
   const roomIds = memberships.map((item) => item.room_id);
   const { data: rooms, error: roomError } = await supabase
     .from("exploration_rooms")
-    .select("id, scenario_id, title, invite_code, max_players, status, host_user_id, created_at")
+    .select("id, scenario_id, title, invite_code, max_players, status, visibility, host_user_id, created_at")
     .in("id", roomIds)
     .order("created_at", { ascending: false });
 
@@ -372,7 +449,7 @@ async function loadRoomBundle(roomId, options = {}) {
   const { silent = false } = options;
   const { data: room, error: roomError } = await supabase
     .from("exploration_rooms")
-    .select("id, scenario_id, title, host_user_id, invite_code, max_players, status, created_at, started_at, ended_at")
+    .select("id, scenario_id, title, host_user_id, invite_code, max_players, status, visibility, created_at, started_at, ended_at")
     .eq("id", roomId)
     .single();
   if (roomError) throw roomError;
@@ -455,7 +532,7 @@ async function renderRoom() {
   const isHost = currentRoom.host_user_id === currentProfile?.id;
 
   qs("#roomTitleView").textContent = currentRoom.title;
-  qs("#roomMetaView").textContent = `${scenario.title} · 초대코드 ${currentRoom.invite_code} · ${currentRoom.status} · 최대 ${currentRoom.max_players}명`;
+  qs("#roomMetaView").textContent = `${scenario.title} · ${currentRoom.visibility === "private" ? "비공개" : "공개"} · 초대코드 ${currentRoom.invite_code} · ${currentRoom.status} · 최대 ${currentRoom.max_players}명`;
   qs("#scenarioTitle").textContent = `${scenario.title} · ${sectionKey}`;
   const imageNode = qs("#scenarioImage");
   const imageUrl = section.image || section.imageUrl || scenario.coverImage || "";
@@ -640,7 +717,7 @@ function downloadChat() {
 
 async function clearChat() {
   if (!currentRoom) return;
-  const ok = window.confirm("현재 방 채팅 로그를 DB에서 삭제할까요? 다운로드하지 않은 로그는 사라집니다. 인간은 왜 항상 중요한 걸 지우고 후회하는가.");
+  const ok = window.confirm("현재 방 채팅 로그를 DB에서 삭제할까요? 다운로드하지 않은 로그는 사라집니다.");
   if (!ok) return;
   const { error } = await supabase.rpc("clear_exploration_room_messages", { p_room_id: currentRoom.id });
   if (error) {
@@ -680,6 +757,8 @@ function switchTab(target) {
     panel.hidden = !active;
     panel.classList.toggle("is-active", active);
   });
+  if (target === "rooms") loadRoomList();
+  if (target === "party") loadPartyPosts();
   if (target === "mine") loadMyRooms();
 }
 
@@ -698,7 +777,7 @@ qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
   showMessage("탐사 로그인 완료.", "success");
   await loadProfile();
   showOnAirSplash();
-  await loadMyRooms();
+  await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
 });
 
 qs("#refreshProfile")?.addEventListener("click", async () => {
@@ -710,13 +789,12 @@ qs("#refreshProfile")?.addEventListener("click", async () => {
   }
 });
 
-qs("#refreshLobby")?.addEventListener("click", async () => {
-  renderScenarioGallery();
-  await loadMyRooms();
+qs("#refreshRoomList")?.addEventListener("click", async () => {
+  try { await loadRoomList(); } catch (error) { showMessage(error.message, "error"); }
 });
 
 qs("#refreshMyRooms")?.addEventListener("click", async () => {
-  await loadMyRooms();
+  await Promise.all([loadMyRooms(), loadRoomList()]);
 });
 
 qs("#refreshInventory")?.addEventListener("click", async () => {
@@ -745,10 +823,17 @@ qs("#logoutButton")?.addEventListener("click", async () => {
 qs("#createRoomForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    const visibility = qs("#roomVisibility").value;
+    const roomPassword = qs("#roomPassword").value.trim();
+    if (visibility === "private" && !/^\d{1,8}$/.test(roomPassword)) {
+      throw new Error("비공개방 비밀번호는 숫자 1~8자리로 입력하세요.");
+    }
     await createRoom({
       scenarioId: qs("#scenarioSelect").value,
       title: qs("#roomTitle").value.trim(),
-      maxPlayers: qs("#maxPlayers").value
+      maxPlayers: qs("#maxPlayers").value,
+      visibility,
+      roomPassword
     });
   } catch (error) {
     showMessage(error.message, "error");
@@ -758,7 +843,9 @@ qs("#createRoomForm")?.addEventListener("submit", async (event) => {
 qs("#joinRoomForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
-    await joinRoomByCode(qs("#inviteCodeInput").value);
+    const roomPassword = qs("#joinRoomPassword").value.trim();
+    if (roomPassword && !/^\d{1,8}$/.test(roomPassword)) throw new Error("비밀번호는 숫자만 입력하세요.");
+    await joinRoomByCode(qs("#inviteCodeInput").value, roomPassword);
   } catch (error) {
     showMessage(error.message, "error");
   }
@@ -776,11 +863,57 @@ qs("#resumeRoomForm")?.addEventListener("submit", async (event) => {
       title: qs("#resumeRoomTitle").value.trim() || `${save.roomTitle || "탐사"} 이어하기`,
       maxPlayers: 3,
       startSectionKey: save.currentSectionKey,
-      stateJson: save.stateJson || {}
+      stateJson: save.stateJson || {},
+      visibility: "private",
+      roomPassword: ""
     });
   } catch (error) {
     showMessage(error.message, "error");
   }
+});
+
+
+qs("#roomList")?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-join-public-room]");
+  if (!button || button.disabled) return;
+  try {
+    await joinPublicRoomById(button.dataset.joinPublicRoom);
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#openCreatePartyModal")?.addEventListener("click", () => openModal("#createPartyModal"));
+
+qs("#createPartyForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { error } = await supabase.rpc("create_exploration_party_post", {
+      p_title: qs("#partyTitle").value.trim(),
+      p_scenario_id: qs("#partyScenarioSelect").value || null,
+      p_play_time: qs("#partyTime").value.trim() || null,
+      p_content: qs("#partyContent").value.trim() || null
+    });
+    if (error) throw error;
+    closeModal("#createPartyModal");
+    qs("#createPartyForm").reset();
+    await loadPartyPosts();
+    showMessage("익명 모집글을 올렸습니다.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#roomVisibility")?.addEventListener("change", () => {
+  const isPrivate = qs("#roomVisibility").value === "private";
+  qs("#roomPasswordField").hidden = !isPrivate;
+  qs("#roomPassword").required = isPrivate;
+});
+
+["#roomPassword", "#joinRoomPassword"].forEach((selector) => {
+  qs(selector)?.addEventListener("input", (event) => {
+    event.target.value = event.target.value.replace(/\D/g, "");
+  });
 });
 
 qs("#myRoomsList")?.addEventListener("click", async (event) => {
@@ -841,7 +974,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
     try {
       await loadProfile();
-      await loadMyRooms();
+      await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
     } catch (error) {
       showMessage(error.message, "error");
     }
@@ -853,7 +986,7 @@ try {
   await loadProfile();
   if (currentProfile) {
     showOnAirSplash();
-    await loadMyRooms();
+    await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
   }
 } catch (error) {
   showMessage(error.message, "error");
