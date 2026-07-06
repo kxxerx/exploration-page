@@ -350,7 +350,7 @@ p { margin-top: 0; }
   gap: 1rem;
   margin-top: 1rem;
 }
-.participant-card, .story-card, .chat-card {
+.participant-card, .story-card, .chat-card, .room-inventory-card {
   border: 1px solid rgba(207,151,73,.24);
   border-radius: 18px;
   background: rgba(0,0,0,.22);
@@ -1357,4 +1357,14 @@ body.in-room .message { margin-bottom: 10px; }
       "chat";
   }
   .live-story-card { min-height: 58vh; }
+}
+
+
+.notice-modal {
+  max-width: 520px;
+}
+.notice-modal p {
+  margin: .7rem 0 1.2rem;
+  color: var(--text-soft);
+  line-height: 1.7;
 }

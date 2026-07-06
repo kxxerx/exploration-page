@@ -1,4 +1,4 @@
-// exploration-site: v1.1 inventory conditions solo-test
+// exploration-site: v1.2.1 room notice separate-exploration-metrics ending-settlement
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -47,6 +47,9 @@ let cleanupTimer = null;
 let currentPartyDetailId = null;
 let currentAccessToken = null;
 const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001", "/test disaster001", "/test disaster-001"]);
+const ROOM_EXIT_NOTICE_TEXT = "이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다.";
+let roomExitNoticeShownFor = null;
+let endingSettlementInFlight = false;
 
 function safeText(value) {
   return String(value ?? "")
@@ -102,11 +105,11 @@ function getMemberMetric(member) {
   const state = getStateJson();
   const metrics = state.memberMetrics || {};
   const saved = member?.user_id ? metrics[member.user_id] : null;
-  const basePollution = Number(member?.pollution_snapshot ?? currentProfile?.pollution ?? 0);
-  const baseMask = Number(member?.mask_collapse_rate_snapshot ?? currentProfile?.mask_collapse_rate ?? 0);
+  // 탐사방 내부 오염/가면붕괴는 상점 프로필 수치를 끌어오지 않는다.
+  // 방 상태(state_json.memberMetrics) 안에서만 별도 관리하고, 없으면 0부터 시작한다.
   return {
-    pollution: Number(saved?.pollution ?? basePollution),
-    mask_collapse_rate: Number(saved?.mask_collapse_rate ?? baseMask)
+    pollution: Number(saved?.pollution ?? 0),
+    mask_collapse_rate: Number(saved?.mask_collapse_rate ?? 0)
   };
 }
 
@@ -227,6 +230,20 @@ function showLoggedInLounge() {
   setVisible("#appPanel", true);
   setVisible("#mainNav", true);
   setVisible("#profilePanel", true);
+}
+
+function updateChatPlaceholder() {
+  const input = qs("#chatInput");
+  if (!input) return;
+  input.placeholder = currentProfile?.role === "admin" ? "메시지 입력 · 관리자 테스트 코드 사용 가능" : "메시지 입력";
+}
+
+function showRoomExitNotice() {
+  if (!currentRoom?.id || roomExitNoticeShownFor === currentRoom.id) return;
+  const modal = qs("#roomExitNoticeModal");
+  if (!modal) return;
+  roomExitNoticeShownFor = currentRoom.id;
+  try { modal.showModal(); } catch (_) { modal.setAttribute("open", ""); }
 }
 
 function makeDownload(filename, content, mime = "application/json") {
@@ -663,6 +680,7 @@ async function openRoom(roomId) {
   await loadRoomBundle(roomId);
   setupRealtime(roomId);
   startHeartbeat(roomId);
+  showRoomExitNotice();
   qs("#roomPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -842,17 +860,24 @@ async function renderRoom() {
     effectBox.innerHTML = "";
   }
   renderRoomInventory();
+  updateChatPlaceholder();
 
   const choices = (section.choices || []).filter((choice) => !choice.requires || conditionMatches(choice.requires));
   const soloBlocked = isSoloBlocked();
   if (!choices.length) {
-    const ending = section.ending ? `<p class="small muted">엔딩 타입: ${safeText(section.ending.type || "-")}. 자동 정산은 아직 연결하지 않았습니다.</p>` : "";
+    const ending = section.ending ? buildEndingNotice(section.ending) : "";
     qs("#choiceList").innerHTML = `<div class="message">선택지가 없습니다. ${ending}</div>`;
+    if (section.ending) await settleCurrentEnding(section.ending, sectionKey);
     return;
   }
 
+  const soloBlockedMessage = soloBlocked
+    ? (currentProfile?.role === "admin"
+      ? `<div class="message subtle">혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 대화창에 입력하면 진행할 수 있습니다.</div>`
+      : `<div class="message subtle">혼자서는 진행할 수 없습니다.</div>`)
+    : "";
   qs("#choiceList").innerHTML = `
-    ${soloBlocked ? `<div class="message subtle">혼자서는 진행할 수 없습니다. 테스트가 필요하면 대화창에 <strong>/테스트 재난001</strong> 을 입력하세요.</div>` : ""}
+    ${soloBlockedMessage}
     ${choices.map((choice, index) => `
       <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""}" data-choice-index="${index}" ${soloBlocked ? "disabled" : ""}>
         ${safeText(cleanChoiceLabel(choice.label))}
@@ -883,7 +908,7 @@ function renderMembers() {
         <strong>${safeText(member.display_name_snapshot || "익명")}</strong>
         <span class="small muted">${safeText(member.affiliation_label_snapshot || "소속 미지정")} · ${safeText(member.role)}</span>
         <div class="member-metric-row">
-          <span>${isEntity ? "동기화" : "오염"}</span>
+          <span>${isEntity ? "가면붕괴율" : "오염진행도"}</span>
           ${buildMetricBar(isEntity ? metric.mask_collapse_rate : metric.pollution, isEntity ? "sync" : "pollution")}
         </div>
       </div>
@@ -944,10 +969,42 @@ function renderMessages() {
   box.scrollTop = box.scrollHeight;
 }
 
+function buildEndingNotice(ending = {}) {
+  const typeLabel = { good: "굿 엔딩", hidden: "히든 엔딩", normal: "노멀 엔딩", bad: "배드 엔딩" }[ending.type] || "엔딩";
+  return `<p class="small muted">${safeText(typeLabel)}에 도달했습니다. 결과 정산이 연결된 경우 상점의 유쾌주화와 오염도에 반영됩니다.</p>`;
+}
+
+async function settleCurrentEnding(ending = {}, sectionKey = "") {
+  if (!currentRoom?.id || !currentProfile?.id || endingSettlementInFlight) return;
+  endingSettlementInFlight = true;
+  try {
+    const resultCode = ending.resultCode || `${currentRoom.scenario_id}:${sectionKey}:${ending.type || "ending"}`;
+    const { data, error } = await supabase.rpc("settle_exploration_result", {
+      p_room_id: currentRoom.id,
+      p_scenario_id: currentRoom.scenario_id,
+      p_result_code: resultCode,
+      p_ending_type: ending.type || "ending",
+      p_currency_delta: Number(ending.currencyReward || ending.currencyDelta || 0),
+      p_pollution_delta: ending.pollutionDelta == null ? null : Number(ending.pollutionDelta),
+      p_set_pollution_to: ending.setPollutionTo == null ? null : Number(ending.setPollutionTo)
+    });
+    if (error) throw error;
+    if (data?.applied) {
+      showMessage("탐사 결과가 상점 계정에 정산되었습니다.", "success");
+      await loadProfile();
+    }
+  } catch (error) {
+    // SQL이 아직 적용되지 않은 상태에서도 엔딩 화면 자체는 막지 않는다.
+    showMessage(`탐사 결과 정산은 아직 적용되지 않았습니다: ${error.message}`, "error");
+  } finally {
+    endingSettlementInFlight = false;
+  }
+}
+
 async function chooseNext(choice) {
   if (!choice?.next || !currentRoom) return;
   if (isSoloBlocked()) {
-    showMessage("혼자서는 진행할 수 없습니다. 테스트가 필요하면 대화창에 /테스트 재난001 을 입력하세요.", "error");
+    showMessage(currentProfile?.role === "admin" ? "혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 입력하면 진행할 수 있습니다." : "혼자서는 진행할 수 없습니다.", "error");
     return;
   }
   const scenario = await loadScenario(currentRoom.scenario_id);
@@ -1066,7 +1123,7 @@ async function updateRoomSettings({ title, maxPlayers, visibility, roomPassword 
 
 async function leaveCurrentRoom() {
   if (!currentRoom) return;
-  const ok = window.confirm("정말 나가시겠습니까? 파일을 따로 저장하지 않으면 진행 정보는 초기화됩니다. 마지막 참가자가 나가면 탐사방은 삭제됩니다.");
+  const ok = window.confirm("정말 나가시겠습니까? 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다. 마지막 참가자가 나가면 방이 영구적으로 삭제될 수 있습니다.");
   if (!ok) return;
   const roomId = currentRoom.id;
   await closeRealtime();
@@ -1509,6 +1566,9 @@ qs("#roomSettingsForm")?.addEventListener("submit", async (event) => {
 qs("#downloadSave")?.addEventListener("click", downloadSave);
 qs("#downloadChat")?.addEventListener("click", downloadChat);
 qs("#clearChat")?.addEventListener("click", clearChat);
+qs("#closeRoomExitNotice")?.addEventListener("click", () => {
+  qs("#roomExitNoticeModal")?.close();
+});
 
 async function enableSoloTestMode() {
   if (!currentRoom || !currentState) return;
@@ -1531,6 +1591,10 @@ qs("#chatForm")?.addEventListener("submit", async (event) => {
   input.value = "";
   try {
     if (SOLO_TEST_CODES.has(content.toLowerCase()) || SOLO_TEST_CODES.has(content)) {
+      if (currentProfile?.role !== "admin") {
+        showMessage("권한이 없습니다.", "error");
+        return;
+      }
       await enableSoloTestMode();
       showMessage("혼자 테스트 진행을 허용했습니다.", "success");
       return;
@@ -1572,7 +1636,7 @@ function leaveRoomByPageExit() {
 window.addEventListener("beforeunload", (event) => {
   if (!currentRoom?.id) return;
   event.preventDefault();
-  event.returnValue = "이 페이지를 벗어나면 탐사방에서 나가며, 마지막 참가자라면 방이 삭제될 수 있습니다. 저장파일을 먼저 내려받으세요.";
+  event.returnValue = ROOM_EXIT_NOTICE_TEXT;
 });
 
 window.addEventListener("pagehide", () => {

@@ -129,8 +129,6 @@
         </div>
       </div>
 
-      <p class="room-warning">이 페이지를 벗어나면 탐사방에서 나가며, 마지막 참가자라면 방이 삭제될 수 있습니다. 진행을 보존하려면 저장파일을 먼저 내려받으세요.</p>
-
       <div class="live-room-grid">
         <section class="story-card live-story-card">
           <div id="scenarioImage" class="scenario-image" hidden></div>
@@ -160,13 +158,20 @@
           <h3>대화</h3>
           <div id="chatLog" class="chat-log muted">채팅을 불러오는 중...</div>
           <form id="chatForm" class="chat-form">
-            <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력 · 혼자 테스트는 /테스트 재난001" autocomplete="off">
+            <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력" autocomplete="off">
             <button type="submit">전송</button>
           </form>
         </section>
       </div>
     </section>
   </main>
+
+
+  <dialog id="roomExitNoticeModal" class="modal-card notice-modal">
+    <h2>탐사방 이용 안내</h2>
+    <p>이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다.</p>
+    <button id="closeRoomExitNotice" type="button" class="primary-action full">확인</button>
+  </dialog>
 
   <dialog id="createRoomModal" class="modal-card">
     <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
