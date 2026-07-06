@@ -1,4 +1,4 @@
-// exploration-site: v1.7 notification bell/admin/community fixes
+// exploration-site: v1.8 admin-community-render-fix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -375,14 +375,25 @@ function renderProfile(profile) {
   const displayName = profile.display_name || "익명";
   const bandName = profile.band_nickname || "-";
   const currency = Number(profile.currency || 0);
+  const isLoggedIn = !!profile?.id;
   qs("#profileCard").innerHTML = `
-    <div class="profile-name">${safeText(displayName)}</div>
-    <p class="profile-sub">${safeText(bandName)}</p>
+    <div class="profile-name-row">
+      <div>
+        <div class="profile-name">${safeText(displayName)}</div>
+        <p class="profile-sub">${safeText(bandName)}</p>
+      </div>
+      ${isLoggedIn ? `
+        <button id="notificationBell" class="profile-bell" type="button" aria-label="알림 열기" title="알림">
+          <span class="bell-icon" aria-hidden="true">◔</span>
+          <span id="notificationBadge" class="notification-badge" hidden>0</span>
+        </button>` : ""}
+    </div>
     <div class="profile-stats">
       <div class="profile-line"><strong>유쾌주화</strong>${currency.toLocaleString("ko-KR")}개</div>
     </div>
   `;
 }
+
 
 async function loadInventory() {
   const box = qs("#inventoryPreview");
@@ -658,8 +669,10 @@ function communityStatusLabel(post) {
 }
 
 async function loadCommunityPosts(page = communityPage) {
+  ensureCommunityPanel();
   const box = qs("#communityList");
-  if (!box || !currentProfile) return;
+  if (!box) return;
+  if (!currentProfile) { box.textContent = "익명 게시판은 회원만 보실 수 있습니다."; box.classList.add("muted"); return; }
   communityPage = Math.max(1, Number(page || 1));
   box.textContent = "게시글을 불러오는 중...";
   box.classList.add("muted");
@@ -680,9 +693,12 @@ function renderCommunityPosts() {
   const pager = qs("#communityPagination");
   if (!box) return;
   if (!communityListCache.length) {
-    box.textContent = "아직 올라온 익명 게시글이 없습니다.";
+    box.textContent = "현재 게시물이 없습니다.";
     box.classList.add("muted");
-    if (pager) pager.hidden = true;
+    if (pager) {
+      pager.hidden = false;
+      pager.innerHTML = `<button type="button" class="ghost-button" data-community-page="prev" disabled>이전</button><span>1 / 1</span><button type="button" class="ghost-button" data-community-page="next" disabled>다음</button>`;
+    }
     return;
   }
   const totalCount = Number(communityListCache[0]?.total_count || communityListCache.length || 0);
@@ -706,7 +722,7 @@ function renderCommunityPosts() {
     </article>
   `).join("");
   if (pager) {
-    pager.hidden = totalPages <= 1;
+    pager.hidden = false;
     pager.innerHTML = `
       <button type="button" class="ghost-button" data-community-page="prev" ${communityPage <= 1 ? "disabled" : ""}>이전</button>
       <span>${communityPage} / ${totalPages}</span>
@@ -1449,6 +1465,7 @@ async function submitReport({ targetType, targetId, reason, detail }) {
 }
 
 async function loadAdminReports() {
+  ensureAdminPanel();
   const box = qs("#adminReportList");
   if (!box) return;
   if (currentProfile?.role !== "admin") {
@@ -1509,22 +1526,76 @@ function closeModal(selector) {
   else modal.removeAttribute("open");
 }
 
+
+function ensureCommunityPanel() {
+  const stage = qs(".broadcast-stage");
+  if (!stage) return;
+  if (!qs('[data-tab-target="community"]')) {
+    const nav = qs("#mainNav");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-tab";
+    btn.dataset.tabTarget = "community";
+    btn.textContent = "익명 게시판";
+    nav?.insertBefore(btn, qs('[data-tab-target="mine"]') || null);
+  }
+  if (!qs("#tabCommunity")) {
+    const panel = document.createElement("section");
+    panel.id = "tabCommunity";
+    panel.className = "tab-panel";
+    panel.dataset.tabPanel = "community";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="list-toolbar community-toolbar">
+        <button id="openCreateCommunityModal" type="button" class="write-button">익명 글쓰기</button>
+      </div>
+      <div id="communityList" class="community-list muted">아직 올라온 익명 게시글이 없습니다.</div>
+      <div id="communityPagination" class="pagination-row"></div>`;
+    stage.insertBefore(panel, qs("#tabMine") || null);
+  }
+}
+
+function ensureAdminPanel() {
+  const stage = qs(".broadcast-stage");
+  if (!stage) return;
+  if (!qs("#tabAdmin")) {
+    const panel = document.createElement("section");
+    panel.id = "tabAdmin";
+    panel.className = "tab-panel";
+    panel.dataset.tabPanel = "admin";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="list-toolbar admin-toolbar">
+        <strong>관리자 검토함</strong>
+        <button id="refreshAdminReports" type="button" class="icon-button" aria-label="신고 내역 새로고침" title="새로고침">↻</button>
+      </div>
+      <div id="adminReportList" class="admin-report-list muted">검토 대기 중인 신고를 불러오는 중...</div>`;
+    stage.appendChild(panel);
+  }
+}
+
 function switchTab(target) {
   if (currentRoom) { forceRoomMode(); return; }
+  ensureCommunityPanel();
+  ensureAdminPanel();
+  ensureDynamicShell();
+  const normalizedTarget = target || "rooms";
   document.querySelectorAll("[data-tab-target]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.tabTarget === target);
+    button.classList.toggle("is-active", button.dataset.tabTarget === normalizedTarget);
   });
   document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
-    const active = panel.dataset.tabPanel === target;
+    const active = panel.dataset.tabPanel === normalizedTarget;
     panel.hidden = !active;
     panel.classList.toggle("is-active", active);
+    panel.style.display = active ? "" : "none";
   });
-  if (target === "rooms") loadRoomList();
-  if (target === "party") loadPartyPosts();
-  if (target === "community") loadCommunityPosts();
-  if (target === "mine") loadMyRooms();
-  if (target === "admin") loadAdminReports();
+  if (normalizedTarget === "rooms") loadRoomList();
+  if (normalizedTarget === "party") loadPartyPosts();
+  if (normalizedTarget === "community") loadCommunityPosts(communityPage || 1);
+  if (normalizedTarget === "mine") loadMyRooms();
+  if (normalizedTarget === "admin") loadAdminReports();
 }
+
 
 function ensureReportModal() {
   if (qs("#reportModal")) return;
@@ -1556,6 +1627,8 @@ function ensureReportModal() {
 
 function ensureDynamicShell() {
   ensureReportModal();
+  ensureCommunityPanel();
+  ensureAdminPanel();
   const nav = qs("#mainNav");
   if (nav) {
     qs('[data-tab-target="notifications"]')?.remove();
@@ -1575,17 +1648,9 @@ function ensureDynamicShell() {
 }
 
 function ensureNotificationCenter() {
-  if (!qs("#notificationBell")) {
-    const header = qs(".site-header");
-    const bell = document.createElement("button");
-    bell.id = "notificationBell";
-    bell.type = "button";
-    bell.className = "notification-bell";
-    bell.hidden = !currentProfile;
-    bell.setAttribute("aria-label", "알림 열기");
-    bell.innerHTML = `<span class="bell-icon" aria-hidden="true">◔</span><span class="bell-label">알림</span><span id="notificationBadge" class="notification-badge" hidden>0</span>`;
-    header?.insertBefore(bell, qs("#mainNav"));
-  }
+  // 알림 버튼은 헤더 메뉴가 아니라 캐릭터 카드 안에 둔다.
+  // renderProfile()에서 현재 로그인 캐릭터 이름 옆에 생성한다.
+  qs(".site-header #notificationBell")?.remove();
   if (!qs("#notificationCenterModal")) {
     const modal = document.createElement("dialog");
     modal.id = "notificationCenterModal";
@@ -1604,6 +1669,7 @@ function ensureNotificationCenter() {
     document.body.appendChild(modal);
   }
 }
+
 
 function ensureAdminDeskButton() {
   const desk = qs(".action-card");
@@ -1767,6 +1833,10 @@ document.querySelectorAll("[data-tab-target]").forEach((button) => {
 document.addEventListener("click", async (event) => {
   const bell = event.target.closest("#notificationBell");
   if (bell) { await openNotificationCenter(notificationMode); return; }
+  const adminDesk = event.target.closest("#adminDeskButton");
+  if (adminDesk) { switchTab("admin"); return; }
+  const navTab = event.target.closest("[data-tab-target]");
+  if (navTab) { switchTab(navTab.dataset.tabTarget); return; }
   const modeBtn = event.target.closest("[data-notification-mode]");
   if (modeBtn) { await loadNotifications(modeBtn.dataset.notificationMode); markNotificationsRead(modeBtn.dataset.notificationMode); return; }
   const refresh = event.target.closest("#refreshNotifications");
@@ -1775,12 +1845,14 @@ document.addEventListener("click", async (event) => {
   if (detailParty) { closeModal("#notificationCenterModal"); await switchTabAndOpenParty(detailParty.dataset.detailParty); return; }
   const detailCommunity = event.target.closest("#notificationCenterModal [data-detail-community]");
   if (detailCommunity) { closeModal("#notificationCenterModal"); await switchTabAndOpenCommunity(detailCommunity.dataset.detailCommunity); return; }
+  const openCommunity = event.target.closest("#openCreateCommunityModal");
+  if (openCommunity) { openModal("#createCommunityModal"); return; }
   const reportButton = event.target.closest("[data-report-target]");
   if (reportButton) { openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId); return; }
 });
 
 
-qs("#adminDeskButton")?.addEventListener("click", () => switchTab("admin"));
+// adminDeskButton is handled by delegated document click listener.
 
 qs("#openCreateCommunityModal")?.addEventListener("click", () => openModal("#createCommunityModal"));
 
