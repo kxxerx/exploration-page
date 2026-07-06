@@ -1,4 +1,4 @@
-// exploration-site: v1.3 moderation recruitment live mobile
+// exploration-site: v1.5 anonymous community polish
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -47,7 +47,12 @@ let cleanupTimer = null;
 let currentPartyDetailId = null;
 let currentPartyCommentsExpanded = false;
 let roomPage = 1;
+let communityPage = 1;
+let communityListCache = [];
+let currentCommunityDetailId = null;
+let currentCommunityCommentsExpanded = false;
 const ROOM_PAGE_SIZE = 10;
+const COMMUNITY_PAGE_SIZE = 10;
 const COMMENT_PREVIEW_LIMIT = 5;
 let currentAccessToken = null;
 const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001", "/test disaster001", "/test disaster-001"]);
@@ -175,12 +180,12 @@ function buildStatePatchForEffects(effects = []) {
       const org = myMember?.organization_code_snapshot || currentProfile?.organization_code;
       const delta = org === "disaster_agency" && effect.disasterAgencyAmount != null ? Number(effect.disasterAgencyAmount) : Number(effect.amount || 0);
       myMetric.pollution = clampMetric(Number(myMetric.pollution || 0) + delta);
-      logs.push(delta >= 0 ? "오염 반응이 상승했습니다." : "오염 반응이 가라앉았습니다.");
+      logs.push("오염도가 갱신됐습니다.");
     }
     if (effect.type === "mask_collapse") {
       const delta = Number(effect.amount || 0);
       myMetric.mask_collapse_rate = clampMetric(Number(myMetric.mask_collapse_rate || 0) + delta);
-      logs.push("동기화 반응이 변했습니다.");
+      logs.push("오염도가 갱신됐습니다.");
     }
   }
 
@@ -218,16 +223,24 @@ function showOnAirSplash() {
 
 function showLoggedOutView() {
   currentProfile = null;
+  document.body.classList.remove("in-room");
   setVisible("#loginPanel", true);
+  setVisible("#sideLoginPanel", true);
   setVisible("#profilePanel", false);
-  setVisible("#appPanel", false);
+  setVisible("#appPanel", true);
   setVisible("#roomPanel", false);
-  setVisible("#mainNav", false);
+  setVisible("#mainNav", true);
+  qs("#roomList") && (qs("#roomList").textContent = "방 목록은 회원만 보실 수 있습니다.");
+  qs("#partyList") && (qs("#partyList").textContent = "파티 모집글은 회원만 보실 수 있습니다.");
+  qs("#communityList") && (qs("#communityList").textContent = "익명 게시판은 회원만 보실 수 있습니다.");
+  qs("#myRoomsList") && (qs("#myRoomsList").textContent = "내 탐사방은 로그인 후 보입니다.");
 }
 
 function showLoggedInLounge() {
+  if (currentRoom) return;
   document.body.classList.remove("in-room");
   setVisible("#loginPanel", false);
+  setVisible("#sideLoginPanel", false);
   setVisible("#appPanel", true);
   setVisible("#mainNav", true);
   setVisible("#profilePanel", true);
@@ -305,6 +318,7 @@ async function loadProfile() {
     return null;
   }
 
+  profile.role = String(profile.role || "user").toLowerCase();
   currentProfile = profile;
   applyVisitorModeClass(profile);
   const adminNav = qs("#adminNavButton");
@@ -560,7 +574,8 @@ function renderPartyComments(comments = []) {
     return;
   }
   box.classList.remove("muted");
-  const visibleComments = currentPartyCommentsExpanded ? comments : comments.slice(0, COMMENT_PREVIEW_LIMIT);
+  const hiddenCount = Math.max(0, comments.length - COMMENT_PREVIEW_LIMIT);
+  const visibleComments = currentPartyCommentsExpanded ? comments : comments.slice(-COMMENT_PREVIEW_LIMIT);
   const itemsHtml = visibleComments.map((comment) => `
     <article class="comment-item">
       <div class="comment-head">
@@ -576,7 +591,7 @@ function renderPartyComments(comments = []) {
   `).join("");
   const foldHtml = comments.length > COMMENT_PREVIEW_LIMIT ? `
     <button type="button" class="ghost-button full" data-toggle-comments="1">
-      ${currentPartyCommentsExpanded ? "댓글 접기" : `댓글 ${comments.length - COMMENT_PREVIEW_LIMIT}개 더 보기`}
+      ${currentPartyCommentsExpanded ? "이전 댓글 접기" : `이전 댓글 ${hiddenCount}개 더 보기`}
     </button>` : "";
   box.innerHTML = itemsHtml + foldHtml;
 }
@@ -597,6 +612,161 @@ async function openPartyDetail(postId) {
     qs("#partyCommentList").textContent = `댓글을 불러오지 못했습니다: ${error.message}`;
   }
 }
+
+
+function communityStatusLabel(post) {
+  return post?.status === "visible" ? "게시 중" : "숨김";
+}
+
+async function loadCommunityPosts(page = communityPage) {
+  const box = qs("#communityList");
+  if (!box || !currentProfile) return;
+  communityPage = Math.max(1, Number(page || 1));
+  box.textContent = "게시글을 불러오는 중...";
+  box.classList.add("muted");
+  const { data, error } = await supabase.rpc("list_exploration_community_posts", {
+    p_page: communityPage,
+    p_limit: COMMUNITY_PAGE_SIZE
+  });
+  if (error) {
+    box.textContent = `게시글을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+  communityListCache = data || [];
+  renderCommunityPosts();
+}
+
+function renderCommunityPosts() {
+  const box = qs("#communityList");
+  const pager = qs("#communityPagination");
+  if (!box) return;
+  if (!communityListCache.length) {
+    box.textContent = "아직 올라온 익명 게시글이 없습니다.";
+    box.classList.add("muted");
+    if (pager) pager.hidden = true;
+    return;
+  }
+  const totalCount = Number(communityListCache[0]?.total_count || communityListCache.length || 0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / COMMUNITY_PAGE_SIZE));
+  box.classList.remove("muted");
+  box.innerHTML = communityListCache.map((post) => `
+    <article class="community-item">
+      <header class="community-item-head">
+        <strong>${safeText(post.title || "익명 게시글")}</strong>
+        <span class="badge public">${safeText(communityStatusLabel(post))}</span>
+      </header>
+      <div class="community-item-meta">
+        ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(ORG_LABELS[post.organization_code] || post.organization_label || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
+      </div>
+      <p class="community-item-content">${safeText(post.body || "").slice(0, 180)}${String(post.body || "").length > 180 ? "..." : ""}</p>
+      <footer class="community-actions">
+        <button type="button" class="ghost-button" data-detail-community="${safeAttr(post.id)}">자세히 보기</button>
+        ${post.is_mine ? `<button type="button" class="ghost-button danger" data-delete-community-post="${safeAttr(post.id)}">삭제</button>` : ""}
+        <button type="button" class="ghost-button danger" data-report-target="community_post" data-report-id="${safeAttr(post.id)}">신고</button>
+      </footer>
+    </article>
+  `).join("");
+  if (pager) {
+    pager.hidden = totalPages <= 1;
+    pager.innerHTML = `
+      <button type="button" class="ghost-button" data-community-page="prev" ${communityPage <= 1 ? "disabled" : ""}>이전</button>
+      <span>${communityPage} / ${totalPages}</span>
+      <button type="button" class="ghost-button" data-community-page="next" ${communityPage >= totalPages ? "disabled" : ""}>다음</button>
+    `;
+  }
+}
+
+async function openCommunityDetail(postId) {
+  currentCommunityDetailId = postId;
+  currentCommunityCommentsExpanded = false;
+  const detail = qs("#communityDetailBody");
+  const commentsBox = qs("#communityCommentList");
+  if (detail) detail.innerHTML = "불러오는 중...";
+  if (commentsBox) commentsBox.textContent = "댓글을 불러오는 중...";
+  qs("#communityCommentPostId") && (qs("#communityCommentPostId").value = postId);
+  qs("#communityParentCommentId") && (qs("#communityParentCommentId").value = "");
+  qs("#communityCommentBody") && (qs("#communityCommentBody").value = "");
+  qs("#communityReplyHint") && (qs("#communityReplyHint").hidden = true);
+  openModal("#communityDetailModal");
+  try {
+    const { data, error } = await supabase.rpc("get_exploration_community_post", { p_post_id: postId });
+    if (error) throw error;
+    const post = Array.isArray(data) ? data[0] : data;
+    if (!post) throw new Error("게시글을 찾지 못했습니다.");
+    renderCommunityDetail(post);
+    const comments = await loadCommunityComments(postId);
+    renderCommunityComments(comments);
+  } catch (error) {
+    if (detail) detail.innerHTML = `<p class="muted">게시글을 불러오지 못했습니다: ${safeText(error.message)}</p>`;
+  }
+}
+
+function renderCommunityDetail(post) {
+  const detail = qs("#communityDetailBody");
+  if (!detail) return;
+  detail.innerHTML = `
+    <p class="kicker">Anonymous Lounge</p>
+    <h2>${safeText(post.title || "익명 게시글")}</h2>
+    <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(ORG_LABELS[post.organization_code] || post.organization_label || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
+    <div class="community-detail-content">${safeText(post.body || "")}</div>
+    <div class="community-actions">
+      ${post.is_mine ? `<button type="button" class="ghost-button danger" data-delete-community-post="${safeAttr(post.id)}">삭제</button>` : ""}
+      <button type="button" class="ghost-button danger" data-report-target="community_post" data-report-id="${safeAttr(post.id)}">게시글 신고</button>
+    </div>
+  `;
+}
+
+async function loadCommunityComments(postId) {
+  const { data, error } = await supabase.rpc("list_exploration_community_comments", { p_post_id: postId });
+  if (error) throw error;
+  return data || [];
+}
+
+function renderCommunityComments(comments = []) {
+  const box = qs("#communityCommentList");
+  if (!box) return;
+  if (!comments.length) {
+    box.textContent = "아직 댓글이 없습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.classList.remove("muted");
+  const rootComments = comments.filter((c) => !c.parent_comment_id);
+  const repliesByParent = new Map();
+  comments.filter((c) => c.parent_comment_id).forEach((c) => {
+    const arr = repliesByParent.get(c.parent_comment_id) || [];
+    arr.push(c);
+    repliesByParent.set(c.parent_comment_id, arr);
+  });
+  const hiddenCount = Math.max(0, rootComments.length - COMMENT_PREVIEW_LIMIT);
+  const visibleRoots = currentCommunityCommentsExpanded ? rootComments : rootComments.slice(-COMMENT_PREVIEW_LIMIT);
+  const html = visibleRoots.map((comment) => {
+    const replies = repliesByParent.get(comment.id) || [];
+    return `
+      <article class="comment-item community-root-comment">
+        <div class="comment-head"><strong>${safeText(comment.anonymous_alias || "익명 탐사자")}</strong><span>${formatDate(comment.created_at)}</span></div>
+        <p>${safeText(comment.body || "")}</p>
+        <div class="comment-actions">
+          <button type="button" class="mini-button" data-reply-community-comment="${safeAttr(comment.id)}" data-reply-label="${safeAttr(comment.anonymous_alias || "익명 탐사자")}">답글</button>
+          <button type="button" class="mini-button danger" data-report-target="community_comment" data-report-id="${safeAttr(comment.id)}">신고</button>
+          ${(comment.is_mine || currentProfile?.role === "admin") ? `<button type="button" class="mini-button danger" data-delete-community-comment="${safeAttr(comment.id)}">삭제</button>` : ""}
+        </div>
+        ${replies.map((reply) => `
+          <article class="comment-item community-reply-comment">
+            <div class="comment-head"><strong>${safeText(reply.anonymous_alias || "익명 탐사자")}</strong><span>${formatDate(reply.created_at)}</span></div>
+            <p>${safeText(reply.body || "")}</p>
+            <div class="comment-actions">
+              <button type="button" class="mini-button danger" data-report-target="community_comment" data-report-id="${safeAttr(reply.id)}">신고</button>
+              ${(reply.is_mine || currentProfile?.role === "admin") ? `<button type="button" class="mini-button danger" data-delete-community-comment="${safeAttr(reply.id)}">삭제</button>` : ""}
+            </div>
+          </article>`).join("")}
+      </article>
+    `;
+  }).join("");
+  const foldHtml = rootComments.length > COMMENT_PREVIEW_LIMIT ? `<button type="button" class="ghost-button full" data-toggle-community-comments="1">${currentCommunityCommentsExpanded ? "이전 댓글 접기" : `이전 댓글 ${hiddenCount}개 더 보기`}</button>` : "";
+  box.innerHTML = foldHtml + html;
+}
+
 
 async function loadScenario(scenarioId) {
   if (scenarioCache.has(scenarioId)) return scenarioCache.get(scenarioId);
@@ -1196,10 +1366,18 @@ async function readJsonFile(file) {
 
 function openReportModal(targetType, targetId) {
   if (!targetType || !targetId) return;
-  qs("#reportTargetType").value = targetType;
-  qs("#reportTargetId").value = targetId;
-  qs("#reportReason").value = targetType === "room_message" ? "troll" : "abuse";
-  qs("#reportDetail").value = "";
+  const targetTypeInput = qs("#reportTargetType");
+  const targetIdInput = qs("#reportTargetId");
+  const reasonInput = qs("#reportReason");
+  const detailInput = qs("#reportDetail");
+  if (!targetTypeInput || !targetIdInput || !reasonInput || !detailInput) {
+    showMessage("신고 창을 찾지 못했습니다. 새로고침 후 다시 시도해 주세요.", "error");
+    return;
+  }
+  targetTypeInput.value = targetType;
+  targetIdInput.value = targetId;
+  reasonInput.value = targetType === "room_message" ? "troll" : "abuse";
+  detailInput.value = "";
   openModal("#reportModal");
 }
 
@@ -1292,6 +1470,7 @@ function switchTab(target) {
   });
   if (target === "rooms") loadRoomList();
   if (target === "party") loadPartyPosts();
+  if (target === "community") loadCommunityPosts();
   if (target === "mine") loadMyRooms();
   if (target === "admin") loadAdminReports();
 }
@@ -1311,7 +1490,7 @@ qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
   showMessage("탐사 로그인 완료.", "success");
   await loadProfile();
   showOnAirSplash();
-  await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
+  await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
 });
 
 qs("#refreshProfile")?.addEventListener("click", async () => {
@@ -1343,6 +1522,124 @@ qs("#refreshInventory")?.addEventListener("click", async () => {
 document.querySelectorAll("[data-tab-target]").forEach((button) => {
   button.addEventListener("click", () => switchTab(button.dataset.tabTarget));
 });
+
+
+qs("#openCreateCommunityModal")?.addEventListener("click", () => openModal("#createCommunityModal"));
+
+qs("#createCommunityForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { error } = await supabase.rpc("create_exploration_community_post", {
+      p_title: qs("#communityTitle").value.trim(),
+      p_body: qs("#communityBody").value.trim()
+    });
+    if (error) throw error;
+    closeModal("#createCommunityModal");
+    qs("#createCommunityForm").reset();
+    showMessage("익명 게시글을 올렸습니다.", "success");
+    await loadCommunityPosts(1);
+  } catch (error) { showMessage(error.message, "error"); }
+});
+
+qs("#communityList")?.addEventListener("click", async (event) => {
+  const detail = event.target.closest("[data-detail-community]");
+  const del = event.target.closest("[data-delete-community-post]");
+  const pageBtn = event.target.closest("[data-community-page]");
+  if (detail) return openCommunityDetail(detail.dataset.detailCommunity);
+  if (del) {
+    if (!window.confirm("이 게시글을 삭제할까요?")) return;
+    try {
+      const { error } = await supabase.rpc("delete_exploration_community_post", { p_post_id: del.dataset.deleteCommunityPost });
+      if (error) throw error;
+      showMessage("게시글을 삭제했습니다.", "success");
+      await loadCommunityPosts();
+    } catch (error) { showMessage(error.message, "error"); }
+  }
+  if (pageBtn) {
+    const next = pageBtn.dataset.communityPage === "next" ? communityPage + 1 : communityPage - 1;
+    await loadCommunityPosts(next);
+  }
+});
+
+qs("#communityPagination")?.addEventListener("click", async (event) => {
+  const pageBtn = event.target.closest("[data-community-page]");
+  if (!pageBtn) return;
+  const next = pageBtn.dataset.communityPage === "next" ? communityPage + 1 : communityPage - 1;
+  await loadCommunityPosts(next);
+});
+
+qs("#communityDetailModal")?.addEventListener("click", async (event) => {
+  const reportButton = event.target.closest("[data-report-target]");
+  const delPost = event.target.closest("[data-delete-community-post]");
+  const delComment = event.target.closest("[data-delete-community-comment]");
+  const reply = event.target.closest("[data-reply-community-comment]");
+  const toggle = event.target.closest("[data-toggle-community-comments]");
+  if (reportButton) return openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
+  if (reply) {
+    qs("#communityParentCommentId").value = reply.dataset.replyCommunityComment;
+    const hint = qs("#communityReplyHint");
+    if (hint) {
+      hint.hidden = false;
+      hint.innerHTML = `${safeText(reply.dataset.replyLabel || "댓글")}에게 답글 작성 중 <button type="button" class="mini-button" data-cancel-community-reply="1">취소</button>`;
+    }
+    qs("#communityCommentBody")?.focus();
+    return;
+  }
+  if (event.target.closest("[data-cancel-community-reply]")) {
+    qs("#communityParentCommentId").value = "";
+    qs("#communityReplyHint").hidden = true;
+    return;
+  }
+  if (toggle) {
+    currentCommunityCommentsExpanded = !currentCommunityCommentsExpanded;
+    const comments = await loadCommunityComments(currentCommunityDetailId);
+    renderCommunityComments(comments);
+    return;
+  }
+  if (delPost) {
+    if (!window.confirm("이 게시글을 삭제할까요?")) return;
+    try {
+      const { error } = await supabase.rpc("delete_exploration_community_post", { p_post_id: delPost.dataset.deleteCommunityPost });
+      if (error) throw error;
+      closeModal("#communityDetailModal");
+      await loadCommunityPosts();
+      showMessage("게시글을 삭제했습니다.", "success");
+    } catch (error) { showMessage(error.message, "error"); }
+    return;
+  }
+  if (delComment) {
+    if (!window.confirm("이 댓글을 삭제할까요?")) return;
+    try {
+      const { error } = await supabase.rpc("delete_exploration_community_comment", { p_comment_id: delComment.dataset.deleteCommunityComment });
+      if (error) throw error;
+      const comments = await loadCommunityComments(currentCommunityDetailId);
+      renderCommunityComments(comments);
+      showMessage("댓글을 삭제했습니다.", "success");
+    } catch (error) { showMessage(error.message, "error"); }
+  }
+});
+
+qs("#communityCommentForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const body = qs("#communityCommentBody").value.trim();
+    if (!body) return;
+    const parentId = qs("#communityParentCommentId").value || null;
+    const { error } = await supabase.rpc("create_exploration_community_comment", {
+      p_post_id: qs("#communityCommentPostId").value,
+      p_body: body,
+      p_parent_comment_id: parentId
+    });
+    if (error) throw error;
+    qs("#communityCommentBody").value = "";
+    qs("#communityParentCommentId").value = "";
+    qs("#communityReplyHint").hidden = true;
+    const comments = await loadCommunityComments(currentCommunityDetailId);
+    renderCommunityComments(comments);
+    await loadCommunityPosts(communityPage);
+  } catch (error) { showMessage(error.message, "error"); }
+});
+
 
 qs("#openCreateRoomModal")?.addEventListener("click", () => openModal("#createRoomModal"));
 qs("#openJoinRoomModal")?.addEventListener("click", () => openModal("#joinRoomModal"));
@@ -1819,7 +2116,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
     try {
       await loadProfile();
-      await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
+      await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
     } catch (error) {
       showMessage(error.message, "error");
     }
@@ -1831,7 +2128,7 @@ try {
   await loadProfile();
   if (currentProfile) {
     showOnAirSplash();
-    await Promise.all([loadRoomList(), loadPartyPosts(), loadMyRooms()]);
+    await Promise.all([loadRoomList(), loadPartyPosts(), loadCommunityPosts(), loadMyRooms()]);
   }
 } catch (error) {
   showMessage(error.message, "error");
