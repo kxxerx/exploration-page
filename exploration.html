@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v0.8 modern broadcast lobby -->
+  <!-- pollution-exploration-standalone: v1.0 party comments and disaster001 -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>탐사 홈페이지</title>
@@ -196,6 +196,19 @@
       </label>
       <button type="submit" class="primary-action">방 입장</button>
     </form>
+  </dialog>
+
+  <dialog id="partyDetailModal" class="modal-card wide-modal">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <div id="partyDetailBody" class="party-detail-body"></div>
+    <section class="comment-panel">
+      <div id="partyCommentList" class="comment-list muted">댓글을 불러오는 중...</div>
+      <form id="partyCommentForm" class="comment-form">
+        <input id="partyCommentPostId" type="hidden">
+        <textarea id="partyCommentBody" rows="3" maxlength="500" placeholder="익명으로 질문이나 답변을 남깁니다."></textarea>
+        <button type="submit" class="primary-action">댓글 등록</button>
+      </form>
+    </section>
   </dialog>
 
   <dialog id="createPartyModal" class="modal-card">

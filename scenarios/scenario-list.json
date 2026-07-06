@@ -1,12 +1,12 @@
 [
   {
-    "id": "mulmok-dragon-demo",
-    "title": "물목 해안가: 탐사 데모",
-    "description": "탐사 엔진 확인용 짧은 데모 시나리오입니다. 실제 본문으로 교체해서 쓰세요.",
+    "id": "disaster-001-pied-piper",
+    "title": "재난 001호: 잔혹동화 - 피리 부는 사나이",
+    "description": "폐놀이공원 드림랜드를 배경으로 한 테스트 시나리오입니다. 원문 기반 자동 변환본이라 추후 다듬기가 필요합니다.",
     "status": "published",
-    "minPlayers": 2,
-    "maxPlayers": 3,
-    "file": "mulmok-dragon-demo.json",
-    "version": "0.1.0"
+    "minPlayers": 1,
+    "maxPlayers": 4,
+    "file": "disaster-001-pied-piper.json",
+    "version": "test-0.1"
   }
 ]

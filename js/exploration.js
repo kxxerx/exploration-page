@@ -1,6 +1,7 @@
-// exploration-site: v0.8 modern broadcast lobby
+// exploration-site: v1.0 party comments and disaster001
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
 
 await revealMemberLinks();
@@ -43,6 +44,8 @@ let realtimeChannel = null;
 let fallbackPollTimer = null;
 let heartbeatTimer = null;
 let cleanupTimer = null;
+let currentPartyDetailId = null;
+let currentAccessToken = null;
 
 function safeText(value) {
   return String(value ?? "")
@@ -116,6 +119,7 @@ function makeDownload(filename, content, mime = "application/json") {
 async function getSession() {
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
+  currentAccessToken = data.session?.access_token || null;
   return data.session;
 }
 
@@ -304,6 +308,7 @@ async function loadPartyPosts() {
   if (!box || !currentProfile) return;
   box.textContent = "모집글을 불러오는 중...";
   box.classList.add("muted");
+  await cleanupExpiredPartyPosts();
   const { data, error } = await supabase.rpc("list_exploration_party_posts");
   if (error) {
     box.textContent = `모집글을 불러오지 못했습니다: ${error.message}`;
@@ -328,6 +333,7 @@ function renderPartyPosts() {
     const isClosed = post.status === "closed";
     const hasApplied = !!post.has_applied;
     const count = Number(post.applicant_count || 0);
+    const comments = Number(post.comment_count || 0);
     const statusBadge = isClosed
       ? `<span class="badge full">모집 완료</span>`
       : `<span class="badge public">모집 중</span>`;
@@ -345,16 +351,76 @@ function renderPartyPosts() {
       <article class="party-item ${isClosed ? "is-disabled" : ""}">
         <div>
           <div class="room-title-line"><strong>${safeText(post.title || "익명 모집")}</strong>${statusBadge}</div>
-          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명</div>
+          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
           <p class="small muted">${safeText(post.content || "내용 없음")}</p>
         </div>
         <div class="party-actions">
+          <button type="button" class="ghost-button" data-detail-party="${safeAttr(post.id)}">자세히 보기</button>
           ${applicantButtons}
           ${ownerButtons}
         </div>
       </article>
     `;
   }).join("");
+}
+
+async function loadPartyComments(postId) {
+  const { data, error } = await supabase.rpc("list_exploration_party_comments", { p_post_id: postId });
+  if (error) throw error;
+  return data || [];
+}
+
+function renderPartyDetail(post) {
+  const detail = qs("#partyDetailBody");
+  if (!detail || !post) return;
+  const scenario = scenarioList.find((item) => item.id === post.scenario_id);
+  const isClosed = post.status === "closed";
+  const count = Number(post.applicant_count || 0);
+  const comments = Number(post.comment_count || 0);
+  detail.innerHTML = `
+    <p class="kicker">Anonymous Board</p>
+    <h2>${safeText(post.title || "익명 모집")}</h2>
+    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+    <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
+    ${isClosed ? `<p class="small muted">모집 완료된 글입니다. 완료 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
+  `;
+}
+
+function renderPartyComments(comments = []) {
+  const box = qs("#partyCommentList");
+  if (!box) return;
+  if (!comments.length) {
+    box.textContent = "아직 댓글이 없습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = comments.map((comment) => `
+    <article class="comment-item">
+      <div class="comment-head">
+        <strong>${safeText(comment.anonymous_label || "익명 탐사자")}</strong>
+        <span>${formatDate(comment.created_at)}</span>
+      </div>
+      <p>${safeText(comment.body || "")}</p>
+      ${comment.is_mine ? `<button type="button" class="mini-button danger" data-delete-comment="${safeAttr(comment.id)}">댓글 삭제</button>` : ""}
+    </article>
+  `).join("");
+}
+
+async function openPartyDetail(postId) {
+  const post = partyListCache.find((item) => item.id === postId);
+  if (!post) return;
+  currentPartyDetailId = postId;
+  qs("#partyCommentPostId").value = postId;
+  renderPartyDetail(post);
+  qs("#partyCommentBody").value = "";
+  openModal("#partyDetailModal");
+  try {
+    const comments = await loadPartyComments(postId);
+    renderPartyComments(comments);
+  } catch (error) {
+    qs("#partyCommentList").textContent = `댓글을 불러오지 못했습니다: ${error.message}`;
+  }
 }
 
 async function loadScenario(scenarioId) {
@@ -477,6 +543,15 @@ async function cleanupStaleRooms() {
     await supabase.rpc("cleanup_stale_exploration_rooms", { p_stale_minutes: 180 });
   } catch (_) {
     // 정리 실패는 사용자 흐름을 막지 않는다.
+  }
+}
+
+async function cleanupExpiredPartyPosts() {
+  if (!currentProfile) return;
+  try {
+    await supabase.rpc("cleanup_expired_exploration_party_posts");
+  } catch (_) {
+    // 파티 게시판 청소 실패는 사용자 흐름을 막지 않는다.
   }
 }
 
@@ -1014,7 +1089,12 @@ qs("#partyList")?.addEventListener("click", async (event) => {
   const editButton = event.target.closest("[data-edit-party]");
   const deleteButton = event.target.closest("[data-delete-party]");
   const roomButton = event.target.closest("[data-party-room]");
+  const detailButton = event.target.closest("[data-detail-party]");
   try {
+    if (detailButton) {
+      await openPartyDetail(detailButton.dataset.detailParty);
+      return;
+    }
     if (applyButton) {
       const { error } = await supabase.rpc("apply_exploration_party_post", { p_post_id: applyButton.dataset.applyParty, p_message: null });
       if (error) throw error;
@@ -1059,6 +1139,41 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       qs("#partyRoomPasswordField").hidden = false;
       openModal("#partyRoomModal");
     }
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+
+
+qs("#partyCommentForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const postId = qs("#partyCommentPostId").value;
+  const body = qs("#partyCommentBody").value.trim();
+  if (!postId || !body) return;
+  try {
+    const { error } = await supabase.rpc("create_exploration_party_comment", { p_post_id: postId, p_body: body });
+    if (error) throw error;
+    qs("#partyCommentBody").value = "";
+    await loadPartyPosts();
+    await openPartyDetail(postId);
+    showMessage("댓글을 등록했습니다.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#partyCommentList")?.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest("[data-delete-comment]");
+  if (!deleteButton || !currentPartyDetailId) return;
+  const ok = window.confirm("이 댓글을 삭제할까요?");
+  if (!ok) return;
+  try {
+    const { error } = await supabase.rpc("delete_exploration_party_comment", { p_comment_id: deleteButton.dataset.deleteComment });
+    if (error) throw error;
+    await loadPartyPosts();
+    await openPartyDetail(currentPartyDetailId);
+    showMessage("댓글을 삭제했습니다.", "success");
   } catch (error) {
     showMessage(error.message, "error");
   }
@@ -1205,8 +1320,41 @@ qs("#chatForm")?.addEventListener("submit", async (event) => {
   }
 });
 
+
+
+function leaveRoomByPageExit() {
+  if (!currentRoom?.id || !currentAccessToken) return;
+  const endpoint = `${SUPABASE_URL}/rest/v1/rpc/leave_exploration_room`;
+  const payload = JSON.stringify({ p_room_id: currentRoom.id });
+  try {
+    fetch(endpoint, {
+      method: "POST",
+      keepalive: true,
+      headers: {
+        "content-type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "authorization": `Bearer ${currentAccessToken}`
+      },
+      body: payload
+    });
+  } catch (_) {
+    // 페이지 이탈 시 best-effort 정리라 실패해도 막지 않는다.
+  }
+}
+
+window.addEventListener("beforeunload", (event) => {
+  if (!currentRoom?.id) return;
+  event.preventDefault();
+  event.returnValue = "이 페이지를 벗어나면 탐사방에서 나가며, 마지막 참가자라면 방이 삭제될 수 있습니다. 저장파일을 먼저 내려받으세요.";
+});
+
+window.addEventListener("pagehide", () => {
+  leaveRoomByPageExit();
+});
+
 supabase.auth.onAuthStateChange(async (event, session) => {
   if (event === "SIGNED_OUT" || !session) {
+    currentAccessToken = null;
     showLoggedOutView();
     return;
   }

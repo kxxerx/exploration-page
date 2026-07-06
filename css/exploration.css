@@ -1150,3 +1150,65 @@ body::after { background: linear-gradient(180deg, transparent, rgba(0,0,0,.64));
 .write-button { margin-left: auto; }
 .list-toolbar { justify-content: flex-end; }
 .party-item.is-disabled { opacity: .62; }
+
+/* v1.0 party detail / anonymous Q&A */
+.wide-modal {
+  width: min(760px, calc(100vw - 28px));
+}
+.party-detail-body h2 {
+  margin: 0 0 10px;
+  font-size: clamp(1.35rem, 2.3vw, 2rem);
+}
+.party-detail-content {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(226, 180, 92, .18);
+  border-radius: 18px;
+  background: rgba(255,255,255,.035);
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.comment-panel {
+  margin-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  padding-top: 18px;
+}
+.comment-list {
+  display: grid;
+  gap: 10px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.comment-item {
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  background: rgba(8, 10, 14, .62);
+  padding: 12px 14px;
+}
+.comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--gold-soft);
+  font-size: .86rem;
+}
+.comment-head span {
+  color: var(--muted);
+  font-size: .78rem;
+}
+.comment-item p {
+  margin: 8px 0 10px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+.comment-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.comment-form textarea {
+  resize: vertical;
+  min-height: 86px;
+}
