@@ -1,4 +1,4 @@
-// exploration-site: v1.8 admin-community-render-fix
+// exploration-site: v1.9 report-review-notes-community-modal-fix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -1504,11 +1504,36 @@ async function loadAdminReports() {
   `).join("");
 }
 
-async function reviewReport(reportId, action) {
-  const { error } = await supabase.rpc("review_exploration_report", { p_report_id: reportId, p_action: action });
+function reportActionLabel(action) {
+  if (action === "dismiss") return "악의/오신고";
+  if (action === "delete") return "대상 삭제";
+  return "옳은 신고";
+}
+
+function openReportReviewModal(reportId, action) {
+  ensureReportReviewModal();
+  const idInput = qs("#reviewReportId");
+  const actionInput = qs("#reviewReportAction");
+  const noteInput = qs("#reviewReportNote");
+  const title = qs("#reviewReportTitle");
+  if (idInput) idInput.value = reportId || "";
+  if (actionInput) actionInput.value = action || "valid";
+  if (noteInput) noteInput.value = "";
+  if (title) title.textContent = `신고 검토: ${reportActionLabel(action)}`;
+  openModal("#reportReviewModal");
+}
+
+async function reviewReport(reportId, action, note = "") {
+  const { error } = await supabase.rpc("review_exploration_report", {
+    p_report_id: reportId,
+    p_action: action,
+    p_admin_note: note || null
+  });
   if (error) throw error;
+  closeModal("#reportReviewModal");
   showMessage("신고 검토를 저장했습니다.", "success");
   await loadAdminReports();
+  await updateNotificationBadge();
   await Promise.all([loadPartyPosts(), currentRoom ? loadMessages() : Promise.resolve()]);
 }
 
@@ -1625,8 +1650,74 @@ function ensureReportModal() {
   document.body.appendChild(modal);
 }
 
+
+function ensureReportReviewModal() {
+  if (qs("#reportReviewModal")) return;
+  const modal = document.createElement("dialog");
+  modal.id = "reportReviewModal";
+  modal.className = "modal-card";
+  modal.innerHTML = `
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2 id="reviewReportTitle">신고 검토</h2>
+    <form id="reportReviewForm" class="stacked-form">
+      <input id="reviewReportId" type="hidden">
+      <input id="reviewReportAction" type="hidden">
+      <label>처리 사유
+        <textarea id="reviewReportNote" rows="5" maxlength="800" placeholder="신고자에게 보일 처리 사유를 입력합니다. 예: 내용 확인 결과 규정 위반으로 보기 어려워 복구했습니다."></textarea>
+      </label>
+      <p class="small muted">이 사유는 신고한 이용자가 알림창의 신고 처리 알림에서 확인할 수 있습니다.</p>
+      <button type="submit" class="primary-action">검토 저장</button>
+    </form>`;
+  document.body.appendChild(modal);
+}
+
+function ensureCommunityCreateModal() {
+  if (qs("#createCommunityModal")) return;
+  const modal = document.createElement("dialog");
+  modal.id = "createCommunityModal";
+  modal.className = "modal-card";
+  modal.innerHTML = `
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>익명 게시글 작성</h2>
+    <form id="createCommunityForm" class="stacked-form">
+      <label>제목
+        <input id="communityTitle" type="text" maxlength="90" required>
+      </label>
+      <label>내용
+        <textarea id="communityBody" rows="7" maxlength="2000" required></textarea>
+      </label>
+      <p class="small muted">화면에는 익명 별명과 소속만 표시됩니다. 신고 검토를 위해 내부 기록에는 작성자 정보가 남습니다.</p>
+      <button type="submit" class="primary-action">게시</button>
+    </form>`;
+  document.body.appendChild(modal);
+}
+
+function ensureCommunityDetailModal() {
+  if (qs("#communityDetailModal")) return;
+  const modal = document.createElement("dialog");
+  modal.id = "communityDetailModal";
+  modal.className = "modal-card wide-modal";
+  modal.innerHTML = `
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <div id="communityDetailBody" class="community-detail-body"></div>
+    <section class="comment-panel community-comment-panel">
+      <div id="communityCommentList" class="comment-list community-comment-list muted">댓글을 불러오는 중...</div>
+      <form id="communityCommentForm" class="comment-form">
+        <input id="communityCommentPostId" type="hidden">
+        <input id="communityParentCommentId" type="hidden">
+        <textarea id="communityCommentBody" rows="3" maxlength="800" placeholder="익명으로 댓글을 남깁니다."></textarea>
+        <div class="community-reply-hint" id="communityReplyHint" hidden></div>
+        <button type="submit" class="primary-action">댓글 등록</button>
+      </form>
+    </section>`;
+  document.body.appendChild(modal);
+}
+
 function ensureDynamicShell() {
   ensureReportModal();
+  ensureReportReviewModal();
+  ensureCommunityCreateModal();
+  ensureCommunityDetailModal();
   ensureCommunityPanel();
   ensureAdminPanel();
   const nav = qs("#mainNav");
@@ -1662,6 +1753,7 @@ function ensureNotificationCenter() {
         <div class="segmented-tabs" role="tablist">
           <button type="button" class="mini-button is-active" data-notification-mode="party">파티글 알림</button>
           <button type="button" class="mini-button" data-notification-mode="community">게시판 알림</button>
+          <button type="button" class="mini-button" data-notification-mode="reports">신고 처리</button>
         </div>
         <button id="refreshNotifications" type="button" class="icon-button" aria-label="알림 새로고침" title="새로고침">↻</button>
       </div>
@@ -1700,7 +1792,9 @@ function markNotificationsRead(mode) {
 }
 
 async function fetchNotificationItems(mode) {
-  const rpc = mode === "community" ? "list_exploration_community_notifications" : "list_exploration_party_notifications";
+  let rpc = "list_exploration_party_notifications";
+  if (mode === "community") rpc = "list_exploration_community_notifications";
+  if (mode === "reports") rpc = "list_my_exploration_report_results";
   const { data, error } = await supabase.rpc(rpc, { p_limit: 30 });
   if (error) throw error;
   return data || [];
@@ -1711,12 +1805,12 @@ async function updateNotificationBadge() {
   const badge = qs("#notificationBadge");
   if (!bell || !badge || !currentProfile) return;
   try {
-    const [partyItems, communityItems] = await Promise.all([fetchNotificationItems("party"), fetchNotificationItems("community")]);
+    const [partyItems, communityItems, reportItems] = await Promise.all([fetchNotificationItems("party"), fetchNotificationItems("community"), fetchNotificationItems("reports")]);
     const countNew = (items, mode) => {
       const readAt = getNotificationReadAt(mode);
       return items.filter((item) => new Date(item.created_at).getTime() > readAt).length;
     };
-    const count = countNew(partyItems, "party") + countNew(communityItems, "community");
+    const count = countNew(partyItems, "party") + countNew(communityItems, "community") + countNew(reportItems, "reports");
     badge.hidden = count <= 0;
     badge.textContent = count > 99 ? "99+" : String(count);
     bell.classList.toggle("has-unread", count > 0);
@@ -1749,7 +1843,7 @@ async function loadNotifications(mode = notificationMode) {
     return;
   }
   if (!items.length) {
-    box.textContent = notificationMode === "community" ? "익명 게시판 알림이 없습니다." : "파티글 알림이 없습니다.";
+    box.textContent = notificationMode === "community" ? "익명 게시판 알림이 없습니다." : (notificationMode === "reports" ? "신고 처리 알림이 없습니다." : "파티글 알림이 없습니다.");
     return;
   }
   box.classList.remove("muted");
@@ -1846,7 +1940,7 @@ document.addEventListener("click", async (event) => {
   const detailCommunity = event.target.closest("#notificationCenterModal [data-detail-community]");
   if (detailCommunity) { closeModal("#notificationCenterModal"); await switchTabAndOpenCommunity(detailCommunity.dataset.detailCommunity); return; }
   const openCommunity = event.target.closest("#openCreateCommunityModal");
-  if (openCommunity) { openModal("#createCommunityModal"); return; }
+  if (openCommunity) { ensureCommunityCreateModal(); openModal("#createCommunityModal"); return; }
   const reportButton = event.target.closest("[data-report-target]");
   if (reportButton) { openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId); return; }
 });
@@ -1854,22 +1948,34 @@ document.addEventListener("click", async (event) => {
 
 // adminDeskButton is handled by delegated document click listener.
 
-qs("#openCreateCommunityModal")?.addEventListener("click", () => openModal("#createCommunityModal"));
+qs("#openCreateCommunityModal")?.addEventListener("click", () => { ensureCommunityCreateModal(); openModal("#createCommunityModal"); });
 
-qs("#createCommunityForm")?.addEventListener("submit", async (event) => {
+async function handleCreateCommunitySubmit(event) {
   event.preventDefault();
+  event.stopPropagation();
+  const titleInput = qs("#communityTitle");
+  const bodyInput = qs("#communityBody");
   try {
     const { error } = await supabase.rpc("create_exploration_community_post", {
-      p_title: qs("#communityTitle").value.trim(),
-      p_body: qs("#communityBody").value.trim()
+      p_title: titleInput?.value.trim() || "",
+      p_body: bodyInput?.value.trim() || ""
     });
     if (error) throw error;
     closeModal("#createCommunityModal");
-    qs("#createCommunityForm").reset();
+    qs("#createCommunityForm")?.reset();
     showMessage("익명 게시글을 올렸습니다.", "success");
+    await switchTab("community");
     await loadCommunityPosts(1);
-    await loadNotifications("community");
+    await updateNotificationBadge();
   } catch (error) { showMessage(error.message, "error"); }
+}
+
+qs("#createCommunityForm")?.addEventListener("submit", handleCreateCommunitySubmit);
+document.addEventListener("submit", async (event) => {
+  if (!event.target.closest("#createCommunityForm")) return;
+  if (event.__communityHandled) return;
+  event.__communityHandled = true;
+  await handleCreateCommunitySubmit(event);
 });
 
 qs("#communityList")?.addEventListener("click", async (event) => {
@@ -2395,12 +2501,22 @@ document.addEventListener("submit", async (event) => {
   }
 });
 
+
+document.addEventListener("submit", async (event) => {
+  if (!event.target.closest("#reportReviewForm")) return;
+  event.preventDefault();
+  try {
+    await reviewReport(qs("#reviewReportId")?.value, qs("#reviewReportAction")?.value, qs("#reviewReportNote")?.value.trim() || "");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
 qs("#refreshAdminReports")?.addEventListener("click", () => loadAdminReports());
 qs("#adminReportList")?.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-review-report]");
   if (!button) return;
-  try { await reviewReport(button.dataset.reportId, button.dataset.reviewReport); }
-  catch (error) { showMessage(error.message, "error"); }
+  openReportReviewModal(button.dataset.reportId, button.dataset.reviewReport);
 });
 
 qs("#roomInventoryList")?.addEventListener("click", (event) => {

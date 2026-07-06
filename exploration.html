@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v1.8 admin-community-render-fix -->
+  <!-- pollution-exploration-standalone: v1.9 report-review-notes-community-modal-fix -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>탐사 홈페이지</title>
@@ -203,6 +203,7 @@
       <div class="segmented-tabs" role="tablist">
         <button type="button" class="mini-button is-active" data-notification-mode="party">파티글 알림</button>
         <button type="button" class="mini-button" data-notification-mode="community">게시판 알림</button>
+        <button type="button" class="mini-button" data-notification-mode="reports">신고 처리</button>
       </div>
       <button id="refreshNotifications" type="button" class="icon-button" aria-label="알림 새로고침" title="새로고침">↻</button>
     </div>
@@ -458,6 +459,21 @@
     <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
     <div id="inventoryDetailBody"></div>
   </dialog>
+
+  <dialog id="reportReviewModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2 id="reviewReportTitle">신고 검토</h2>
+    <form id="reportReviewForm" class="stacked-form">
+      <input id="reviewReportId" type="hidden">
+      <input id="reviewReportAction" type="hidden">
+      <label>처리 사유
+        <textarea id="reviewReportNote" rows="5" maxlength="800" placeholder="신고자에게 보일 처리 사유를 입력합니다."></textarea>
+      </label>
+      <p class="small muted">이 사유는 신고한 이용자가 알림창의 신고 처리 알림에서 확인할 수 있습니다.</p>
+      <button type="submit" class="primary-action">검토 저장</button>
+    </form>
+  </dialog>
+
 
   <script type="module" src="js/exploration.js"></script>
 </body>
