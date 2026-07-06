@@ -1,7 +1,7 @@
 {
   "id": "disaster-001-pied-piper",
   "title": "재난 001호: 잔혹동화 - 피리 부는 사나이",
-  "version": "test-0.1",
+  "version": "1.1-test",
   "status": "published",
   "startSection": "intro",
   "coverImage": "",
@@ -59,6 +59,13 @@
           },
           "note": "백일몽 소속에게만 보입니다."
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10,
+          "disasterAgencyAmount": 5
+        }
       ]
     },
     "s3": {
@@ -79,6 +86,12 @@
           "label": "매표원과의 대화를 피하고, 매표소 건물 뒤편의 어두운 직원용 통로 셔터 아래로 기어 들어간다.",
           "scope": "room",
           "next": "s4"
+        }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "uninvited_wristband"
         }
       ]
     },
@@ -122,6 +135,13 @@
           "scope": "room",
           "next": "s14"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10,
+          "disasterAgencyAmount": 5
+        }
       ]
     },
     "s6": {
@@ -147,6 +167,12 @@
           },
           "note": "백일몽 소속에게만 보입니다."
         }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "closing_notice_scribble"
+        }
       ]
     },
     "s7": {
@@ -171,6 +197,12 @@
             "organization_code": "disaster_agency"
           },
           "note": "재난관리국 소속에게만 보입니다."
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 20
         }
       ]
     },
@@ -221,6 +253,13 @@
             "organization_code": "baekildream"
           },
           "note": "백일몽 소속에게만 보입니다."
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10,
+          "disasterAgencyAmount": 5
         }
       ]
     },
@@ -292,7 +331,10 @@
           "label": "낙서의 경고를 떠올리며, 전조등의 사각지대인 퍼레이드 차량 바닥의 섀시 밑바닥으로 은밀히 기어 들어간다.",
           "scope": "room",
           "next": "s22",
-          "note": "조건 분기: 폐장 안내문 뒷면 낙서 소지자만"
+          "note": "조건 분기: 폐장 안내문 뒷면 낙서 소지자만",
+          "requires": {
+            "item": "closing_notice_scribble"
+          }
         },
         {
           "label": "아이들의 행렬 뒤편에 마치 최면에 걸린 손님인 것처럼 자연스럽게 섞여 들어가며 미행을 시도한다.",
@@ -307,6 +349,13 @@
             "organization_code": "disaster_agency"
           },
           "note": "재난관리국 소속에게만 보입니다."
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10,
+          "disasterAgencyAmount": 5
         }
       ]
     },
@@ -329,6 +378,12 @@
           "scope": "room",
           "next": "s11"
         }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "duty_keys"
+        }
       ]
     },
     "s14": {
@@ -338,7 +393,13 @@
         {
           "label": "소스라치게 놀라며 손길을 뿌리치고, 탁 트여 있는 메인 퍼레이드 거리로 무작정 뛰쳐나간다. (오염도 +10 상승)",
           "scope": "room",
-          "next": "s12"
+          "next": "s12",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 10
+            }
+          ]
         },
         {
           "label": "침착하게 호흡을 유지하며 손길들의 궤적을 피해, 골목 끝에 보이는 철제 비상구 문을 밀어젖힌다.",
@@ -375,6 +436,12 @@
           "scope": "room",
           "next": "s16"
         }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "patrol_route"
+        }
       ]
     },
     "s16": {
@@ -395,7 +462,10 @@
           "label": "열쇠들 중 마스터 키를 찾아내 상단 비상 전원 함을 열고 정석대로 시스템 차단을 시도한다.",
           "scope": "room",
           "next": "s28",
-          "note": "조건 분기: 폐장일 당직자 열쇠꾸러미 소지자만"
+          "note": "조건 분기: 폐장일 당직자 열쇠꾸러미 소지자만",
+          "requires": {
+            "item": "duty_keys"
+          }
         },
         {
           "label": "위험을 감수하고 유리손포로 복잡한 제어반 메인 회로를 직접 사격하여 강제 과부하를 유도한다.",
@@ -427,6 +497,13 @@
           "scope": "room",
           "next": "s16"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 15,
+          "disasterAgencyAmount": 10
+        }
       ]
     },
     "s18": {
@@ -436,7 +513,13 @@
         {
           "label": "그들의 포위망이 좁혀지기 전, 옆에 있는 드림 양품점의 유리창을 깨고 안으로 숨는다. (오염도 +10 상승)",
           "scope": "room",
-          "next": "s21"
+          "next": "s21",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 10
+            }
+          ]
         },
         {
           "label": "탈출구가 보이지 않는 막다른 길인 롤러코스터 레일의 정비용 수동 계단 위로 거칠게 기어 올라간다.",
@@ -472,6 +555,12 @@
           "label": "주변에 아직 완전히 동화되지 않은 다른 구조 대상이 남아 있는지 수집기를 켠 채 주변을 더 탐색한다.",
           "scope": "room",
           "next": "s16"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 15
         }
       ]
     },
@@ -529,7 +618,13 @@
         {
           "label": "괴이들에게 들키기 전, 소지한 단검을 사용해 구동축에 묶인 민간인들의 가죽 끈과 사슬을 끊어내려 시도한다. (오염도 +15 상승)",
           "scope": "room",
-          "next": "s34"
+          "next": "s34",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 15
+            }
+          ]
         },
         {
           "label": "지금의 장비로는 전원 구출이 불가능하다 판단하고, 숨을 죽인 채 차량 밑바닥에 매달려 대관람차 종착지까지 미행한다.",
@@ -566,6 +661,12 @@
           "scope": "room",
           "next": "s33"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 25
+        }
       ]
     },
     "s24": {
@@ -586,6 +687,12 @@
           "label": "매대 위에 널린 마스코트 인형 더미 속으로 몸을 깊숙이 파묻어 괴이들이 지나가기를 기다린다.",
           "scope": "room",
           "next": "s33"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": -20
         }
       ]
     },
@@ -633,6 +740,12 @@
           },
           "note": "재난관리국 소속에게만 보입니다."
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 20
+        }
       ]
     },
     "s27": {
@@ -658,6 +771,12 @@
           },
           "note": "백일몽 소속에게만 보입니다."
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": -5
+        }
       ]
     },
     "s28": {
@@ -678,6 +797,12 @@
           "label": "보관함 주변의 무전기 충전 거치대 뒤편을 뒤져 또 다른 비상 물품이 있는지 수색한다.",
           "scope": "room",
           "next": "s29"
+        }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "bongmun_bullet"
         }
       ]
     },
@@ -702,7 +827,20 @@
           "requires": {
             "organization_code": "disaster_agency"
           },
-          "note": "재난관리국 소속에게만 보입니다."
+          "note": "재난관리국 소속에게만 보입니다.",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 10
+            }
+          ]
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10,
+          "disasterAgencyAmount": 5
         }
       ]
     },
@@ -746,6 +884,13 @@
           "scope": "room",
           "next": "s44"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 15,
+          "disasterAgencyAmount": 10
+        }
       ]
     },
     "s32": {
@@ -766,6 +911,12 @@
           "label": "창고 내부의 철제 선반들을 밀어 퍼레이드 거리로 곧바로 이어지는 정비용 통로를 확보한다.",
           "scope": "room",
           "next": "s33"
+        }
+      ],
+      "effects": [
+        {
+          "type": "add_item",
+          "itemId": "nakhwa_flare"
         }
       ]
     },
@@ -817,6 +968,12 @@
           "scope": "room",
           "next": "s35"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 20
+        }
       ]
     },
     "s35": {
@@ -860,12 +1017,24 @@
           "requires": {
             "organization_code": "baekildream"
           },
-          "note": "백일몽 소속에게만 보입니다."
+          "note": "백일몽 소속에게만 보입니다.",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 15
+            }
+          ]
         },
         {
           "label": "전선이 끊긴 제어반 내부에서 혹시 모를 대관람차의 수동 비상 작동 레버를 찾아 더 깊숙이 수색한다.",
           "scope": "room",
           "next": "s47"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 10
         }
       ]
     },
@@ -883,6 +1052,12 @@
           "scope": "room",
           "next": "s54"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 25
+        }
       ]
     },
     "s38": {
@@ -897,7 +1072,13 @@
         {
           "label": "마지막 이성을 짜내어, 소지한 장비의 날카로운 끝으로 민간인들의 살점을 찢어내더라도 손목띠를 강제로 끊어내려 시도한다. (오염도 +20 상승)",
           "scope": "room",
-          "next": "s54"
+          "next": "s54",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 20
+            }
+          ]
         },
         {
           "label": "자아를 잃어버린 민간인들의 머리맡에서 흘러나오는 황금빛 자아 상실의 잔여 꿈결을 수집기에 고스란히 정산해 넣는다.",
@@ -924,6 +1105,12 @@
           "scope": "room",
           "next": "s40"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 20
+        }
       ]
     },
     "s40": {
@@ -939,6 +1126,12 @@
           "label": "기계실 대신 대관람차 뒤편의 무성하게 우거진 폐수풀 더미를 통과해 광장 외곽으로 우회한다.",
           "scope": "room",
           "next": "s42"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": -5
         }
       ]
     },
@@ -975,12 +1168,18 @@
           "label": "도면에 표시된 안전 배수구 경로임을 확신하고, 맨홀 뚜껑을 열어 어두운 지하 통로로 진입한다.",
           "scope": "room",
           "next": "s46",
-          "note": "조건 분기: 시설팀 야간순찰 동선표 소지자만"
+          "note": "조건 분기: 시설팀 야간순찰 동선표 소지자만",
+          "requires": {
+            "item": "patrol_route"
+          }
         },
         {
           "label": "동선표가 없다. 내부의 오염도를 장담할 수 없으므로 맨홀을 포기하고 다시 광장 중앙의 기계실로 향한다.",
           "scope": "room",
-          "next": "s43"
+          "next": "s43",
+          "requires": {
+            "not_item": "patrol_route"
+          }
         }
       ]
     },
@@ -1009,7 +1208,13 @@
           "requires": {
             "organization_code": "baekildream"
           },
-          "note": "백일몽 소속에게만 보입니다."
+          "note": "백일몽 소속에게만 보입니다.",
+          "effects": [
+            {
+              "type": "pollution",
+              "amount": 20
+            }
+          ]
         }
       ]
     },
@@ -1026,6 +1231,12 @@
           "label": "정신을 잃지 않기 위해 입술을 깨물며, 캡슐 의자 밑바닥에 숨겨진 수동 비상 해치 도어를 찾아 개방하려 시도한다.",
           "scope": "room",
           "next": "s41"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 15
         }
       ]
     },
@@ -1067,7 +1278,10 @@
           "label": "도면에 기록된 '비상 탈출용 수동 개폐 셔터'의 위치를 확인하고 그 방향의 콘크리트 벽면을 더듬는다.",
           "scope": "room",
           "next": "s52",
-          "note": "조건 분기: 시설팀 야간순찰 동선표 소지자만"
+          "note": "조건 분기: 시설팀 야간순찰 동선표 소지자만",
+          "requires": {
+            "item": "patrol_route"
+          }
         },
         {
           "label": "배수구 천장의 낡은 점검구를 통해 사나이의 바로 아래쪽 기계실 바닥으로 침착하게 기어 올라간다.",
@@ -1096,6 +1310,13 @@
           "scope": "room",
           "next": "s46"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 15,
+          "disasterAgencyAmount": 10
+        }
       ]
     },
     "s48": {
@@ -1112,6 +1333,12 @@
           "scope": "room",
           "next": "s46"
         }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 20
+        }
       ]
     },
     "s49": {
@@ -1122,7 +1349,10 @@
           "label": "무너지는 사나이의 잔해 위에 봉문탄을 추가로 신속하게 격발하여, 드림랜드 전체의 초자연적 출입구를 영구히 폐쇄한다.",
           "scope": "room",
           "next": "s53",
-          "note": "조건 분기: 봉문탄(封門彈) 소지자 전용"
+          "note": "조건 분기: 봉문탄(封門彈) 소지자 전용",
+          "requires": {
+            "item": "bongmun_bullet"
+          }
         },
         {
           "label": "사나이가 무력화된 틈을 타, 주위에 홀려 있던 민간인들의 손을 잡고 광장 외곽의 푸른 비상구 유도등 쪽으로 전력 질주한다.",
@@ -1138,12 +1368,21 @@
         {
           "label": "[만약 현재 누적 오염도가 100 이상이라면] 더는 저항할 아집조차 남아있지 않다. 사나이의 행렬 뒤편으로 순순히 걸어가 줄을 선다.",
           "scope": "room",
-          "next": "s60"
+          "next": "s60",
+          "requires": {
+            "min_pollution": 100
+          }
         },
         {
           "label": "마지막 남은 의지력으로 바닥을 기어, 사나이의 다리 사이를 통과해 바로 뒤편의 지하 배수구 맨홀 안으로 몸을 떨어뜨린다.",
           "scope": "room",
           "next": "s46"
+        }
+      ],
+      "effects": [
+        {
+          "type": "pollution",
+          "amount": 30
         }
       ]
     },
@@ -1154,7 +1393,10 @@
         {
           "label": "[만약 현재 누적 오염도가 100 이상이라면] 문고리를 잡으려는 순간, 전신이 석상처럼 굳어버린다.",
           "scope": "room",
-          "next": "s60"
+          "next": "s60",
+          "requires": {
+            "min_pollution": 100
+          }
         },
         {
           "label": "[만약 민간인을 구출하지 못했고 혼자 살아남았다면] 문을 밀어젖히고 차가운 새벽의 현실 도로 위로 걸어 나간다.",
@@ -1170,12 +1412,18 @@
         {
           "label": "[만약 현재 누적 오염도가 100 미만이라면] 셔터 너머의 흙바닥을 딛고 드림랜드의 영역 밖으로 신속하게 빠져나간다.",
           "scope": "room",
-          "next": "s56"
+          "next": "s56",
+          "requires": {
+            "max_pollution": 99
+          }
         },
         {
           "label": "[만약 현재 누적 오염도가 100 이상이라면] 셔터 너머의 풍경이 놀이공원 내부로 왜곡되어 보이기 시작한다.",
           "scope": "room",
-          "next": "s60"
+          "next": "s60",
+          "requires": {
+            "min_pollution": 100
+          }
         }
       ]
     },
@@ -1282,6 +1530,38 @@
           "next": "s3"
         }
       ]
+    }
+  },
+  "itemCatalog": {
+    "uninvited_wristband": {
+      "name": "초대받지 않은 손목띠",
+      "type": "clue",
+      "detail": "찐득한 인혈이 묻은 낡은 비닐 손목띠. 손님으로 인정받기 위한 입장권처럼 건네졌지만, 손목에 닿는 순간 드림랜드의 규칙 안으로 편입되는 느낌이 든다."
+    },
+    "closing_notice_scribble": {
+      "name": "폐장 안내문 뒷면 낙서",
+      "type": "clue",
+      "detail": "안전 점검으로 인한 휴장 안내문 뒤편에 갈겨쓴 낙서. “그 사나이의 퍼레이드가 시작되면 절대 아이들의 손을 잡지 마라. 행렬 뒤에 서는 순간 근무 기록이 말소된다. 살고 싶다면 회전목마의 제어실 전원을...”"
+    },
+    "duty_keys": {
+      "name": "폐장일 당직자 열쇠꾸러미",
+      "type": "clue",
+      "detail": "폐장일 당직자가 남긴 것으로 보이는 녹슨 열쇠꾸러미. 마스터 키처럼 보이는 열쇠가 섞여 있고, 회전목마 제어실의 비상 전원함을 열 수 있을지도 모른다."
+    },
+    "patrol_route": {
+      "name": "시설팀 야간순찰 동선표",
+      "type": "clue",
+      "detail": "물때와 곰팡이에 절은 시설팀 야간순찰 동선표. 대관람차 밑바닥으로 이어지는 지하 배수구 경로와 직원 전용 대피로가 흐릿한 붉은 펜으로 표시되어 있다."
+    },
+    "bongmun_bullet": {
+      "name": "봉문탄(封門彈)",
+      "type": "item",
+      "detail": "재난관리국 요원용 특수 탄환. 비현실 통로를 봉쇄하기 위해 주조된 탄환으로, 드림랜드 전체의 초자연적 출입구를 영구히 닫는 데 쓰일 수 있다."
+    },
+    "nakhwa_flare": {
+      "name": "낙화탄(落花彈)",
+      "type": "item",
+      "detail": "행렬 교란용 특수 조명탄. 괴담 특유의 행렬성을 다른 초자연적 방향성으로 착각시켜, 순간적으로 시선을 흩뜨리는 화약 장비."
     }
   }
 }

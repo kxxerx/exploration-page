@@ -1,4 +1,4 @@
-// exploration-site: v1.0 party comments and disaster001
+// exploration-site: v1.1 inventory conditions solo-test
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -46,6 +46,7 @@ let heartbeatTimer = null;
 let cleanupTimer = null;
 let currentPartyDetailId = null;
 let currentAccessToken = null;
+const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001", "/test disaster001", "/test disaster-001"]);
 
 function safeText(value) {
   return String(value ?? "")
@@ -64,6 +65,129 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return date.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function getStateJson() {
+  return currentState?.state_json && typeof currentState.state_json === "object" ? currentState.state_json : {};
+}
+
+function getScenario() {
+  return currentRoom ? scenarioCache.get(currentRoom.scenario_id) : null;
+}
+
+function normalizeItemId(value) {
+  return String(value || "").trim();
+}
+
+function getItemCatalog() {
+  return getScenario()?.itemCatalog || {};
+}
+
+function getItemMeta(itemId) {
+  const catalog = getItemCatalog();
+  return catalog?.[itemId] || { name: itemId, type: "item", detail: "아직 상세 설명이 등록되지 않았습니다." };
+}
+
+function getRoomInventoryMap() {
+  const inv = getStateJson().roomInventory || {};
+  return inv && typeof inv === "object" ? inv : {};
+}
+
+function hasRoomItem(itemId) {
+  const id = normalizeItemId(itemId);
+  return !!id && Number(getRoomInventoryMap()[id]?.quantity || 0) > 0;
+}
+
+function getMemberMetric(member) {
+  const state = getStateJson();
+  const metrics = state.memberMetrics || {};
+  const saved = member?.user_id ? metrics[member.user_id] : null;
+  const basePollution = Number(member?.pollution_snapshot ?? currentProfile?.pollution ?? 0);
+  const baseMask = Number(member?.mask_collapse_rate_snapshot ?? currentProfile?.mask_collapse_rate ?? 0);
+  return {
+    pollution: Number(saved?.pollution ?? basePollution),
+    mask_collapse_rate: Number(saved?.mask_collapse_rate ?? baseMask)
+  };
+}
+
+function getMyMetric() {
+  return getMemberMetric(getMyMemberSnapshot());
+}
+
+function cleanEffectText(text = "") {
+  return String(text)
+    .replace(/\n?\[획득\/변화\][\s\S]*?(?=\n\n|$)/g, "")
+    .trim();
+}
+
+function cleanChoiceLabel(label = "") {
+  return String(label)
+    .replace(/^\[만약 현재 누적 오염도가 [^\]]+\]\s*/g, "")
+    .replace(/\s*\(오염도 [^)]+\)/g, "")
+    .replace(/\s*\(효과: [^)]+\)/g, "")
+    .trim();
+}
+
+function clampMetric(value) {
+  return Math.max(0, Math.min(100, Number(value || 0)));
+}
+
+function buildMetricBar(value, variant = "pollution") {
+  const pct = clampMetric(value);
+  let level = "낮음";
+  if (pct >= 70) level = "위험";
+  else if (pct >= 40) level = "주의";
+  return `<div class="metric-bar ${variant}" title="${level}"><span style="width:${pct}%"></span></div><span class="metric-state">${level}</span>`;
+}
+
+function isSoloBlocked() {
+  const activeCount = currentMembers.filter((member) => !member.left_at).length;
+  return activeCount < 2 && !getStateJson().soloTestMode;
+}
+
+function buildStatePatchForEffects(effects = []) {
+  const state = getStateJson();
+  const inventory = { ...(state.roomInventory || {}) };
+  const metrics = { ...(state.memberMetrics || {}) };
+  const myMember = getMyMemberSnapshot();
+  const myId = currentProfile?.id;
+  const myMetric = { ...getMyMetric() };
+  const logs = [];
+
+  for (const effect of effects || []) {
+    if (effect.type === "add_item" && effect.itemId) {
+      const itemId = normalizeItemId(effect.itemId);
+      const meta = getItemMeta(itemId);
+      inventory[itemId] = {
+        itemId,
+        name: meta.name || itemId,
+        type: meta.type || "item",
+        quantity: Number(inventory[itemId]?.quantity || 0) + Number(effect.quantity || 1),
+        acquiredAt: new Date().toISOString()
+      };
+      logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
+    }
+    if (effect.type === "pollution") {
+      const org = myMember?.organization_code_snapshot || currentProfile?.organization_code;
+      const delta = org === "disaster_agency" && effect.disasterAgencyAmount != null ? Number(effect.disasterAgencyAmount) : Number(effect.amount || 0);
+      myMetric.pollution = clampMetric(Number(myMetric.pollution || 0) + delta);
+      logs.push(delta >= 0 ? "오염 반응이 상승했습니다." : "오염 반응이 가라앉았습니다.");
+    }
+    if (effect.type === "mask_collapse") {
+      const delta = Number(effect.amount || 0);
+      myMetric.mask_collapse_rate = clampMetric(Number(myMetric.mask_collapse_rate || 0) + delta);
+      logs.push("동기화 반응이 변했습니다.");
+    }
+  }
+
+  if (myId) metrics[myId] = { ...(metrics[myId] || {}), ...myMetric };
+  const patch = { roomInventory: inventory, memberMetrics: metrics };
+  if (logs.length) patch.lastEffectLog = logs;
+  return patch;
+}
+
+function mergePatches(...patches) {
+  return Object.assign({}, ...patches.filter(Boolean));
 }
 
 function metricLabel(profile) {
@@ -98,6 +222,7 @@ function showLoggedOutView() {
 }
 
 function showLoggedInLounge() {
+  document.body.classList.remove("in-room");
   setVisible("#loginPanel", false);
   setVisible("#appPanel", true);
   setVisible("#mainNav", true);
@@ -297,7 +422,10 @@ function renderRoomList() {
           <div class="room-title-line"><strong>${safeText(room.title || "이름 없는 탐사방")}</strong>${badges}</div>
           <div class="room-meta">${safeText(scenario?.title || room.scenario_id)} · ${Number(room.current_players || 0)}/${Number(room.max_players || 0)}명 · ${formatDate(room.created_at)}</div>
         </div>
-        <button type="button" data-join-public-room="${safeAttr(room.id)}" ${disabled ? "disabled" : ""}>${disabled ? disabledReason : "입장"}</button>
+        <div class="room-card-actions">
+          <button type="button" data-join-public-room="${safeAttr(room.id)}" ${disabled ? "disabled" : ""}>${disabled ? disabledReason : "입장"}</button>
+          ${currentProfile?.role === "admin" ? `<button type="button" class="ghost-button danger" data-admin-delete-room="${safeAttr(room.id)}">삭제</button>` : ""}
+        </div>
       </article>
     `;
   }).join("");
@@ -349,16 +477,17 @@ function renderPartyPosts() {
     ) : "";
     return `
       <article class="party-item ${isClosed ? "is-disabled" : ""}">
-        <div>
-          <div class="room-title-line"><strong>${safeText(post.title || "익명 모집")}</strong>${statusBadge}</div>
-          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
-          <p class="small muted">${safeText(post.content || "내용 없음")}</p>
-        </div>
-        <div class="party-actions">
+        <header class="party-item-head">
+          <strong>${safeText(post.title || "익명 모집")}</strong>
+          ${statusBadge}
+        </header>
+        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+        <p class="party-item-content">${safeText(post.content || "내용 없음")}</p>
+        <footer class="party-actions">
           <button type="button" class="ghost-button" data-detail-party="${safeAttr(post.id)}">자세히 보기</button>
           ${applicantButtons}
           ${ownerButtons}
-        </div>
+        </footer>
       </article>
     `;
   }).join("");
@@ -526,6 +655,7 @@ async function loadMyRooms() {
 }
 
 async function openRoom(roomId) {
+  document.body.classList.add("in-room");
   await closeRealtime();
   setVisible("#loginPanel", false);
   setVisible("#appPanel", false);
@@ -540,7 +670,7 @@ async function openRoom(roomId) {
 async function cleanupStaleRooms() {
   if (!currentProfile) return;
   try {
-    await supabase.rpc("cleanup_stale_exploration_rooms", { p_stale_minutes: 180 });
+    await supabase.rpc("cleanup_stale_exploration_rooms", { p_stale_minutes: 60 });
   } catch (_) {
     // 정리 실패는 사용자 흐름을 막지 않는다.
   }
@@ -645,20 +775,24 @@ function getMyMemberSnapshot() {
 
 function conditionMatches(condition = {}) {
   const member = getMyMemberSnapshot();
+  const metric = getMyMetric();
   const context = {
     character_key: member?.character_key_snapshot ?? currentProfile?.character_key,
     organization_code: member?.organization_code_snapshot ?? currentProfile?.organization_code,
     department_code: member?.department_code_snapshot ?? currentProfile?.department_code,
     affiliation_label: member?.affiliation_label_snapshot ?? currentProfile?.affiliation_label,
     visitor_type: member?.visitor_type_snapshot ?? currentProfile?.visitor_type,
-    pollution: member?.pollution_snapshot ?? currentProfile?.pollution ?? 0,
-    mask_collapse_rate: member?.mask_collapse_rate_snapshot ?? currentProfile?.mask_collapse_rate ?? 0
+    pollution: metric.pollution,
+    mask_collapse_rate: metric.mask_collapse_rate
   };
 
-  return Object.entries(condition).every(([key, expected]) => {
+  return Object.entries(condition || {}).every(([key, expected]) => {
     if (key === "min_pollution") return Number(context.pollution || 0) >= Number(expected);
     if (key === "max_pollution") return Number(context.pollution || 0) <= Number(expected);
     if (key === "min_mask_collapse_rate") return Number(context.mask_collapse_rate || 0) >= Number(expected);
+    if (key === "item") return hasRoomItem(expected);
+    if (key === "not_item") return !hasRoomItem(expected);
+    if (key === "items") return (expected || []).every((itemId) => hasRoomItem(itemId));
     if (Array.isArray(expected)) return expected.includes(context[key]);
     return context[key] === expected;
   });
@@ -697,21 +831,34 @@ async function renderRoom() {
     .filter((block) => conditionMatches(block.condition || {}))
     .map((block) => `<div class="story-private">${safeText(block.text || "")}</div>`)
     .join("");
-  qs("#storyText").innerHTML = `${safeText(section.commonText || "")}${privateBlocks}`;
+  qs("#storyText").innerHTML = `${safeText(cleanEffectText(section.commonText || ""))}${privateBlocks}`;
+  const effectBox = qs("#sectionEffectLog");
+  const logs = getStateJson().lastEffectLog || [];
+  if (effectBox && logs.length) {
+    effectBox.hidden = false;
+    effectBox.innerHTML = logs.map((line) => `<span>${safeText(line)}</span>`).join("");
+  } else if (effectBox) {
+    effectBox.hidden = true;
+    effectBox.innerHTML = "";
+  }
+  renderRoomInventory();
 
   const choices = (section.choices || []).filter((choice) => !choice.requires || conditionMatches(choice.requires));
+  const soloBlocked = isSoloBlocked();
   if (!choices.length) {
     const ending = section.ending ? `<p class="small muted">엔딩 타입: ${safeText(section.ending.type || "-")}. 자동 정산은 아직 연결하지 않았습니다.</p>` : "";
     qs("#choiceList").innerHTML = `<div class="message">선택지가 없습니다. ${ending}</div>`;
     return;
   }
 
-  qs("#choiceList").innerHTML = choices.map((choice, index) => `
-    <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""}" data-choice-index="${index}">
-      ${safeText(choice.label)}
-      ${choice.note ? `<span class="choice-note">${safeText(choice.note)}</span>` : ""}
-    </button>
-  `).join("");
+  qs("#choiceList").innerHTML = `
+    ${soloBlocked ? `<div class="message subtle">혼자서는 진행할 수 없습니다. 테스트가 필요하면 대화창에 <strong>/테스트 재난001</strong> 을 입력하세요.</div>` : ""}
+    ${choices.map((choice, index) => `
+      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""}" data-choice-index="${index}" ${soloBlocked ? "disabled" : ""}>
+        ${safeText(cleanChoiceLabel(choice.label))}
+      </button>
+    `).join("")}
+  `;
 
   qs("#choiceList").querySelectorAll("[data-choice-index]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -728,13 +875,52 @@ function renderMembers() {
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = currentMembers.map((member) => `
-    <div class="member-item">
-      <strong>${safeText(member.display_name_snapshot || "익명")}</strong>
-      <span class="small muted">${safeText(member.affiliation_label_snapshot || "소속 미지정")} · ${safeText(member.role)}</span><br>
-      <span class="small muted">${safeText(VISITOR_LABELS[member.visitor_type_snapshot] || member.visitor_type_snapshot || "일반")}</span>
-    </div>
-  `).join("");
+  box.innerHTML = currentMembers.map((member) => {
+    const metric = getMemberMetric(member);
+    const isEntity = member.visitor_type_snapshot === "entity";
+    return `
+      <div class="member-item">
+        <strong>${safeText(member.display_name_snapshot || "익명")}</strong>
+        <span class="small muted">${safeText(member.affiliation_label_snapshot || "소속 미지정")} · ${safeText(member.role)}</span>
+        <div class="member-metric-row">
+          <span>${isEntity ? "동기화" : "오염"}</span>
+          ${buildMetricBar(isEntity ? metric.mask_collapse_rate : metric.pollution, isEntity ? "sync" : "pollution")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderRoomInventory() {
+  const box = qs("#roomInventoryList");
+  if (!box) return;
+  const inventory = getRoomInventoryMap();
+  const entries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0);
+  if (!entries.length) {
+    box.textContent = "아직 획득한 단서나 아이템이 없습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = entries.map((item) => {
+    const meta = getItemMeta(item.itemId);
+    return `
+      <button type="button" class="room-inventory-item" data-room-item="${safeAttr(item.itemId)}">
+        <strong>${safeText(meta.name || item.name || item.itemId)}</strong>
+        <span>${safeText(meta.type === "clue" ? "단서" : "아이템")} · ×${Number(item.quantity || 1)}</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function openRoomItemDetail(itemId) {
+  const meta = getItemMeta(itemId);
+  qs("#inventoryDetailBody").innerHTML = `
+    <p class="kicker">${safeText(meta.type === "clue" ? "Clue" : "Item")}</p>
+    <h2>${safeText(meta.name || itemId)}</h2>
+    <div class="party-detail-content">${safeText(meta.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
+  `;
+  openModal("#inventoryDetailModal");
 }
 
 function renderMessages() {
@@ -760,11 +946,18 @@ function renderMessages() {
 
 async function chooseNext(choice) {
   if (!choice?.next || !currentRoom) return;
+  if (isSoloBlocked()) {
+    showMessage("혼자서는 진행할 수 없습니다. 테스트가 필요하면 대화창에 /테스트 재난001 을 입력하세요.", "error");
+    return;
+  }
+  const scenario = await loadScenario(currentRoom.scenario_id);
+  const nextSection = scenario.sections?.[choice.next];
+  const effectPatch = buildStatePatchForEffects([...(choice.effects || []), ...((nextSection?.effects) || [])]);
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
     p_next_section_key: choice.next,
-    p_choice_label: choice.label || null,
-    p_state_patch: choice.setState || {}
+    p_choice_label: cleanChoiceLabel(choice.label || ""),
+    p_state_patch: mergePatches(choice.setState || {}, effectPatch)
   });
   if (error) {
     showMessage(error.message, "error");
@@ -1052,9 +1245,19 @@ qs("#resumeRoomForm")?.addEventListener("submit", async (event) => {
 
 
 qs("#roomList")?.addEventListener("click", async (event) => {
+  const adminDelete = event.target.closest("[data-admin-delete-room]");
   const button = event.target.closest("[data-join-public-room]");
-  if (!button || button.disabled) return;
   try {
+    if (adminDelete) {
+      const ok = window.confirm("이 탐사방을 관리자 권한으로 삭제할까요? 채팅과 진행 상태도 함께 삭제됩니다.");
+      if (!ok) return;
+      const { error } = await supabase.rpc("admin_delete_exploration_room", { p_room_id: adminDelete.dataset.adminDeleteRoom });
+      if (error) throw error;
+      await Promise.all([loadRoomList(), loadMyRooms()]);
+      showMessage("관리자 권한으로 탐사방을 삭제했습니다.", "success");
+      return;
+    }
+    if (!button || button.disabled) return;
     await joinPublicRoomById(button.dataset.joinPublicRoom);
   } catch (error) {
     showMessage(error.message, "error");
@@ -1307,6 +1510,19 @@ qs("#downloadSave")?.addEventListener("click", downloadSave);
 qs("#downloadChat")?.addEventListener("click", downloadChat);
 qs("#clearChat")?.addEventListener("click", clearChat);
 
+async function enableSoloTestMode() {
+  if (!currentRoom || !currentState) return;
+  const state = getStateJson();
+  const { error } = await supabase.rpc("advance_exploration_room", {
+    p_room_id: currentRoom.id,
+    p_next_section_key: currentState.current_section_key,
+    p_choice_label: "테스트 진행 코드 입력",
+    p_state_patch: { soloTestMode: true, soloTestEnabledBy: currentProfile?.id || null }
+  });
+  if (error) throw error;
+  await loadRoomBundle(currentRoom.id, { silent: true });
+}
+
 qs("#chatForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const input = qs("#chatInput");
@@ -1314,10 +1530,21 @@ qs("#chatForm")?.addEventListener("submit", async (event) => {
   if (!content) return;
   input.value = "";
   try {
+    if (SOLO_TEST_CODES.has(content.toLowerCase()) || SOLO_TEST_CODES.has(content)) {
+      await enableSoloTestMode();
+      showMessage("혼자 테스트 진행을 허용했습니다.", "success");
+      return;
+    }
     await postChat(content);
   } catch (error) {
     showMessage(error.message, "error");
   }
+});
+
+qs("#roomInventoryList")?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-room-item]");
+  if (!button) return;
+  openRoomItemDetail(button.dataset.roomItem);
 });
 
 

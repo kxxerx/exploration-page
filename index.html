@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v1.0 party comments and disaster001 -->
+  <!-- pollution-exploration-standalone: v1.1 inventory conditions solo-test -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>탐사 홈페이지</title>
@@ -129,28 +129,41 @@
         </div>
       </div>
 
-      <div class="room-grid">
-        <aside class="participant-card">
-          <h3>참가자</h3>
-          <div id="memberList" class="member-list muted">불러오는 중...</div>
-        </aside>
+      <p class="room-warning">이 페이지를 벗어나면 탐사방에서 나가며, 마지막 참가자라면 방이 삭제될 수 있습니다. 진행을 보존하려면 저장파일을 먼저 내려받으세요.</p>
 
-        <section class="story-card">
+      <div class="live-room-grid">
+        <section class="story-card live-story-card">
           <div id="scenarioImage" class="scenario-image" hidden></div>
           <div id="scenarioTitle" class="scenario-title"></div>
           <h3 id="sectionTitle">현재 섹션</h3>
           <div id="storyText" class="story-text"></div>
+          <div id="sectionEffectLog" class="section-effect-log" hidden></div>
           <div id="choiceList" class="choice-list"></div>
         </section>
 
-        <aside class="chat-card">
+        <aside class="live-side-stack">
+          <section class="participant-card">
+            <h3>참가자</h3>
+            <div id="memberList" class="member-list muted">불러오는 중...</div>
+          </section>
+
+          <section class="room-inventory-card">
+            <div class="side-card-head">
+              <h3>탐사 인벤토리</h3>
+              <button id="refreshRoomInventory" type="button" class="mini-button">갱신</button>
+            </div>
+            <div id="roomInventoryList" class="room-inventory-list muted">아직 획득한 단서나 아이템이 없습니다.</div>
+          </section>
+        </aside>
+
+        <section class="chat-card live-chat-card">
           <h3>대화</h3>
           <div id="chatLog" class="chat-log muted">채팅을 불러오는 중...</div>
           <form id="chatForm" class="chat-form">
-            <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력" autocomplete="off">
+            <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력 · 혼자 테스트는 /테스트 재난001" autocomplete="off">
             <button type="submit">전송</button>
           </form>
-        </aside>
+        </section>
       </div>
     </section>
   </main>
@@ -322,6 +335,11 @@
       </label>
       <button type="submit" class="primary-action">설정 저장</button>
     </form>
+  </dialog>
+
+  <dialog id="inventoryDetailModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <div id="inventoryDetailBody"></div>
   </dialog>
 
   <script type="module" src="js/exploration.js"></script>
