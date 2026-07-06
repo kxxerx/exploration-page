@@ -214,7 +214,57 @@
       <label>모집 내용
         <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기를 적어줘."></textarea>
       </label>
-      <button type="submit" class="primary-action">익명으로 올리기</button>
+      <button type="submit" class="primary-action">모집글 올리기</button>
+    </form>
+  </dialog>
+
+
+  <dialog id="editPartyModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>모집글 수정</h2>
+    <form id="editPartyForm" class="stacked-form">
+      <input id="editPartyId" type="hidden">
+      <label>모집 제목
+        <input id="editPartyTitle" type="text" maxlength="80" required>
+      </label>
+      <label>희망 시나리오
+        <select id="editPartyScenarioSelect"></select>
+      </label>
+      <label>희망 시간
+        <input id="editPartyTime" type="text" maxlength="80">
+      </label>
+      <label>모집 내용
+        <textarea id="editPartyContent" rows="5" maxlength="600"></textarea>
+      </label>
+      <button type="submit" class="primary-action">수정 저장</button>
+    </form>
+  </dialog>
+
+  <dialog id="partyRoomModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>모집 인원으로 방 만들기</h2>
+    <form id="partyRoomForm" class="stacked-form">
+      <input id="partyRoomPostId" type="hidden">
+      <label>방 제목
+        <input id="partyRoomTitle" type="text" maxlength="80" required>
+      </label>
+      <label>최대 인원
+        <select id="partyRoomMaxPlayers">
+          <option value="2">2명</option>
+          <option value="3">3명</option>
+          <option value="4">4명</option>
+        </select>
+      </label>
+      <label>공개 여부
+        <select id="partyRoomVisibility">
+          <option value="private">비공개</option>
+          <option value="public">공개</option>
+        </select>
+      </label>
+      <label id="partyRoomPasswordField">비공개 비밀번호 <span class="small muted">숫자만</span>
+        <input id="partyRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      </label>
+      <button type="submit" class="primary-action">방 만들고 모집 완료</button>
     </form>
   </dialog>
 

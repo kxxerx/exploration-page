@@ -41,6 +41,8 @@ let roomListCache = [];
 let partyListCache = [];
 let realtimeChannel = null;
 let fallbackPollTimer = null;
+let heartbeatTimer = null;
+let cleanupTimer = null;
 
 function safeText(value) {
   return String(value ?? "")
@@ -163,6 +165,7 @@ async function loadProfile() {
   }
   renderProfile(profile);
   await loadInventory();
+  startCleanupTimer();
   showLoggedInLounge();
   return profile;
 }
@@ -233,7 +236,7 @@ async function loadScenarioList() {
 }
 
 function renderScenarioSelect() {
-  const selects = [qs("#scenarioSelect"), qs("#partyScenarioSelect")].filter(Boolean);
+  const selects = [qs("#scenarioSelect"), qs("#partyScenarioSelect"), qs("#editPartyScenarioSelect")].filter(Boolean);
   selects.forEach((select) => {
     select.innerHTML = "";
     scenarioList.forEach((scenario) => {
@@ -252,6 +255,7 @@ async function loadRoomList() {
   box.textContent = "탐사방을 불러오는 중...";
   box.classList.add("muted");
 
+  await cleanupStaleRooms();
   const { data, error } = await supabase.rpc("list_exploration_rooms");
   if (error) {
     box.textContent = `탐사방 목록을 불러오지 못했습니다: ${error.message}`;
@@ -320,12 +324,33 @@ function renderPartyPosts() {
   box.classList.remove("muted");
   box.innerHTML = partyListCache.map((post) => {
     const scenario = scenarioList.find((item) => item.id === post.scenario_id);
+    const isCreator = !!post.is_creator;
+    const isClosed = post.status === "closed";
+    const hasApplied = !!post.has_applied;
+    const count = Number(post.applicant_count || 0);
+    const statusBadge = isClosed
+      ? `<span class="badge full">모집 완료</span>`
+      : `<span class="badge public">모집 중</span>`;
+    const ownerButtons = isCreator ? `
+      <button type="button" class="ghost-button" data-edit-party="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>수정</button>
+      <button type="button" class="ghost-button danger" data-delete-party="${safeAttr(post.id)}">삭제</button>
+      <button type="button" class="secondary-action" data-party-room="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>방 만들기</button>
+    ` : "";
+    const applicantButtons = !isCreator && !isClosed ? (
+      hasApplied
+        ? `<button type="button" class="ghost-button" data-cancel-party="${safeAttr(post.id)}">참여 취소</button>`
+        : `<button type="button" class="primary-action" data-apply-party="${safeAttr(post.id)}">참여 의사</button>`
+    ) : "";
     return `
-      <article class="party-item">
+      <article class="party-item ${isClosed ? "is-disabled" : ""}">
         <div>
-          <div class="room-title-line"><strong>${safeText(post.title || "익명 모집")}</strong><span class="badge">${safeText(post.anonymous_name || "익명 탐사자")}</span></div>
-          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · ${formatDate(post.created_at)}</div>
+          <div class="room-title-line"><strong>${safeText(post.title || "익명 모집")}</strong>${statusBadge}</div>
+          <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명</div>
           <p class="small muted">${safeText(post.content || "내용 없음")}</p>
+        </div>
+        <div class="party-actions">
+          ${applicantButtons}
+          ${ownerButtons}
         </div>
       </article>
     `;
@@ -441,7 +466,48 @@ async function openRoom(roomId) {
   setVisible("#roomPanel", true);
   await loadRoomBundle(roomId);
   setupRealtime(roomId);
+  startHeartbeat(roomId);
   qs("#roomPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+
+async function cleanupStaleRooms() {
+  if (!currentProfile) return;
+  try {
+    await supabase.rpc("cleanup_stale_exploration_rooms", { p_stale_minutes: 180 });
+  } catch (_) {
+    // 정리 실패는 사용자 흐름을 막지 않는다.
+  }
+}
+
+async function heartbeatRoom() {
+  if (!currentRoom?.id) return;
+  try {
+    await supabase.rpc("heartbeat_exploration_room", { p_room_id: currentRoom.id });
+  } catch (_) {
+    // 탭 생존 신호라 조용히 실패 처리한다.
+  }
+}
+
+function startHeartbeat(roomId) {
+  stopHeartbeat();
+  if (!roomId) return;
+  heartbeatRoom();
+  heartbeatTimer = window.setInterval(heartbeatRoom, 30000);
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+  heartbeatTimer = null;
+}
+
+function startCleanupTimer() {
+  if (cleanupTimer) return;
+  cleanupStaleRooms();
+  cleanupTimer = window.setInterval(async () => {
+    await cleanupStaleRooms();
+    if (currentProfile && !currentRoom) await loadRoomList();
+  }, 5 * 60 * 1000);
 }
 
 async function loadRoomBundle(roomId, options = {}) {
@@ -736,6 +802,7 @@ async function leaveCurrentRoom() {
   if (!ok) return;
   const roomId = currentRoom.id;
   await closeRealtime();
+  stopHeartbeat();
   const { data, error } = await supabase.rpc("leave_exploration_room", { p_room_id: roomId });
   if (error) throw error;
   currentRoom = null;
@@ -851,6 +918,7 @@ qs("#openResumeRoomModal")?.addEventListener("click", () => openModal("#resumeRo
 
 qs("#logoutButton")?.addEventListener("click", async () => {
   await closeRealtime();
+  stopHeartbeat();
   await supabase.auth.signOut();
   location.href = "index.html";
 });
@@ -939,6 +1007,113 @@ qs("#createPartyForm")?.addEventListener("submit", async (event) => {
   }
 });
 
+
+qs("#partyList")?.addEventListener("click", async (event) => {
+  const applyButton = event.target.closest("[data-apply-party]");
+  const cancelButton = event.target.closest("[data-cancel-party]");
+  const editButton = event.target.closest("[data-edit-party]");
+  const deleteButton = event.target.closest("[data-delete-party]");
+  const roomButton = event.target.closest("[data-party-room]");
+  try {
+    if (applyButton) {
+      const { error } = await supabase.rpc("apply_exploration_party_post", { p_post_id: applyButton.dataset.applyParty, p_message: null });
+      if (error) throw error;
+      await loadPartyPosts();
+      showMessage("참여 의사를 보냈습니다.", "success");
+      return;
+    }
+    if (cancelButton) {
+      const { error } = await supabase.rpc("cancel_exploration_party_application", { p_post_id: cancelButton.dataset.cancelParty });
+      if (error) throw error;
+      await loadPartyPosts();
+      showMessage("참여 의사를 취소했습니다.", "success");
+      return;
+    }
+    if (editButton) {
+      const post = partyListCache.find((item) => item.id === editButton.dataset.editParty);
+      if (!post) return;
+      qs("#editPartyId").value = post.id;
+      qs("#editPartyTitle").value = post.title || "";
+      qs("#editPartyScenarioSelect").value = post.scenario_id || "";
+      qs("#editPartyTime").value = post.play_time || "";
+      qs("#editPartyContent").value = post.content || "";
+      openModal("#editPartyModal");
+      return;
+    }
+    if (deleteButton) {
+      const ok = window.confirm("이 익명 모집글을 삭제할까요?");
+      if (!ok) return;
+      const { error } = await supabase.rpc("delete_exploration_party_post", { p_post_id: deleteButton.dataset.deleteParty });
+      if (error) throw error;
+      await loadPartyPosts();
+      showMessage("모집글을 삭제했습니다.", "success");
+      return;
+    }
+    if (roomButton) {
+      const post = partyListCache.find((item) => item.id === roomButton.dataset.partyRoom);
+      if (!post) return;
+      qs("#partyRoomPostId").value = post.id;
+      qs("#partyRoomTitle").value = post.title || "익명 모집 탐사방";
+      qs("#partyRoomMaxPlayers").value = String(Math.min(4, Math.max(2, Number(post.applicant_count || 0) + 1)));
+      qs("#partyRoomVisibility").value = "private";
+      qs("#partyRoomPasswordField").hidden = false;
+      openModal("#partyRoomModal");
+    }
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#editPartyForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { error } = await supabase.rpc("update_exploration_party_post", {
+      p_post_id: qs("#editPartyId").value,
+      p_title: qs("#editPartyTitle").value.trim(),
+      p_scenario_id: qs("#editPartyScenarioSelect").value || null,
+      p_play_time: qs("#editPartyTime").value.trim() || null,
+      p_content: qs("#editPartyContent").value.trim() || null
+    });
+    if (error) throw error;
+    closeModal("#editPartyModal");
+    await loadPartyPosts();
+    showMessage("모집글을 수정했습니다.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#partyRoomForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const visibility = qs("#partyRoomVisibility").value;
+    const roomPassword = qs("#partyRoomPassword").value.trim();
+    if (visibility === "private" && !/^\d{1,8}$/.test(roomPassword)) {
+      throw new Error("비공개방 비밀번호는 숫자 1~8자리로 입력하세요.");
+    }
+    const { data, error } = await supabase.rpc("create_room_from_exploration_party_post", {
+      p_post_id: qs("#partyRoomPostId").value,
+      p_title: qs("#partyRoomTitle").value.trim(),
+      p_max_players: Number(qs("#partyRoomMaxPlayers").value || 2),
+      p_visibility: visibility,
+      p_room_password: roomPassword || null
+    });
+    if (error) throw error;
+    closeModal("#partyRoomModal");
+    await Promise.all([loadPartyPosts(), loadRoomList(), loadMyRooms()]);
+    showMessage(`모집을 완료하고 탐사방을 만들었습니다. 초대코드: ${data?.invite_code || "-"}`, "success");
+    await openRoom(data.room_id);
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#partyRoomVisibility")?.addEventListener("change", () => {
+  const isPrivate = qs("#partyRoomVisibility").value === "private";
+  qs("#partyRoomPasswordField").hidden = !isPrivate;
+  qs("#partyRoomPassword").required = isPrivate;
+});
+
 qs("#roomVisibility")?.addEventListener("change", () => {
   const isPrivate = qs("#roomVisibility").value === "private";
   qs("#roomPasswordField").hidden = !isPrivate;
@@ -950,7 +1125,7 @@ qs("#settingsVisibility")?.addEventListener("change", () => {
   qs("#settingsPasswordField").hidden = !isPrivate;
 });
 
-["#roomPassword", "#joinRoomPassword", "#settingsRoomPassword"].forEach((selector) => {
+["#roomPassword", "#joinRoomPassword", "#settingsRoomPassword", "#partyRoomPassword"].forEach((selector) => {
   qs(selector)?.addEventListener("input", (event) => {
     event.target.value = event.target.value.replace(/\D/g, "");
   });
