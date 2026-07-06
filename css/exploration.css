@@ -1629,3 +1629,78 @@ body.in-room #roomPanel { display: block !important; }
   .notification-toolbar { align-items: flex-start; flex-direction: column; }
   .notification-item { grid-template-columns: 1fr; }
 }
+
+/* v1.7 header notification bell + moderation UI polish */
+.site-header {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.brand-home { flex: 0 0 auto; }
+.notification-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(216,183,114,.24);
+  color: rgba(247,243,234,.88);
+  background: linear-gradient(145deg, rgba(17,17,22,.88), rgba(7,7,10,.96));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 28px rgba(0,0,0,.24);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.notification-bell:hover,
+.notification-bell.has-unread {
+  border-color: rgba(216,183,114,.56);
+  color: #fff7dd;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 22px rgba(178,35,42,.22), 0 12px 32px rgba(0,0,0,.32);
+}
+.bell-icon { font-size: 15px; transform: rotate(-14deg); }
+.notification-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #d51f31;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.65);
+  font-size: 10px;
+  line-height: 1;
+  box-shadow: 0 0 0 3px rgba(213,31,49,.18), 0 8px 18px rgba(0,0,0,.34);
+}
+.main-nav { margin-top: 0 !important; }
+.notification-modal { width: min(760px, calc(100vw - 26px)); }
+.notification-item .ghost-button { min-height: 32px; padding: 7px 13px; }
+#reportReason,
+#reportReason option,
+select option {
+  background-color: #09090d !important;
+  color: #f7f3ea !important;
+}
+select { color-scheme: dark; }
+.comment-list .ghost-button.full,
+#partyCommentList > .ghost-button.full,
+#communityCommentList > .ghost-button.full {
+  margin: 0 0 10px 0 !important;
+  width: 100%;
+  justify-content: center;
+}
+#adminDeskButton[hidden],
+#notificationBell[hidden],
+#notificationBadge[hidden] { display: none !important; }
+@media (max-width: 720px) {
+  .site-header { gap: 9px; align-items: flex-start; }
+  .notification-bell { order: 2; min-height: 32px; padding: 7px 10px; }
+  .main-nav { order: 3; width: 100%; overflow-x: auto; border-radius: 18px; padding: 6px; }
+  .nav-tab { padding: 9px 12px; font-size: 12px; }
+}
