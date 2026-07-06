@@ -1,4 +1,4 @@
-// exploration-site: v1.2.1 room notice separate-exploration-metrics ending-settlement
+// exploration-site: v1.3 moderation recruitment live mobile
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -45,6 +45,10 @@ let fallbackPollTimer = null;
 let heartbeatTimer = null;
 let cleanupTimer = null;
 let currentPartyDetailId = null;
+let currentPartyCommentsExpanded = false;
+let roomPage = 1;
+const ROOM_PAGE_SIZE = 10;
+const COMMENT_PREVIEW_LIMIT = 5;
 let currentAccessToken = null;
 const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001", "/test disaster001", "/test disaster-001"]);
 const ROOM_EXIT_NOTICE_TEXT = "이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다.";
@@ -137,10 +141,7 @@ function clampMetric(value) {
 
 function buildMetricBar(value, variant = "pollution") {
   const pct = clampMetric(value);
-  let level = "낮음";
-  if (pct >= 70) level = "위험";
-  else if (pct >= 40) level = "주의";
-  return `<div class="metric-bar ${variant}" title="${level}"><span style="width:${pct}%"></span></div><span class="metric-state">${level}</span>`;
+  return `<div class="metric-bar ${variant}" title="${pct}%"><span style="width:${pct}%"></span></div>`;
 }
 
 function isSoloBlocked() {
@@ -306,6 +307,8 @@ async function loadProfile() {
 
   currentProfile = profile;
   applyVisitorModeClass(profile);
+  const adminNav = qs("#adminNavButton");
+  if (adminNav) adminNav.hidden = profile.role !== "admin";
   if (profile.role === "admin") {
     document.querySelectorAll(".requires-admin").forEach((node) => { node.hidden = false; });
   }
@@ -409,6 +412,7 @@ async function loadRoomList() {
   }
 
   roomListCache = data || [];
+  roomPage = Math.min(roomPage, Math.max(1, Math.ceil(roomListCache.length / ROOM_PAGE_SIZE)));
   renderRoomList();
 }
 
@@ -421,7 +425,11 @@ function renderRoomList() {
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = roomListCache.map((room) => {
+  const totalPages = Math.max(1, Math.ceil(roomListCache.length / ROOM_PAGE_SIZE));
+  roomPage = Math.min(Math.max(1, roomPage), totalPages);
+  const start = (roomPage - 1) * ROOM_PAGE_SIZE;
+  const pagedRooms = roomListCache.slice(start, start + ROOM_PAGE_SIZE);
+  const listHtml = pagedRooms.map((room) => {
     const scenario = scenarioList.find((item) => item.id === room.scenario_id);
     const isPrivate = room.visibility === "private";
     const isFull = Number(room.current_players || 0) >= Number(room.max_players || 0);
@@ -446,6 +454,13 @@ function renderRoomList() {
       </article>
     `;
   }).join("");
+  const pagerHtml = totalPages > 1 ? `
+    <div class="pager">
+      <button type="button" class="ghost-button" data-room-page="prev" ${roomPage <= 1 ? "disabled" : ""}>이전</button>
+      <span>${roomPage} / ${totalPages}</span>
+      <button type="button" class="ghost-button" data-room-page="next" ${roomPage >= totalPages ? "disabled" : ""}>다음</button>
+    </div>` : "";
+  box.innerHTML = listHtml + pagerHtml;
 }
 
 async function loadPartyPosts() {
@@ -475,17 +490,19 @@ function renderPartyPosts() {
   box.innerHTML = partyListCache.map((post) => {
     const scenario = scenarioList.find((item) => item.id === post.scenario_id);
     const isCreator = !!post.is_creator;
+    const isAdmin = currentProfile?.role === "admin";
     const isClosed = post.status === "closed";
     const hasApplied = !!post.has_applied;
     const count = Number(post.applicant_count || 0);
     const comments = Number(post.comment_count || 0);
+    const deadlineText = post.recruitment_deadline ? ` · 마감 ${formatDate(post.recruitment_deadline)}` : "";
     const statusBadge = isClosed
-      ? `<span class="badge full">모집 완료</span>`
+      ? `<span class="badge full">모집 마감</span>`
       : `<span class="badge public">모집 중</span>`;
-    const ownerButtons = isCreator ? `
-      <button type="button" class="ghost-button" data-edit-party="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>수정</button>
+    const ownerButtons = (isCreator || isAdmin) ? `
+      ${isCreator ? `<button type="button" class="ghost-button" data-edit-party="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>수정</button>` : ""}
       <button type="button" class="ghost-button danger" data-delete-party="${safeAttr(post.id)}">삭제</button>
-      <button type="button" class="secondary-action" data-party-room="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>방 만들기</button>
+      ${isCreator ? `<button type="button" class="secondary-action" data-party-room="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>방 만들기</button>` : ""}
     ` : "";
     const applicantButtons = !isCreator && !isClosed ? (
       hasApplied
@@ -498,10 +515,11 @@ function renderPartyPosts() {
           <strong>${safeText(post.title || "익명 모집")}</strong>
           ${statusBadge}
         </header>
-        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개${safeText(deadlineText)}</div>
         <p class="party-item-content">${safeText(post.content || "내용 없음")}</p>
         <footer class="party-actions">
           <button type="button" class="ghost-button" data-detail-party="${safeAttr(post.id)}">자세히 보기</button>
+          <button type="button" class="ghost-button danger" data-report-target="party_post" data-report-id="${safeAttr(post.id)}">신고</button>
           ${applicantButtons}
           ${ownerButtons}
         </footer>
@@ -526,9 +544,10 @@ function renderPartyDetail(post) {
   detail.innerHTML = `
     <p class="kicker">Anonymous Board</p>
     <h2>${safeText(post.title || "익명 모집")}</h2>
-    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개${post.recruitment_deadline ? ` · 마감 ${formatDate(post.recruitment_deadline)}` : ""}</div>
     <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
-    ${isClosed ? `<p class="small muted">모집 완료된 글입니다. 완료 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
+    <div class="party-actions"><button type="button" class="ghost-button danger" data-report-target="party_post" data-report-id="${safeAttr(post.id)}">모집글 신고</button></div>
+    ${isClosed ? `<p class="small muted">모집 마감된 글입니다. 마감 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
   `;
 }
 
@@ -541,22 +560,32 @@ function renderPartyComments(comments = []) {
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = comments.map((comment) => `
+  const visibleComments = currentPartyCommentsExpanded ? comments : comments.slice(0, COMMENT_PREVIEW_LIMIT);
+  const itemsHtml = visibleComments.map((comment) => `
     <article class="comment-item">
       <div class="comment-head">
         <strong>${safeText(comment.anonymous_label || "익명 탐사자")}</strong>
         <span>${formatDate(comment.created_at)}</span>
       </div>
       <p>${safeText(comment.body || "")}</p>
-      ${comment.is_mine ? `<button type="button" class="mini-button danger" data-delete-comment="${safeAttr(comment.id)}">댓글 삭제</button>` : ""}
+      <div class="comment-actions">
+        <button type="button" class="mini-button danger" data-report-target="party_comment" data-report-id="${safeAttr(comment.id)}">신고</button>
+        ${(comment.is_mine || currentProfile?.role === "admin") ? `<button type="button" class="mini-button danger" data-delete-comment="${safeAttr(comment.id)}">댓글 삭제</button>` : ""}
+      </div>
     </article>
   `).join("");
+  const foldHtml = comments.length > COMMENT_PREVIEW_LIMIT ? `
+    <button type="button" class="ghost-button full" data-toggle-comments="1">
+      ${currentPartyCommentsExpanded ? "댓글 접기" : `댓글 ${comments.length - COMMENT_PREVIEW_LIMIT}개 더 보기`}
+    </button>` : "";
+  box.innerHTML = itemsHtml + foldHtml;
 }
 
 async function openPartyDetail(postId) {
   const post = partyListCache.find((item) => item.id === postId);
   if (!post) return;
   currentPartyDetailId = postId;
+  currentPartyCommentsExpanded = false;
   qs("#partyCommentPostId").value = postId;
   renderPartyDetail(post);
   qs("#partyCommentBody").value = "";
@@ -743,6 +772,9 @@ async function loadRoomBundle(roomId, options = {}) {
   if (roomError) throw roomError;
 
   currentRoom = room;
+  document.body.classList.add("in-room");
+  setVisible("#appPanel", false);
+  setVisible("#roomPanel", true);
   await loadScenario(room.scenario_id);
   await Promise.all([loadMembers(), loadRoomState(), loadMessages()]);
   renderRoom();
@@ -963,6 +995,7 @@ function renderMessages() {
       <div class="chat-message${systemClass}">
         <strong>${safeText(sender)} · ${formatDate(message.created_at)}</strong>
         <div>${safeText(message.content || "")}</div>
+        ${message.message_type === "system" ? "" : `<button type="button" class="mini-button danger" data-report-target="room_message" data-report-id="${safeAttr(message.id)}">신고</button>`}
       </div>
     `;
   }).join("");
@@ -1161,6 +1194,79 @@ async function readJsonFile(file) {
 }
 
 
+function openReportModal(targetType, targetId) {
+  if (!targetType || !targetId) return;
+  qs("#reportTargetType").value = targetType;
+  qs("#reportTargetId").value = targetId;
+  qs("#reportReason").value = targetType === "room_message" ? "troll" : "abuse";
+  qs("#reportDetail").value = "";
+  openModal("#reportModal");
+}
+
+async function submitReport({ targetType, targetId, reason, detail }) {
+  const { error } = await supabase.rpc("submit_exploration_report", {
+    p_target_type: targetType,
+    p_target_id: targetId,
+    p_reason: reason,
+    p_detail: detail || null
+  });
+  if (error) throw error;
+  closeModal("#reportModal");
+  showMessage("신고를 접수했습니다. 검토 전까지 해당 내용은 숨김 처리됩니다.", "success");
+  if (targetType === "party_post") await loadPartyPosts();
+  if (targetType === "party_comment" && currentPartyDetailId) {
+    const comments = await loadPartyComments(currentPartyDetailId);
+    renderPartyComments(comments);
+  }
+}
+
+async function loadAdminReports() {
+  const box = qs("#adminReportList");
+  if (!box) return;
+  if (currentProfile?.role !== "admin") {
+    box.textContent = "관리자만 볼 수 있습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.textContent = "신고 내역을 불러오는 중...";
+  box.classList.add("muted");
+  const { data, error } = await supabase.rpc("list_exploration_reports");
+  if (error) {
+    box.textContent = `신고 내역을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+  const reports = data || [];
+  if (!reports.length) {
+    box.textContent = "검토 대기 중인 신고가 없습니다.";
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = reports.map((report) => `
+    <article class="admin-report-item">
+      <header>
+        <strong>${safeText(report.target_type)} · ${safeText(report.reason)}</strong>
+        <span>${formatDate(report.created_at)}</span>
+      </header>
+      <p class="small muted">신고자: ${safeText(report.reporter_display_name || report.reporter_site_id || report.reporter_user_id || "알 수 없음")}</p>
+      <p>${safeText(report.detail || "상세 내용 없음")}</p>
+      <div class="report-snapshot">${safeText(report.content_snapshot || "내용 스냅샷 없음")}</div>
+      <div class="party-actions">
+        <button type="button" class="secondary-action" data-review-report="valid" data-report-id="${safeAttr(report.id)}">옳은 신고</button>
+        <button type="button" class="ghost-button" data-review-report="dismiss" data-report-id="${safeAttr(report.id)}">악의/오신고</button>
+        <button type="button" class="ghost-button danger" data-review-report="delete" data-report-id="${safeAttr(report.id)}">대상 삭제</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function reviewReport(reportId, action) {
+  const { error } = await supabase.rpc("review_exploration_report", { p_report_id: reportId, p_action: action });
+  if (error) throw error;
+  showMessage("신고 검토를 저장했습니다.", "success");
+  await loadAdminReports();
+  await Promise.all([loadPartyPosts(), currentRoom ? loadMessages() : Promise.resolve()]);
+}
+
 function openModal(selector) {
   const modal = qs(selector);
   if (!modal) return;
@@ -1187,6 +1293,7 @@ function switchTab(target) {
   if (target === "rooms") loadRoomList();
   if (target === "party") loadPartyPosts();
   if (target === "mine") loadMyRooms();
+  if (target === "admin") loadAdminReports();
 }
 
 // Event bindings
@@ -1302,6 +1409,12 @@ qs("#resumeRoomForm")?.addEventListener("submit", async (event) => {
 
 
 qs("#roomList")?.addEventListener("click", async (event) => {
+  const pageButton = event.target.closest("[data-room-page]");
+  if (pageButton) {
+    roomPage += pageButton.dataset.roomPage === "next" ? 1 : -1;
+    renderRoomList();
+    return;
+  }
   const adminDelete = event.target.closest("[data-admin-delete-room]");
   const button = event.target.closest("[data-join-public-room]");
   try {
@@ -1330,7 +1443,8 @@ qs("#createPartyForm")?.addEventListener("submit", async (event) => {
       p_title: qs("#partyTitle").value.trim(),
       p_scenario_id: qs("#partyScenarioSelect").value || null,
       p_play_time: qs("#partyTime").value.trim() || null,
-      p_content: qs("#partyContent").value.trim() || null
+      p_content: qs("#partyContent").value.trim() || null,
+      p_recruitment_hours: Number(qs("#partyRecruitmentHours")?.value || 24)
     });
     if (error) throw error;
     closeModal("#createPartyModal");
@@ -1350,7 +1464,12 @@ qs("#partyList")?.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete-party]");
   const roomButton = event.target.closest("[data-party-room]");
   const detailButton = event.target.closest("[data-detail-party]");
+  const reportButton = event.target.closest("[data-report-target]");
   try {
+    if (reportButton) {
+      openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
+      return;
+    }
     if (detailButton) {
       await openPartyDetail(detailButton.dataset.detailParty);
       return;
@@ -1377,6 +1496,8 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       qs("#editPartyScenarioSelect").value = post.scenario_id || "";
       qs("#editPartyTime").value = post.play_time || "";
       qs("#editPartyContent").value = post.content || "";
+      const hours = post.recruitment_hours || 24;
+      if (qs("#editPartyRecruitmentHours")) qs("#editPartyRecruitmentHours").value = String(hours);
       openModal("#editPartyModal");
       return;
     }
@@ -1424,7 +1545,18 @@ qs("#partyCommentForm")?.addEventListener("submit", async (event) => {
 });
 
 qs("#partyCommentList")?.addEventListener("click", async (event) => {
+  const toggleButton = event.target.closest("[data-toggle-comments]");
   const deleteButton = event.target.closest("[data-delete-comment]");
+  const reportButton = event.target.closest("[data-report-target]");
+  if (toggleButton && currentPartyDetailId) {
+    currentPartyCommentsExpanded = !currentPartyCommentsExpanded;
+    try { renderPartyComments(await loadPartyComments(currentPartyDetailId)); } catch (error) { showMessage(error.message, "error"); }
+    return;
+  }
+  if (reportButton) {
+    openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
+    return;
+  }
   if (!deleteButton || !currentPartyDetailId) return;
   const ok = window.confirm("이 댓글을 삭제할까요?");
   if (!ok) return;
@@ -1447,7 +1579,8 @@ qs("#editPartyForm")?.addEventListener("submit", async (event) => {
       p_title: qs("#editPartyTitle").value.trim(),
       p_scenario_id: qs("#editPartyScenarioSelect").value || null,
       p_play_time: qs("#editPartyTime").value.trim() || null,
-      p_content: qs("#editPartyContent").value.trim() || null
+      p_content: qs("#editPartyContent").value.trim() || null,
+      p_recruitment_hours: Number(qs("#editPartyRecruitmentHours")?.value || 24)
     });
     if (error) throw error;
     closeModal("#editPartyModal");
@@ -1603,6 +1736,40 @@ qs("#chatForm")?.addEventListener("submit", async (event) => {
   } catch (error) {
     showMessage(error.message, "error");
   }
+});
+
+qs("#chatLog")?.addEventListener("click", (event) => {
+  const reportButton = event.target.closest("[data-report-target]");
+  if (!reportButton) return;
+  openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
+});
+
+qs("#partyDetailBody")?.addEventListener("click", (event) => {
+  const reportButton = event.target.closest("[data-report-target]");
+  if (!reportButton) return;
+  openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId);
+});
+
+qs("#reportForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    await submitReport({
+      targetType: qs("#reportTargetType").value,
+      targetId: qs("#reportTargetId").value,
+      reason: qs("#reportReason").value,
+      detail: qs("#reportDetail").value.trim()
+    });
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#refreshAdminReports")?.addEventListener("click", () => loadAdminReports());
+qs("#adminReportList")?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-review-report]");
+  if (!button) return;
+  try { await reviewReport(button.dataset.reportId, button.dataset.reviewReport); }
+  catch (error) { showMessage(error.message, "error"); }
 });
 
 qs("#roomInventoryList")?.addEventListener("click", (event) => {

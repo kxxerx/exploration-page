@@ -1368,3 +1368,70 @@ body.in-room .message { margin-bottom: 10px; }
   color: var(--text-soft);
   line-height: 1.7;
 }
+
+/* v1.3 moderation, recruitment period, live/mobile fixes */
+body.in-room .site-header { display: flex; }
+body.in-room #appPanel { display: none !important; }
+body.in-room #roomPanel { display: block !important; }
+body.in-room .side-rail { display: none !important; }
+body.in-room .page-shell {
+  width: min(1560px, calc(100% - 24px));
+  padding-top: 12px;
+}
+.pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 4px;
+  color: var(--muted);
+}
+.admin-toolbar { justify-content: space-between; }
+.admin-report-list { display: grid; gap: 12px; }
+.admin-report-item,
+.report-snapshot {
+  border: 1px solid rgba(214,178,96,.18);
+  border-radius: 16px;
+  background: rgba(255,255,255,.03);
+}
+.admin-report-item { padding: 14px; display: grid; gap: 10px; }
+.admin-report-item header { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.report-snapshot { padding: 12px; color: rgba(247,243,234,.82); white-space: pre-wrap; line-height: 1.55; }
+.comment-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.chat-message .mini-button { margin-top: 8px; }
+.member-metric-row { grid-template-columns: auto minmax(100px, 1fr); }
+.metric-state { display: none !important; }
+.room-headline { align-items: stretch; }
+.room-headline > div:first-child { min-width: 0; }
+.room-actions { justify-content: flex-end; }
+@media (max-width: 900px) {
+  body.in-room .page-shell { width: min(100% - 16px, 760px); }
+  .room-headline {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .room-headline .kicker { margin-bottom: 2px; }
+  #roomMetaView { line-height: 1.5; word-break: keep-all; }
+  .room-actions {
+    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .room-actions button { width: 100%; }
+  .live-room-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "story"
+      "chat"
+      "side";
+  }
+  .live-story-card { min-height: 56vh; }
+  .live-chat-card { min-height: 260px; }
+  .live-side-stack { grid-template-rows: auto auto; }
+}
+@media (max-width: 520px) {
+  .room-actions { grid-template-columns: 1fr; }
+  .party-item-head { align-items: flex-start; flex-direction: column; }
+}
