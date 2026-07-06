@@ -1,110 +1,86 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v0.4 lounge UI -->
+  <!-- pollution-exploration-standalone: v0.5 corrected lounge UI -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>사회자 브라운의 탐사 라운지</title>
+  <title>심야 괴담 탐사회</title>
   <link rel="stylesheet" href="css/exploration.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand-mark" href="index.html" aria-label="탐사 홈페이지 첫 화면으로">
-        <span class="wheel-icon" aria-hidden="true">
-          <svg viewBox="0 0 64 64" role="img">
-            <circle cx="32" cy="24" r="18"></circle>
-            <circle cx="32" cy="24" r="3"></circle>
-            <path d="M32 6v36M14 24h36M19 11l26 26M45 11L19 37M26 42 17 58M38 42l9 16M13 58h38"></path>
-          </svg>
-        </span>
-        <span>
-          <strong>사회자 브라운의 탐사 라운지</strong>
-          <small>Brown’s Midnight Talkshow</small>
-        </span>
-      </a>
+  <div id="onAirSplash" class="on-air-splash" aria-hidden="true">
+    <span>ON AIR</span>
+  </div>
 
-      <nav id="mainNav" class="main-nav" hidden aria-label="탐사 메뉴">
-        <button type="button" class="nav-tab is-active" data-tab-target="rooms">목록</button>
-        <button type="button" class="nav-tab" data-tab-target="party">파티 찾기</button>
-        <button type="button" class="nav-tab" data-tab-target="mine">내 탐사방</button>
-      </nav>
-    </div>
+  <header class="site-header">
+    <a class="brand-home" href="index.html" aria-label="첫 화면으로 돌아가기">
+      <span class="wheel-logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64" role="img">
+          <circle cx="32" cy="24" r="18"></circle>
+          <circle cx="32" cy="24" r="3"></circle>
+          <path d="M32 6v36M14 24h36M19 11l26 26M45 11L19 37M26 42 17 58M38 42l9 16M13 58h38"></path>
+        </svg>
+      </span>
+      <span class="brand-copy">
+        <strong>심야 괴담 탐사회</strong>
+        <small>Midnight Case Show</small>
+      </span>
+    </a>
+
+    <nav id="mainNav" class="main-nav" hidden aria-label="탐사 메뉴">
+      <button type="button" class="nav-tab is-active" data-tab-target="rooms">목록</button>
+      <button type="button" class="nav-tab" data-tab-target="party">파티 찾기</button>
+      <button type="button" class="nav-tab" data-tab-target="mine">내 탐사방</button>
+    </nav>
   </header>
 
   <main class="page-shell">
-    <section class="hero" id="heroPanel">
-      <div class="hero-copy">
-        <p class="eyebrow">A velvet invitation from the stage</p>
-        <h1>오늘 밤의 탐사는 무대 위에서 시작됩니다.</h1>
-        <p class="lead">기념품샵 계정으로 입장해 탐사방을 만들고, 초대코드로 일행을 초대하세요. 진행은 함께, 시야는 각자 다르게 흘러갑니다.</p>
-      </div>
-      <div class="hero-card" aria-hidden="true">
-        <div class="stage-light"></div>
-        <div class="talkshow-frame">
-          <span>ON AIR</span>
-          <strong>탐사 대기 중</strong>
-          <em>Tonight’s Guest: You</em>
-        </div>
-      </div>
-    </section>
-
     <div id="message" class="message" aria-live="polite"></div>
 
-    <section id="loginPanel" class="login-card" hidden>
-      <div>
-        <p class="eyebrow">Admission Check</p>
-        <h2>탐사 로그인</h2>
-        <p class="small muted">기존 기념품샵 아이디와 비밀번호를 그대로 사용합니다. 이메일 말고 아이디만 입력하세요.</p>
+    <section id="loginPanel" class="login-screen" hidden>
+      <div class="login-card">
+        <p class="kicker">Admission</p>
+        <h1>탐사자 입장</h1>
+        <p class="muted">기념품샵에서 쓰던 아이디와 비밀번호로 들어와. 이메일 말고 아이디만 쓰면 된다.</p>
+        <form id="explorationLoginForm" class="stacked-form">
+          <label>아이디
+            <input id="explorationLoginId" type="text" autocomplete="username" required>
+          </label>
+          <label>비밀번호
+            <input id="explorationPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit" class="primary-action">입장하기</button>
+        </form>
       </div>
-      <form id="explorationLoginForm" class="stacked-form">
-        <label>아이디
-          <input id="explorationLoginId" type="text" autocomplete="username" required>
-        </label>
-        <label>비밀번호
-          <input id="explorationPassword" type="password" autocomplete="current-password" required>
-        </label>
-        <button type="submit" class="primary-action">입장하기</button>
-      </form>
     </section>
 
-    <section id="appPanel" class="app-layout" hidden>
-      <section class="main-stage">
+    <section id="appPanel" class="lounge-layout" hidden>
+      <section class="lounge-main">
         <section id="tabRooms" class="tab-panel is-active" data-tab-panel="rooms">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Exploration List</p>
-              <h2>탐사 목록</h2>
-            </div>
-            <button id="refreshLobby" type="button" class="ghost-button">새로고침</button>
+          <div class="panel-title">
+            <p class="kicker">Case List</p>
+            <h2>탐사 목록</h2>
+            <p class="muted">시나리오를 고르고 탐사방을 만들거나, 받은 초대코드로 바로 입장해.</p>
           </div>
-
-          <div class="action-strip">
-            <button id="openCreateRoomModal" type="button" class="primary-action">탐사방 만들기</button>
-            <button id="openJoinRoomModal" type="button" class="secondary-action">코드로 참여하기</button>
-            <button id="openResumeRoomModal" type="button" class="ghost-button">저장파일로 이어하기</button>
-          </div>
-
           <div id="scenarioGallery" class="scenario-gallery muted">시나리오를 불러오는 중...</div>
         </section>
 
         <section id="tabParty" class="tab-panel" data-tab-panel="party" hidden>
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">Party Finder</p>
-              <h2>파티 찾기</h2>
-            </div>
+          <div class="panel-title">
+            <p class="kicker">Party Finder</p>
+            <h2>파티 찾기</h2>
+            <p class="muted">익명 구인 기능은 다음 단계에서 붙일 예정. 지금은 UI 자리만 잡아둔다.</p>
           </div>
-          <div class="empty-state ornate-card">
-            <h3>익명 구인 게시판은 다음 단계에서 붙이는 게 맞아.</h3>
-            <p>여기에는 나중에 모집글, 익명 신청, 수락 대기, 회피 목록을 둘 수 있어. 지금 억지로 껍데기만 제대로 만들어두고, DB 기능은 다음 패치에서 붙이는 쪽이 덜 터진다. 놀랍게도 덜 터지는 건 좋은 일이다.</p>
+          <div class="empty-state">
+            <strong>모집 게시판 준비 중</strong>
+            <p>나중에 모집글, 익명 신청, 수락 대기, 회피 목록을 여기 붙이면 된다. 껍데기부터 화려하게 만들어두는 인간의 습성은 유구하니까.</p>
           </div>
         </section>
 
         <section id="tabMine" class="tab-panel" data-tab-panel="mine" hidden>
-          <div class="section-heading">
+          <div class="panel-title rowed">
             <div>
-              <p class="eyebrow">My Rooms</p>
+              <p class="kicker">My Rooms</p>
               <h2>내 탐사방</h2>
             </div>
             <button id="refreshMyRooms" type="button" class="ghost-button">새로고침</button>
@@ -114,23 +90,30 @@
       </section>
 
       <aside class="side-rail">
-        <section id="profilePanel" class="character-card" hidden>
-          <div class="card-topline">
-            <p class="eyebrow">Current Guest</p>
-            <div class="button-row compact">
-              <button id="refreshProfile" type="button" class="mini-button">새로고침</button>
+        <section id="profilePanel" class="side-card" hidden>
+          <div class="side-card-head">
+            <p class="kicker">Character</p>
+            <div class="mini-actions">
+              <button id="refreshProfile" type="button" class="mini-button">갱신</button>
               <button id="logoutButton" type="button" class="mini-button danger">퇴장</button>
             </div>
           </div>
           <div id="profileCard"></div>
         </section>
 
-        <section class="bag-card">
-          <div class="card-topline">
-            <p class="eyebrow">My Bag</p>
-            <button id="refreshInventory" type="button" class="mini-button">가방 갱신</button>
+        <section class="side-card">
+          <div class="side-card-head">
+            <p class="kicker">My Bag</p>
+            <button id="refreshInventory" type="button" class="mini-button">갱신</button>
           </div>
           <div id="inventoryPreview" class="inventory-preview muted">로그인 후 보입니다.</div>
+        </section>
+
+        <section class="side-card action-card">
+          <p class="kicker">Lounge Desk</p>
+          <button id="openCreateRoomModal" type="button" class="primary-action full">탐사방 만들기</button>
+          <button id="openJoinRoomModal" type="button" class="secondary-action full">코드로 참여하기</button>
+          <button id="openResumeRoomModal" type="button" class="ghost-button full">저장파일로 이어하기</button>
         </section>
       </aside>
     </section>
@@ -138,22 +121,22 @@
     <section id="roomPanel" class="room-panel" hidden>
       <div class="room-headline">
         <div>
-          <p class="eyebrow">Now Playing</p>
+          <p class="kicker">On Stage</p>
           <h2 id="roomTitleView">탐사방</h2>
-          <p id="roomMetaView" class="small muted"></p>
+          <p id="roomMetaView" class="muted"></p>
         </div>
-        <div class="button-row compact">
+        <div class="room-actions">
           <button id="copyInviteCode" type="button" class="ghost-button">초대코드 복사</button>
           <button id="downloadSave" type="button" class="ghost-button">저장파일</button>
           <button id="downloadChat" type="button" class="ghost-button">채팅 저장</button>
           <button id="clearChat" type="button" class="ghost-button danger host-only" hidden>채팅 초기화</button>
-          <button id="leaveRoom" type="button" class="secondary-action">라운지로</button>
+          <button id="leaveRoom" type="button" class="secondary-action">라운지로 나가기</button>
         </div>
       </div>
 
       <div class="room-grid">
         <aside class="participant-card">
-          <h3>출연자</h3>
+          <h3>참가자</h3>
           <div id="memberList" class="member-list muted">불러오는 중...</div>
         </aside>
 
@@ -185,7 +168,7 @@
         <select id="scenarioSelect" required></select>
       </label>
       <label>방 제목
-        <input id="roomTitle" type="text" maxlength="80" placeholder="예: 금요일 밤 물목 해안가 2인팟">
+        <input id="roomTitle" type="text" maxlength="80" placeholder="예: 금요일 밤 물목 해안가">
       </label>
       <label>최대 인원
         <select id="maxPlayers">
@@ -211,7 +194,7 @@
   <dialog id="resumeRoomModal" class="modal-card">
     <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
     <h2>저장파일로 이어하기</h2>
-    <p class="small muted">저장 파일에는 채팅 로그가 아니라 현재 섹션과 방 플래그만 들어갑니다. 조작 방지는 아직 없습니다.</p>
+    <p class="muted">저장 파일에는 현재 섹션과 방 플래그만 들어갑니다. 채팅 로그는 포함되지 않습니다.</p>
     <form id="resumeRoomForm" class="stacked-form">
       <label>저장 JSON 파일
         <input id="resumeFileInput" type="file" accept="application/json,.json" required>

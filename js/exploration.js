@@ -71,6 +71,32 @@ function setVisible(selector, visible) {
   if (node) node.hidden = !visible;
 }
 
+function showOnAirSplash() {
+  const node = qs("#onAirSplash");
+  if (!node) return;
+  node.classList.remove("is-visible");
+  // restart animation
+  void node.offsetWidth;
+  node.classList.add("is-visible");
+  window.setTimeout(() => node.classList.remove("is-visible"), 1800);
+}
+
+function showLoggedOutView() {
+  currentProfile = null;
+  setVisible("#loginPanel", true);
+  setVisible("#profilePanel", false);
+  setVisible("#appPanel", false);
+  setVisible("#roomPanel", false);
+  setVisible("#mainNav", false);
+}
+
+function showLoggedInLounge() {
+  setVisible("#loginPanel", false);
+  setVisible("#appPanel", true);
+  setVisible("#mainNav", true);
+  setVisible("#profilePanel", true);
+}
+
 function makeDownload(filename, content, mime = "application/json") {
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
@@ -92,20 +118,11 @@ async function getSession() {
 async function loadProfile() {
   const session = await getSession();
   if (!session) {
-    currentProfile = null;
-    setVisible("#loginPanel", true);
-    setVisible("#profilePanel", false);
-    setVisible("#appPanel", false);
-    setVisible("#roomPanel", false);
-    setVisible("#mainNav", false);
-    setVisible("#heroPanel", true);
+    showLoggedOutView();
     return null;
   }
 
-  setVisible("#loginPanel", false);
-  setVisible("#appPanel", true);
-  setVisible("#mainNav", true);
-  setVisible("#heroPanel", false);
+  showLoggedInLounge();
   document.querySelectorAll(".requires-login").forEach((node) => { node.hidden = false; });
 
   const { data: profile, error } = await supabase
@@ -133,8 +150,7 @@ async function loadProfile() {
   if (profile.status === "withdrawn") {
     await supabase.auth.signOut();
     showMessage("비활성화된 계정입니다.", "error");
-    setVisible("#loginPanel", true);
-    setVisible("#appPanel", false);
+    showLoggedOutView();
     return null;
   }
 
@@ -145,8 +161,7 @@ async function loadProfile() {
   }
   renderProfile(profile);
   await loadInventory();
-  setVisible("#profilePanel", true);
-  setVisible("#appPanel", true);
+  showLoggedInLounge();
   return profile;
 }
 
@@ -241,9 +256,9 @@ function renderScenarioGallery() {
     const bg = scenario.coverImage ? `style="background-image: linear-gradient(135deg, rgba(158,29,41,.25), rgba(232,179,90,.15)), url('${safeAttr(scenario.coverImage)}')"` : "";
     return `
       <article class="scenario-card">
-        <div class="scenario-thumb" ${bg}></div>
+        <div class="scenario-cover" ${bg}></div>
         <div class="scenario-body">
-          <p class="eyebrow">${safeText(scenario.version ? `v${scenario.version}` : "Scenario")}</p>
+          <p class="kicker">${safeText(scenario.version ? `v${scenario.version}` : "Scenario")}</p>
           <h3>${safeText(scenario.title)}</h3>
           <p>${safeText(scenario.description || "아직 소개문이 없습니다. 인간은 늘 본편보다 소개문을 늦게 씁니다.")}</p>
         </div>
@@ -345,10 +360,12 @@ async function loadMyRooms() {
 
 async function openRoom(roomId) {
   await closeRealtime();
+  setVisible("#loginPanel", false);
   setVisible("#appPanel", false);
   setVisible("#roomPanel", true);
   await loadRoomBundle(roomId);
   setupRealtime(roomId);
+  qs("#roomPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function loadRoomBundle(roomId, options = {}) {
@@ -515,9 +532,9 @@ function renderMessages() {
     const systemClass = message.message_type === "system" ? " system" : "";
     const sender = message.message_type === "system" ? "시스템" : (message.sender_display_name || "익명");
     return `
-      <div class="chat-line${systemClass}">
-        <span class="meta">${safeText(sender)} · ${formatDate(message.created_at)}</span>
-        ${safeText(message.content || "")}
+      <div class="chat-message${systemClass}">
+        <strong>${safeText(sender)} · ${formatDate(message.created_at)}</strong>
+        <div>${safeText(message.content || "")}</div>
       </div>
     `;
   }).join("");
@@ -680,6 +697,7 @@ qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
   }
   showMessage("탐사 로그인 완료.", "success");
   await loadProfile();
+  showOnAirSplash();
   await loadMyRooms();
 });
 
@@ -792,8 +810,10 @@ qs("#leaveRoom")?.addEventListener("click", async () => {
   currentState = null;
   currentMessages = [];
   setVisible("#roomPanel", false);
-  setVisible("#appPanel", true);
+  showLoggedInLounge();
+  switchTab("rooms");
   await loadMyRooms();
+  qs("#appPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 qs("#downloadSave")?.addEventListener("click", downloadSave);
@@ -813,10 +833,28 @@ qs("#chatForm")?.addEventListener("submit", async (event) => {
   }
 });
 
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === "SIGNED_OUT" || !session) {
+    showLoggedOutView();
+    return;
+  }
+  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+    try {
+      await loadProfile();
+      await loadMyRooms();
+    } catch (error) {
+      showMessage(error.message, "error");
+    }
+  }
+});
+
 try {
   await loadScenarioList();
   await loadProfile();
-  if (currentProfile) await loadMyRooms();
+  if (currentProfile) {
+    showOnAirSplash();
+    await loadMyRooms();
+  }
 } catch (error) {
   showMessage(error.message, "error");
 }
