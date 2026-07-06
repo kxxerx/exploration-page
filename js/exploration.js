@@ -1,4 +1,4 @@
-// exploration-site: v0.7 refined broadcast lobby
+// exploration-site: v0.8 modern broadcast lobby
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -80,7 +80,7 @@ function showOnAirSplash() {
   // restart animation
   void node.offsetWidth;
   node.classList.add("is-visible");
-  window.setTimeout(() => node.classList.remove("is-visible"), 3300);
+  window.setTimeout(() => node.classList.remove("is-visible"), 4600);
 }
 
 function showLoggedOutView() {
@@ -732,7 +732,7 @@ async function updateRoomSettings({ title, maxPlayers, visibility, roomPassword 
 
 async function leaveCurrentRoom() {
   if (!currentRoom) return;
-  const ok = window.confirm("정말 나가시겠습니까? 파일을 따로 저장하지 않으면 진행 정보는 초기화됩니다. 마지막 참가자가 나가면 탐사방은 폭파됩니다.");
+  const ok = window.confirm("정말 나가시겠습니까? 파일을 따로 저장하지 않으면 진행 정보는 초기화됩니다. 마지막 참가자가 나가면 탐사방은 삭제됩니다.");
   if (!ok) return;
   const roomId = currentRoom.id;
   await closeRealtime();
@@ -746,7 +746,7 @@ async function leaveCurrentRoom() {
   showLoggedInLounge();
   switchTab("rooms");
   await Promise.all([loadMyRooms(), loadRoomList()]);
-  showMessage(data?.room_deleted ? "마지막 참가자가 나가 탐사방이 폭파되었습니다." : "라운지로 나왔습니다.", "success");
+  showMessage(data?.room_deleted ? "마지막 참가자가 나가 탐사방이 삭제되었습니다." : "라운지로 나왔습니다.", "success");
   qs("#appPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
