@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <!-- pollution-exploration-standalone: v1.3 moderation recruitment live mobile -->
+  <!-- pollution-exploration-standalone: v1.5 community/polish -->
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>탐사 홈페이지</title>
@@ -35,6 +35,7 @@
     <nav id="mainNav" class="main-nav" hidden aria-label="탐사 메뉴">
       <button type="button" class="nav-tab is-active" data-tab-target="rooms">목록</button>
       <button type="button" class="nav-tab" data-tab-target="party">파티 찾기</button>
+      <button type="button" class="nav-tab" data-tab-target="community">익명 게시판</button>
       <button type="button" class="nav-tab" data-tab-target="mine">내 탐사방</button>
       <button id="adminNavButton" type="button" class="nav-tab" data-tab-target="admin" hidden>관리자</button>
     </nav>
@@ -45,18 +46,7 @@
 
     <section id="loginPanel" class="login-screen" hidden>
       <div class="login-card broadcast-card">
-        <p class="kicker">Entrance</p>
-        <h1>탐사자 입장</h1>
-        <p class="muted">기념품샵에서 쓰던 아이디와 비밀번호로 들어와. 이메일 말고 아이디만 입력하면 된다.</p>
-        <form id="explorationLoginForm" class="stacked-form">
-          <label>아이디
-            <input id="explorationLoginId" type="text" autocomplete="username" required>
-          </label>
-          <label>비밀번호
-            <input id="explorationPassword" type="password" autocomplete="current-password" required>
-          </label>
-          <button type="submit" class="primary-action">입장하기</button>
-        </form>
+        <h1>회원만 보실 수 있습니다.</h1>
       </div>
     </section>
 
@@ -76,6 +66,16 @@
           <div id="partyList" class="party-list muted">모집글을 불러오는 중...</div>
         </section>
 
+
+
+        <section id="tabCommunity" class="tab-panel" data-tab-panel="community" hidden>
+          <div class="list-toolbar community-toolbar">
+            <button id="openCreateCommunityModal" type="button" class="write-button">익명 글쓰기</button>
+          </div>
+          <div id="communityList" class="community-list muted">게시글을 불러오는 중...</div>
+          <div id="communityPagination" class="pagination-row" hidden></div>
+        </section>
+
         <section id="tabMine" class="tab-panel" data-tab-panel="mine" hidden>
           <div class="list-toolbar">
             <button id="refreshMyRooms" type="button" class="icon-button" aria-label="내 탐사방 새로고침" title="새로고침">↻</button>
@@ -93,6 +93,18 @@
       </section>
 
       <aside class="side-rail">
+        <section id="sideLoginPanel" class="side-card" hidden>
+          <form id="explorationLoginForm" class="stacked-form compact-login-form">
+            <label>아이디
+              <input id="explorationLoginId" type="text" autocomplete="username" required>
+            </label>
+            <label>비밀번호
+              <input id="explorationPassword" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit" class="primary-action full">로그인</button>
+          </form>
+        </section>
+
         <section id="profilePanel" class="side-card" hidden>
           <div class="side-card-head">
             <p class="kicker">Character</p>
@@ -371,6 +383,38 @@
       </label>
       <button type="submit" class="primary-action">설정 저장</button>
     </form>
+  </dialog>
+
+
+
+  <dialog id="createCommunityModal" class="modal-card">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <h2>익명 게시글 작성</h2>
+    <form id="createCommunityForm" class="stacked-form">
+      <label>제목
+        <input id="communityTitle" type="text" maxlength="90" required>
+      </label>
+      <label>내용
+        <textarea id="communityBody" rows="7" maxlength="2000" required></textarea>
+      </label>
+      <p class="small muted">화면에는 익명 별명과 소속만 표시됩니다. 신고 검토를 위해 내부 기록에는 작성자 정보가 남습니다.</p>
+      <button type="submit" class="primary-action">게시</button>
+    </form>
+  </dialog>
+
+  <dialog id="communityDetailModal" class="modal-card wide-modal">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <div id="communityDetailBody" class="community-detail-body"></div>
+    <section class="comment-panel community-comment-panel">
+      <div id="communityCommentList" class="comment-list community-comment-list muted">댓글을 불러오는 중...</div>
+      <form id="communityCommentForm" class="comment-form">
+        <input id="communityCommentPostId" type="hidden">
+        <input id="communityParentCommentId" type="hidden">
+        <textarea id="communityCommentBody" rows="3" maxlength="800" placeholder="익명으로 댓글을 남깁니다."></textarea>
+        <div class="community-reply-hint" id="communityReplyHint" hidden></div>
+        <button type="submit" class="primary-action">댓글 등록</button>
+      </form>
+    </section>
   </dialog>
 
   <dialog id="reportModal" class="modal-card">
