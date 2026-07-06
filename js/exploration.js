@@ -1,4 +1,4 @@
-// exploration-site: v0.2
+// exploration-site: v0.4 lounge UI
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -36,6 +36,7 @@ let currentRoom = null;
 let currentMembers = [];
 let currentState = null;
 let currentMessages = [];
+let currentInventory = [];
 let realtimeChannel = null;
 let fallbackPollTimer = null;
 
@@ -94,12 +95,17 @@ async function loadProfile() {
     currentProfile = null;
     setVisible("#loginPanel", true);
     setVisible("#profilePanel", false);
-    setVisible("#lobbyPanel", false);
+    setVisible("#appPanel", false);
     setVisible("#roomPanel", false);
+    setVisible("#mainNav", false);
+    setVisible("#heroPanel", true);
     return null;
   }
 
   setVisible("#loginPanel", false);
+  setVisible("#appPanel", true);
+  setVisible("#mainNav", true);
+  setVisible("#heroPanel", false);
   document.querySelectorAll(".requires-login").forEach((node) => { node.hidden = false; });
 
   const { data: profile, error } = await supabase
@@ -128,6 +134,7 @@ async function loadProfile() {
     await supabase.auth.signOut();
     showMessage("비활성화된 계정입니다.", "error");
     setVisible("#loginPanel", true);
+    setVisible("#appPanel", false);
     return null;
   }
 
@@ -137,30 +144,68 @@ async function loadProfile() {
     document.querySelectorAll(".requires-admin").forEach((node) => { node.hidden = false; });
   }
   renderProfile(profile);
+  await loadInventory();
   setVisible("#profilePanel", true);
-  setVisible("#lobbyPanel", true);
+  setVisible("#appPanel", true);
   return profile;
 }
 
 function renderProfile(profile) {
-  const organization = ORG_LABELS[profile.organization_code] || profile.organization_code || "무소속";
-  const department = DEPT_LABELS[profile.department_code] || profile.department_code || "없음";
-  const visitor = VISITOR_LABELS[profile.visitor_type] || profile.visitor_type || "일반";
-  const affiliation = profile.affiliation_label || `${organization} / ${department}`;
+  const displayName = profile.display_name || "익명";
+  const bandName = profile.band_nickname || "-";
+  const currency = Number(profile.currency || 0);
   qs("#profileCard").innerHTML = `
-    <div class="profile-mini-grid">
-      <p><strong>캐릭터명</strong><br>${safeText(profile.display_name || "익명")}</p>
-      <p><strong>밴드 닉네임</strong><br>${safeText(profile.band_nickname || "-")}</p>
-      <p><strong>캐릭터 키</strong><br>${safeText(profile.character_key || "-")}</p>
-      <p><strong>방문객 상태</strong><br>${safeText(visitor)}</p>
-      <p><strong>기관</strong><br>${safeText(organization)}</p>
-      <p><strong>팀/부서</strong><br>${safeText(department)}</p>
-      <p><strong>표시 소속명</strong><br>${safeText(affiliation)}</p>
-      <p><strong>유쾌주화</strong><br>${Number(profile.currency || 0)}</p>
-      <p><strong>상태 수치</strong><br>${safeText(metricLabel(profile))}</p>
+    <div class="profile-name">${safeText(displayName)}</div>
+    <p class="profile-sub">${safeText(bandName)}</p>
+    <div class="profile-stats">
+      <div class="profile-line"><strong>유쾌주화</strong>${currency.toLocaleString("ko-KR")}개</div>
     </div>
   `;
 }
+
+async function loadInventory() {
+  const box = qs("#inventoryPreview");
+  if (!box) return;
+  if (!currentProfile) {
+    box.textContent = "로그인 후 보입니다.";
+    box.classList.add("muted");
+    return;
+  }
+
+  box.textContent = "가방을 불러오는 중...";
+  box.classList.add("muted");
+
+  const { data, error } = await supabase
+    .from("inventories")
+    .select("quantity, updated_at, items(id, name, item_kind, category)")
+    .eq("user_id", currentProfile.id)
+    .gt("quantity", 0)
+    .order("updated_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    box.textContent = `가방을 불러오지 못했습니다: ${error.message}`;
+    return;
+  }
+
+  currentInventory = data || [];
+  if (!currentInventory.length) {
+    box.textContent = "가방에 표시할 아이템이 없습니다.";
+    return;
+  }
+
+  box.classList.remove("muted");
+  box.innerHTML = currentInventory.map((row) => {
+    const item = row.items || {};
+    return `
+      <div class="inventory-item">
+        <strong>${safeText(item.name || "이름 없는 아이템")}</strong>
+        <span>× ${Number(row.quantity || 0)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
 
 async function loadScenarioList() {
   const response = await fetch(`scenarios/scenario-list.json?ts=${Date.now()}`, { cache: "no-store" });
@@ -168,6 +213,7 @@ async function loadScenarioList() {
   const list = await response.json();
   scenarioList = list.filter((scenario) => scenario.status === "published");
   renderScenarioSelect();
+  renderScenarioGallery();
 }
 
 function renderScenarioSelect() {
@@ -179,6 +225,31 @@ function renderScenarioSelect() {
     option.textContent = `${scenario.title}${scenario.version ? ` · v${scenario.version}` : ""}`;
     select.appendChild(option);
   });
+}
+
+
+function renderScenarioGallery() {
+  const box = qs("#scenarioGallery");
+  if (!box) return;
+  if (!scenarioList.length) {
+    box.textContent = "공개된 시나리오가 없습니다.";
+    box.classList.add("muted");
+    return;
+  }
+  box.classList.remove("muted");
+  box.innerHTML = scenarioList.map((scenario) => {
+    const bg = scenario.coverImage ? `style="background-image: linear-gradient(135deg, rgba(158,29,41,.25), rgba(232,179,90,.15)), url('${safeAttr(scenario.coverImage)}')"` : "";
+    return `
+      <article class="scenario-card">
+        <div class="scenario-thumb" ${bg}></div>
+        <div class="scenario-body">
+          <p class="eyebrow">${safeText(scenario.version ? `v${scenario.version}` : "Scenario")}</p>
+          <h3>${safeText(scenario.title)}</h3>
+          <p>${safeText(scenario.description || "아직 소개문이 없습니다. 인간은 늘 본편보다 소개문을 늦게 씁니다.")}</p>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 async function loadScenario(scenarioId) {
@@ -203,6 +274,8 @@ async function createRoom({ scenarioId, title, maxPlayers, startSectionKey = nul
     p_state_json: stateJson || {}
   });
   if (error) throw error;
+  closeModal("#createRoomModal");
+  closeModal("#resumeRoomModal");
   showMessage(`방을 만들었습니다. 초대코드: ${data.invite_code}`, "success");
   await openRoom(data.room_id);
   await loadMyRooms();
@@ -213,6 +286,7 @@ async function joinRoomByCode(inviteCode) {
     p_invite_code: inviteCode.trim().toUpperCase()
   });
   if (error) throw error;
+  closeModal("#joinRoomModal");
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
   await loadMyRooms();
@@ -271,7 +345,7 @@ async function loadMyRooms() {
 
 async function openRoom(roomId) {
   await closeRealtime();
-  setVisible("#lobbyPanel", false);
+  setVisible("#appPanel", false);
   setVisible("#roomPanel", true);
   await loadRoomBundle(roomId);
   setupRealtime(roomId);
@@ -366,6 +440,15 @@ async function renderRoom() {
   qs("#roomTitleView").textContent = currentRoom.title;
   qs("#roomMetaView").textContent = `${scenario.title} · 초대코드 ${currentRoom.invite_code} · ${currentRoom.status} · 최대 ${currentRoom.max_players}명`;
   qs("#scenarioTitle").textContent = `${scenario.title} · ${sectionKey}`;
+  const imageNode = qs("#scenarioImage");
+  const imageUrl = section.image || section.imageUrl || scenario.coverImage || "";
+  if (imageNode && imageUrl) {
+    imageNode.hidden = false;
+    imageNode.style.backgroundImage = `linear-gradient(135deg, rgba(158,29,41,.18), rgba(232,179,90,.08)), url('${String(imageUrl).replaceAll("'", "%27")}')`;
+  } else if (imageNode) {
+    imageNode.hidden = true;
+    imageNode.style.backgroundImage = "";
+  }
   document.querySelectorAll(".host-only").forEach((node) => { node.hidden = !isHost; });
 
   if (!section) {
@@ -556,6 +639,33 @@ async function readJsonFile(file) {
   return JSON.parse(text);
 }
 
+
+function openModal(selector) {
+  const modal = qs(selector);
+  if (!modal) return;
+  if (typeof modal.showModal === "function") modal.showModal();
+  else modal.setAttribute("open", "");
+}
+
+function closeModal(selector) {
+  const modal = qs(selector);
+  if (!modal) return;
+  if (typeof modal.close === "function" && modal.open) modal.close();
+  else modal.removeAttribute("open");
+}
+
+function switchTab(target) {
+  document.querySelectorAll("[data-tab-target]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tabTarget === target);
+  });
+  document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
+    const active = panel.dataset.tabPanel === target;
+    panel.hidden = !active;
+    panel.classList.toggle("is-active", active);
+  });
+  if (target === "mine") loadMyRooms();
+}
+
 // Event bindings
 qs("#explorationLoginForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -583,8 +693,30 @@ qs("#refreshProfile")?.addEventListener("click", async () => {
 });
 
 qs("#refreshLobby")?.addEventListener("click", async () => {
+  renderScenarioGallery();
   await loadMyRooms();
 });
+
+qs("#refreshMyRooms")?.addEventListener("click", async () => {
+  await loadMyRooms();
+});
+
+qs("#refreshInventory")?.addEventListener("click", async () => {
+  try {
+    await loadInventory();
+    showMessage("가방을 다시 불러왔습니다.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+document.querySelectorAll("[data-tab-target]").forEach((button) => {
+  button.addEventListener("click", () => switchTab(button.dataset.tabTarget));
+});
+
+qs("#openCreateRoomModal")?.addEventListener("click", () => openModal("#createRoomModal"));
+qs("#openJoinRoomModal")?.addEventListener("click", () => openModal("#joinRoomModal"));
+qs("#openResumeRoomModal")?.addEventListener("click", () => openModal("#resumeRoomModal"));
 
 qs("#logoutButton")?.addEventListener("click", async () => {
   await closeRealtime();
@@ -660,7 +792,7 @@ qs("#leaveRoom")?.addEventListener("click", async () => {
   currentState = null;
   currentMessages = [];
   setVisible("#roomPanel", false);
-  setVisible("#lobbyPanel", true);
+  setVisible("#appPanel", true);
   await loadMyRooms();
 });
 
