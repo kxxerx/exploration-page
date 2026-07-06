@@ -1733,3 +1733,38 @@ select { color-scheme: dark; }
 .community-list, .admin-report-list { min-height: 120px; }
 #communityPagination { display: flex; }
 #communityPagination[hidden] { display: none !important; }
+
+
+.detail-mini-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.icon-danger-button {
+  border: 1px solid rgba(214, 182, 108, 0.32);
+  background: rgba(10, 8, 9, 0.8);
+  color: #f1d184;
+  border-radius: 999px;
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.icon-danger-button:hover { border-color: rgba(255, 92, 92, 0.72); color: #ff8b8b; }
+.my-content-toolbar { align-items: center; }
+.my-content-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(214, 182, 108, 0.18);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018));
+  margin-bottom: 10px;
+}
+.my-content-check { display:flex; align-items:flex-start; justify-content:center; padding-top: 4px; }
+.my-content-check input { accent-color: #d6b66c; }
+.my-content-body p { margin: 8px 0 0; color: rgba(247, 238, 218, 0.84); line-height: 1.6; }

@@ -83,6 +83,19 @@
           <div id="myRoomsList" class="room-list muted">불러오는 중...</div>
         </section>
 
+        <section id="tabMyContent" class="tab-panel" data-tab-panel="myContent" hidden>
+          <div class="list-toolbar my-content-toolbar">
+            <strong>내가 쓴 글/댓글</strong>
+            <div class="mini-actions">
+              <button id="refreshMyContent" type="button" class="icon-button" aria-label="새로고침" title="새로고침">↻</button>
+              <button id="deleteSelectedMyContent" type="button" class="ghost-button danger">선택 삭제</button>
+              <button id="deleteAllMyContent" type="button" class="ghost-button danger">전체 삭제</button>
+            </div>
+          </div>
+          <div id="myContentList" class="community-list muted">작성 내역을 불러오는 중...</div>
+          <div id="myContentPagination" class="pagination-row"></div>
+        </section>
+
         <section id="tabAdmin" class="tab-panel" data-tab-panel="admin" hidden>
           <div class="list-toolbar admin-toolbar">
             <strong>관리자 검토함</strong>
@@ -129,6 +142,7 @@
           <button id="openCreateRoomModal" type="button" class="primary-action full">탐사방 만들기</button>
           <button id="openJoinRoomModal" type="button" class="secondary-action full">코드로 참여하기</button>
           <button id="openResumeRoomModal" type="button" class="ghost-button full">저장파일로 이어하기</button>
+          <button id="myContentDeskButton" type="button" class="ghost-button full">내가 쓴 글/댓글</button>
           <button id="adminDeskButton" type="button" class="ghost-button full requires-admin" hidden>관리자 검토함</button>
         </section>
       </aside>

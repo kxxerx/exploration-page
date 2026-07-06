@@ -1,4 +1,4 @@
-// exploration-site: v1.9 report-review-notes-community-modal-fix
+// exploration-site: v1.11 moderation-cleanup-and-my-content
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
@@ -364,6 +364,7 @@ async function loadProfile() {
     document.querySelectorAll(".requires-admin").forEach((node) => { node.hidden = true; });
   }
   renderProfile(profile);
+  ensureMyContentPanel();
   await loadInventory();
   updateNotificationBadge().catch(() => {});
   startCleanupTimer();
@@ -605,11 +606,13 @@ function renderPartyDetail(post) {
   const count = Number(post.applicant_count || 0);
   const comments = Number(post.comment_count || 0);
   detail.innerHTML = `
+    <div class="detail-mini-actions">
+      <button type="button" class="icon-danger-button" data-report-target="party_post" data-report-id="${safeAttr(post.id)}" title="신고" aria-label="모집글 신고">🚨</button>
+    </div>
     <p class="kicker">Anonymous Board</p>
     <h2>${safeText(post.title || "익명 모집")}</h2>
     <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개${post.recruitment_deadline ? ` · 마감 ${formatDate(post.recruitment_deadline)}` : ""}</div>
     <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
-    <div class="party-actions"><button type="button" class="ghost-button danger" data-report-target="party_post" data-report-id="${safeAttr(post.id)}">모집글 신고</button></div>
     ${isClosed ? `<p class="small muted">모집 마감된 글입니다. 마감 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
   `;
 }
@@ -760,15 +763,22 @@ function renderCommunityDetail(post) {
   const detail = qs("#communityDetailBody");
   if (!detail) return;
   detail.innerHTML = `
+    <div class="detail-mini-actions">
+      <button type="button" class="icon-danger-button" data-report-target="community_post" data-report-id="${safeAttr(post.id)}" title="신고" aria-label="게시글 신고">🚨</button>
+      ${post.is_mine ? `<button type="button" class="icon-danger-button" data-delete-community-post="${safeAttr(post.id)}" title="삭제" aria-label="게시글 삭제">삭제</button>` : ""}
+    </div>
     <p class="kicker">Anonymous Lounge</p>
     <h2>${safeText(post.title || "익명 게시글")}</h2>
     <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(ORG_LABELS[post.organization_code] || post.organization_label || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
     <div class="community-detail-content">${safeText(post.body || "")}</div>
-    <div class="community-actions">
-      ${post.is_mine ? `<button type="button" class="ghost-button danger" data-delete-community-post="${safeAttr(post.id)}">삭제</button>` : ""}
-      <button type="button" class="ghost-button danger" data-report-target="community_post" data-report-id="${safeAttr(post.id)}">게시글 신고</button>
-    </div>
   `;
+}
+
+function updateCommunityCommentCount(postId, count) {
+  const meta = qs("#communityDetailBody .room-meta");
+  if (meta) meta.textContent = meta.textContent.replace(/댓글\s*\d+개/g, `댓글 ${Number(count || 0)}개`);
+  communityListCache = communityListCache.map((post) => String(post.id) === String(postId) ? { ...post, comment_count: count } : post);
+  renderCommunityPosts();
 }
 
 async function loadCommunityComments(postId) {
@@ -821,6 +831,115 @@ function renderCommunityComments(comments = []) {
   }).join("");
   const foldHtml = rootComments.length > COMMENT_PREVIEW_LIMIT ? `<button type="button" class="ghost-button full" data-toggle-community-comments="1">${currentCommunityCommentsExpanded ? "이전 댓글 접기" : `이전 댓글 ${hiddenCount}개 더 보기`}</button>` : "";
   box.innerHTML = foldHtml + html;
+}
+
+
+let myContentPage = 1;
+const MY_CONTENT_PAGE_SIZE = 10;
+let myContentSelection = new Set();
+let myContentCache = [];
+
+function ensureMyContentPanel() {
+  const appPanel = qs("#appPanel") || qs(".main-panel");
+  if (appPanel && !qs("#tabMyContent")) {
+    const section = document.createElement("section");
+    section.id = "tabMyContent";
+    section.className = "tab-panel";
+    section.dataset.tabPanel = "myContent";
+    section.hidden = true;
+    section.innerHTML = `
+      <div class="list-toolbar my-content-toolbar">
+        <strong>내가 쓴 글/댓글</strong>
+        <div class="mini-actions">
+          <button id="refreshMyContent" type="button" class="icon-button" aria-label="새로고침" title="새로고침">↻</button>
+          <button id="deleteSelectedMyContent" type="button" class="ghost-button danger">선택 삭제</button>
+          <button id="deleteAllMyContent" type="button" class="ghost-button danger">전체 삭제</button>
+        </div>
+      </div>
+      <div id="myContentList" class="community-list muted">작성 내역을 불러오는 중...</div>
+      <div id="myContentPagination" class="pagination-row"></div>`;
+    appPanel.appendChild(section);
+  }
+  const desk = qs(".action-card");
+  if (desk && !qs("#myContentDeskButton")) {
+    const btn = document.createElement("button");
+    btn.id = "myContentDeskButton";
+    btn.type = "button";
+    btn.className = "ghost-button full";
+    btn.textContent = "내가 쓴 글/댓글";
+    desk.appendChild(btn);
+  }
+}
+
+async function loadMyContent(page = myContentPage) {
+  ensureMyContentPanel();
+  const box = qs("#myContentList");
+  const pager = qs("#myContentPagination");
+  if (!box) return;
+  if (!currentProfile) { box.textContent = "로그인 후 볼 수 있습니다."; box.classList.add("muted"); return; }
+  myContentPage = Math.max(1, Number(page || 1));
+  box.textContent = "작성 내역을 불러오는 중...";
+  box.classList.add("muted");
+  const { data, error } = await supabase.rpc("list_my_exploration_content", { p_page: myContentPage, p_limit: MY_CONTENT_PAGE_SIZE });
+  if (error) { box.textContent = `작성 내역을 불러오지 못했습니다: ${error.message}`; return; }
+  myContentCache = data || [];
+  myContentSelection.clear();
+  renderMyContent();
+}
+
+function myContentLabel(kind) {
+  if (kind === "party_post") return "파티 모집글";
+  if (kind === "party_comment") return "파티 댓글";
+  if (kind === "community_post") return "익명 게시글";
+  if (kind === "community_comment") return "익명 댓글";
+  return "작성 내역";
+}
+
+function renderMyContent() {
+  const box = qs("#myContentList");
+  const pager = qs("#myContentPagination");
+  if (!box) return;
+  if (!myContentCache.length) {
+    box.textContent = "작성한 글이나 댓글이 없습니다.";
+    box.classList.add("muted");
+    if (pager) pager.innerHTML = `<button type="button" class="ghost-button" data-my-content-page="prev" disabled>이전</button><span>1 / 1</span><button type="button" class="ghost-button" data-my-content-page="next" disabled>다음</button>`;
+    return;
+  }
+  const totalCount = Number(myContentCache[0]?.total_count || myContentCache.length || 0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / MY_CONTENT_PAGE_SIZE));
+  box.classList.remove("muted");
+  box.innerHTML = myContentCache.map((item) => `
+    <article class="my-content-item">
+      <label class="my-content-check"><input type="checkbox" data-my-content-select="${safeAttr(item.kind)}:${safeAttr(item.item_id)}"></label>
+      <div class="my-content-body">
+        <div class="community-item-head"><strong>${safeText(item.title || myContentLabel(item.kind))}</strong><span class="badge public">${safeText(myContentLabel(item.kind))}</span></div>
+        <div class="community-item-meta">${formatDate(item.created_at)} · ${safeText(item.status || "")}</div>
+        <p>${safeText(item.body || "내용 없음").slice(0, 240)}${String(item.body || "").length > 240 ? "..." : ""}</p>
+        <div class="community-actions">
+          ${item.link_type === "party_post" && item.link_id ? `<button type="button" class="ghost-button" data-detail-party="${safeAttr(item.link_id)}">열기</button>` : ""}
+          ${item.link_type === "community_post" && item.link_id ? `<button type="button" class="ghost-button" data-detail-community="${safeAttr(item.link_id)}">열기</button>` : ""}
+          <button type="button" class="ghost-button danger" data-delete-my-content="${safeAttr(item.kind)}:${safeAttr(item.item_id)}">삭제</button>
+        </div>
+      </div>
+    </article>
+  `).join("");
+  if (pager) pager.innerHTML = `
+    <button type="button" class="ghost-button" data-my-content-page="prev" ${myContentPage <= 1 ? "disabled" : ""}>이전</button>
+    <span>${myContentPage} / ${totalPages}</span>
+    <button type="button" class="ghost-button" data-my-content-page="next" ${myContentPage >= totalPages ? "disabled" : ""}>다음</button>`;
+}
+
+async function deleteMyContentItems(items) {
+  if (!items?.length) return showMessage("삭제할 항목을 선택해 주세요.", "error");
+  if (!window.confirm(`${items.length}개 항목을 삭제할까요?`)) return;
+  const payload = items.map((raw) => {
+    const [kind, ...rest] = String(raw).split(":");
+    return { kind, id: rest.join(":") };
+  });
+  const { error } = await supabase.rpc("delete_my_exploration_content", { p_items: payload });
+  if (error) { showMessage(error.message, "error"); return; }
+  showMessage("작성 내역을 삭제했습니다.", "success");
+  await loadMyContent(myContentPage);
 }
 
 
@@ -1492,22 +1611,23 @@ async function loadAdminReports() {
         <strong>${safeText(report.target_type)} · ${safeText(report.reason)}</strong>
         <span>${formatDate(report.created_at)}</span>
       </header>
-      <p class="small muted">신고자: ${safeText(report.reporter_display_name || report.reporter_site_id || report.reporter_user_id || "알 수 없음")}</p>
+      <p class="small muted">신고자: ${safeText(report.reporter_band_nickname || "밴드닉 미등록")} · 아이디 ${safeText(report.reporter_site_id || "알 수 없음")}</p>
+      <p class="small muted">신고 대상자: ${safeText(report.target_author_band_nickname || "밴드닉 미등록")} · 아이디 ${safeText(report.target_author_site_id || "알 수 없음")}</p>
       <p>${safeText(report.detail || "상세 내용 없음")}</p>
       <div class="report-snapshot">${safeText(report.content_snapshot || "내용 스냅샷 없음")}</div>
       <div class="party-actions">
-        <button type="button" class="secondary-action" data-review-report="valid" data-report-id="${safeAttr(report.id)}">옳은 신고</button>
-        <button type="button" class="ghost-button" data-review-report="dismiss" data-report-id="${safeAttr(report.id)}">악의/오신고</button>
-        <button type="button" class="ghost-button danger" data-review-report="delete" data-report-id="${safeAttr(report.id)}">대상 삭제</button>
+        <button type="button" class="secondary-action" data-review-report="valid" data-report-id="${safeAttr(report.id)}">신고 접수</button>
+        <button type="button" class="ghost-button" data-review-report="dismiss_false" data-report-id="${safeAttr(report.id)}">오신고</button>
+        <button type="button" class="ghost-button danger" data-review-report="dismiss_malicious" data-report-id="${safeAttr(report.id)}">악의적 신고</button>
       </div>
     </article>
   `).join("");
 }
 
 function reportActionLabel(action) {
-  if (action === "dismiss") return "악의/오신고";
-  if (action === "delete") return "대상 삭제";
-  return "옳은 신고";
+  if (action === "dismiss_false") return "오신고";
+  if (action === "dismiss_malicious") return "악의적 신고";
+  return "신고 처리";
 }
 
 function openReportReviewModal(reportId, action) {
@@ -1525,9 +1645,9 @@ function openReportReviewModal(reportId, action) {
 
 async function reviewReport(reportId, action, note = "") {
   const { error } = await supabase.rpc("review_exploration_report", {
-    p_report_id: reportId,
     p_action: action,
-    p_admin_note: note || null
+    p_admin_note: note || null,
+    p_report_id: reportId
   });
   if (error) throw error;
   closeModal("#reportReviewModal");
@@ -1662,8 +1782,8 @@ function ensureReportReviewModal() {
     <form id="reportReviewForm" class="stacked-form">
       <input id="reviewReportId" type="hidden">
       <input id="reviewReportAction" type="hidden">
-      <label>처리 사유
-        <textarea id="reviewReportNote" rows="5" maxlength="800" placeholder="신고자에게 보일 처리 사유를 입력합니다. 예: 내용 확인 결과 규정 위반으로 보기 어려워 복구했습니다."></textarea>
+      <label>관리자 처리 사유
+        <textarea id="reviewReportNote" rows="5" maxlength="800" required placeholder="신고자에게 보일 처리 사유를 입력합니다. 예: 맥락상 규정 위반으로 보기 어려워 반려합니다."></textarea>
       </label>
       <p class="small muted">이 사유는 신고한 이용자가 알림창의 신고 처리 알림에서 확인할 수 있습니다.</p>
       <button type="submit" class="primary-action">검토 저장</button>
@@ -1753,7 +1873,7 @@ function ensureNotificationCenter() {
         <div class="segmented-tabs" role="tablist">
           <button type="button" class="mini-button is-active" data-notification-mode="party">파티글 알림</button>
           <button type="button" class="mini-button" data-notification-mode="community">게시판 알림</button>
-          <button type="button" class="mini-button" data-notification-mode="reports">신고 처리</button>
+          <button type="button" class="mini-button" data-notification-mode="reports">신고 접수</button>
         </div>
         <button id="refreshNotifications" type="button" class="icon-button" aria-label="알림 새로고침" title="새로고침">↻</button>
       </div>
@@ -1764,6 +1884,7 @@ function ensureNotificationCenter() {
 
 
 function ensureAdminDeskButton() {
+  ensureMyContentPanel();
   const desk = qs(".action-card");
   if (desk && !qs("#adminDeskButton")) {
     const btn = document.createElement("button");
@@ -1929,6 +2050,8 @@ document.addEventListener("click", async (event) => {
   if (bell) { await openNotificationCenter(notificationMode); return; }
   const adminDesk = event.target.closest("#adminDeskButton");
   if (adminDesk) { switchTab("admin"); return; }
+  const myContentDesk = event.target.closest("#myContentDeskButton");
+  if (myContentDesk) { switchTab("myContent"); await loadMyContent(1); return; }
   const navTab = event.target.closest("[data-tab-target]");
   if (navTab) { switchTab(navTab.dataset.tabTarget); return; }
   const modeBtn = event.target.closest("[data-notification-mode]");
@@ -1941,6 +2064,22 @@ document.addEventListener("click", async (event) => {
   if (detailCommunity) { closeModal("#notificationCenterModal"); await switchTabAndOpenCommunity(detailCommunity.dataset.detailCommunity); return; }
   const openCommunity = event.target.closest("#openCreateCommunityModal");
   if (openCommunity) { ensureCommunityCreateModal(); openModal("#createCommunityModal"); return; }
+  const myPageBtn = event.target.closest("[data-my-content-page]");
+  if (myPageBtn) { await loadMyContent(myPageBtn.dataset.myContentPage === "next" ? myContentPage + 1 : myContentPage - 1); return; }
+  const myDeleteBtn = event.target.closest("[data-delete-my-content]");
+  if (myDeleteBtn) { await deleteMyContentItems([myDeleteBtn.dataset.deleteMyContent]); return; }
+  const mySelect = event.target.closest("[data-my-content-select]");
+  if (mySelect) {
+    if (mySelect.checked) myContentSelection.add(mySelect.dataset.myContentSelect);
+    else myContentSelection.delete(mySelect.dataset.myContentSelect);
+    return;
+  }
+  const myDeleteSelected = event.target.closest("#deleteSelectedMyContent");
+  if (myDeleteSelected) { await deleteMyContentItems([...myContentSelection]); return; }
+  const myDeleteAll = event.target.closest("#deleteAllMyContent");
+  if (myDeleteAll) { await deleteMyContentItems(myContentCache.map((item) => `${item.kind}:${item.item_id}`)); return; }
+  const myRefresh = event.target.closest("#refreshMyContent");
+  if (myRefresh) { await loadMyContent(myContentPage); return; }
   const reportButton = event.target.closest("[data-report-target]");
   if (reportButton) { openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId); return; }
 });
@@ -2062,8 +2201,9 @@ qs("#communityCommentForm")?.addEventListener("submit", async (event) => {
     const body = qs("#communityCommentBody").value.trim();
     if (!body) return;
     const parentId = qs("#communityParentCommentId").value || null;
+    const postId = qs("#communityCommentPostId").value;
     const { error } = await supabase.rpc("create_exploration_community_comment", {
-      p_post_id: qs("#communityCommentPostId").value,
+      p_post_id: postId,
       p_body: body,
       p_parent_comment_id: parentId
     });
@@ -2073,6 +2213,7 @@ qs("#communityCommentForm")?.addEventListener("submit", async (event) => {
     qs("#communityReplyHint").hidden = true;
     const comments = await loadCommunityComments(currentCommunityDetailId);
     renderCommunityComments(comments);
+    updateCommunityCommentCount(postId, comments.length);
     await loadCommunityPosts(communityPage);
     await loadNotifications("community");
   } catch (error) { showMessage(error.message, "error"); }
@@ -2506,17 +2647,19 @@ document.addEventListener("submit", async (event) => {
   if (!event.target.closest("#reportReviewForm")) return;
   event.preventDefault();
   try {
-    await reviewReport(qs("#reviewReportId")?.value, qs("#reviewReportAction")?.value, qs("#reviewReportNote")?.value.trim() || "");
+    const note = qs("#reviewReportNote")?.value.trim() || "";
+    if (!note) throw new Error("관리자 처리 사유를 입력해 주세요.");
+    await reviewReport(qs("#reviewReportId")?.value, qs("#reviewReportAction")?.value, note);
   } catch (error) {
     showMessage(error.message, "error");
   }
 });
 
 qs("#refreshAdminReports")?.addEventListener("click", () => loadAdminReports());
-qs("#adminReportList")?.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-review-report]");
-  if (!button) return;
-  openReportReviewModal(button.dataset.reportId, button.dataset.reviewReport);
+document.addEventListener("click", async (event) => {
+  const reviewButton = event.target.closest("[data-review-report]");
+  if (!reviewButton) return;
+  openReportReviewModal(reviewButton.dataset.reportId, reviewButton.dataset.reviewReport);
 });
 
 qs("#roomInventoryList")?.addEventListener("click", (event) => {
