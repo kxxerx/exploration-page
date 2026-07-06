@@ -1,4 +1,4 @@
-// exploration-site: v0.6 broadcast UI
+// exploration-site: v0.7 refined broadcast lobby
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -266,7 +266,7 @@ function renderRoomList() {
   const box = qs("#roomList");
   if (!box) return;
   if (!roomListCache.length) {
-    box.textContent = "현재 열린 탐사방이 없습니다. 오른쪽 라운지 데스크에서 새 방을 만들 수 있어.";
+    box.textContent = "현재 열린 탐사방이 없습니다.";
     box.classList.add("muted");
     return;
   }
@@ -288,7 +288,6 @@ function renderRoomList() {
         <div>
           <div class="room-title-line"><strong>${safeText(room.title || "이름 없는 탐사방")}</strong>${badges}</div>
           <div class="room-meta">${safeText(scenario?.title || room.scenario_id)} · ${Number(room.current_players || 0)}/${Number(room.max_players || 0)}명 · ${formatDate(room.created_at)}</div>
-          ${isPrivate ? `<div class="small muted">비공개방은 초대코드와 숫자 비밀번호로만 입장할 수 있습니다.</div>` : ""}
         </div>
         <button type="button" data-join-public-room="${safeAttr(room.id)}" ${disabled ? "disabled" : ""}>${disabled ? disabledReason : "입장"}</button>
       </article>
@@ -715,6 +714,42 @@ function downloadChat() {
   makeDownload(`exploration-chat-${currentRoom.id}-${Date.now()}.txt`, lines.join("\n"), "text/plain");
 }
 
+async function updateRoomSettings({ title, maxPlayers, visibility, roomPassword }) {
+  if (!currentRoom) return;
+  const { data, error } = await supabase.rpc("update_exploration_room_settings", {
+    p_room_id: currentRoom.id,
+    p_title: title,
+    p_max_players: Number(maxPlayers || 2),
+    p_visibility: visibility,
+    p_room_password: roomPassword || null
+  });
+  if (error) throw error;
+  closeModal("#roomSettingsModal");
+  showMessage("방 설정을 저장했습니다.", "success");
+  await loadRoomBundle(data.room_id || currentRoom.id, { silent: true });
+  await Promise.all([loadRoomList(), loadMyRooms()]);
+}
+
+async function leaveCurrentRoom() {
+  if (!currentRoom) return;
+  const ok = window.confirm("정말 나가시겠습니까? 파일을 따로 저장하지 않으면 진행 정보는 초기화됩니다. 마지막 참가자가 나가면 탐사방은 폭파됩니다.");
+  if (!ok) return;
+  const roomId = currentRoom.id;
+  await closeRealtime();
+  const { data, error } = await supabase.rpc("leave_exploration_room", { p_room_id: roomId });
+  if (error) throw error;
+  currentRoom = null;
+  currentMembers = [];
+  currentState = null;
+  currentMessages = [];
+  setVisible("#roomPanel", false);
+  showLoggedInLounge();
+  switchTab("rooms");
+  await Promise.all([loadMyRooms(), loadRoomList()]);
+  showMessage(data?.room_deleted ? "마지막 참가자가 나가 탐사방이 폭파되었습니다." : "라운지로 나왔습니다.", "success");
+  qs("#appPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function clearChat() {
   if (!currentRoom) return;
   const ok = window.confirm("현재 방 채팅 로그를 DB에서 삭제할까요? 다운로드하지 않은 로그는 사라집니다.");
@@ -864,7 +899,7 @@ qs("#resumeRoomForm")?.addEventListener("submit", async (event) => {
       maxPlayers: 3,
       startSectionKey: save.currentSectionKey,
       stateJson: save.stateJson || {},
-      visibility: "private",
+      visibility: "public",
       roomPassword: ""
     });
   } catch (error) {
@@ -910,7 +945,12 @@ qs("#roomVisibility")?.addEventListener("change", () => {
   qs("#roomPassword").required = isPrivate;
 });
 
-["#roomPassword", "#joinRoomPassword"].forEach((selector) => {
+qs("#settingsVisibility")?.addEventListener("change", () => {
+  const isPrivate = qs("#settingsVisibility").value === "private";
+  qs("#settingsPasswordField").hidden = !isPrivate;
+});
+
+["#roomPassword", "#joinRoomPassword", "#settingsRoomPassword"].forEach((selector) => {
   qs(selector)?.addEventListener("input", (event) => {
     event.target.value = event.target.value.replace(/\D/g, "");
   });
@@ -937,16 +977,40 @@ qs("#copyInviteCode")?.addEventListener("click", async () => {
 });
 
 qs("#leaveRoom")?.addEventListener("click", async () => {
-  await closeRealtime();
-  currentRoom = null;
-  currentMembers = [];
-  currentState = null;
-  currentMessages = [];
-  setVisible("#roomPanel", false);
-  showLoggedInLounge();
-  switchTab("rooms");
-  await loadMyRooms();
-  qs("#appPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  try {
+    await leaveCurrentRoom();
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+});
+
+qs("#openRoomSettings")?.addEventListener("click", () => {
+  if (!currentRoom) return;
+  qs("#settingsRoomTitle").value = currentRoom.title || "";
+  qs("#settingsMaxPlayers").value = String(currentRoom.max_players || 2);
+  qs("#settingsVisibility").value = currentRoom.visibility || "public";
+  qs("#settingsRoomPassword").value = "";
+  qs("#settingsPasswordField").hidden = (currentRoom.visibility || "public") !== "private";
+  openModal("#roomSettingsModal");
+});
+
+qs("#roomSettingsForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const visibility = qs("#settingsVisibility").value;
+    const roomPassword = qs("#settingsRoomPassword").value.trim();
+    if (visibility === "private" && roomPassword && !/^\d{1,8}$/.test(roomPassword)) {
+      throw new Error("비공개방 비밀번호는 숫자 1~8자리로 입력하세요.");
+    }
+    await updateRoomSettings({
+      title: qs("#settingsRoomTitle").value.trim(),
+      maxPlayers: qs("#settingsMaxPlayers").value,
+      visibility,
+      roomPassword
+    });
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
 });
 
 qs("#downloadSave")?.addEventListener("click", downloadSave);

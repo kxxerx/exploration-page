@@ -460,3 +460,206 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .wheel-logo { width: 66px; height: 66px; }
   .tv-frame { height: min(440px, 58vh); border-width: 12px; }
 }
+
+/* v0.7 refined broadcast override: black / red / gold only, no brown */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css');
+:root {
+  --bg: #050508;
+  --bg-2: #0b0b12;
+  --panel: rgba(12, 12, 18, .94);
+  --panel-2: rgba(18, 18, 26, .94);
+  --text: #f7f0df;
+  --muted: rgba(247, 240, 223, .58);
+  --line: rgba(214, 174, 82, .22);
+  --line-strong: rgba(214, 174, 82, .44);
+  --gold: #d6ae52;
+  --gold-2: #f1d582;
+  --red: #d7203f;
+  --red-deep: #5a0714;
+  --brown: #0b0b12;
+  --black: #030304;
+  --shadow: 0 26px 90px rgba(0,0,0,.58);
+}
+body {
+  font-family: "Pretendard Variable", Pretendard, "Inter", "Noto Sans KR", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 450;
+  letter-spacing: -.018em;
+  background:
+    radial-gradient(circle at 16% -10%, rgba(215, 32, 63, .25), transparent 34%),
+    radial-gradient(circle at 84% 0%, rgba(214, 174, 82, .14), transparent 28%),
+    linear-gradient(150deg, #030304 0%, #090910 52%, #13040a 100%);
+}
+body::before {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.014) 1px, transparent 1px),
+    radial-gradient(circle at 52% 0%, rgba(215,32,63,.08), transparent 46%);
+  background-size: 54px 54px, 54px 54px, auto;
+  opacity: .65;
+}
+.tv-frame {
+  border: 14px solid #07070a;
+  background: #020203;
+  box-shadow: inset 0 0 90px rgba(0,0,0,.96), 0 32px 140px rgba(0,0,0,.86), 0 0 0 1px rgba(214,174,82,.22);
+}
+.on-air-splash.is-visible { animation: splashFade 4.15s ease forwards; }
+.static-layer { opacity: .72; animation: staticMove .12s steps(2) infinite, staticFade 4.15s linear forwards; }
+.on-air-neon {
+  border: 0;
+  background: transparent;
+  color: #ff2446;
+  letter-spacing: .16em;
+  animation: neonFlickerV07 4.15s steps(1) forwards;
+}
+@keyframes staticFade {
+  0%, 42% { opacity: .95; filter: contrast(1.4); }
+  52%, 82% { opacity: .26; }
+  100% { opacity: 0; }
+}
+@keyframes neonFlickerV07 {
+  0%, 42% { opacity: 0; transform: scale(.98); }
+  43%, 47% { opacity: .18; }
+  48%, 50%, 54%, 58% { opacity: 1; transform: scale(1); }
+  51%, 53%, 59%, 61% { opacity: .2; }
+  62%, 100% { opacity: 1; transform: scale(1); }
+}
+@keyframes splashFade {
+  0%, 84% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+.site-header { padding-top: 1.25rem; }
+.brand-home { margin-left: 0; }
+.wheel-logo {
+  width: 70px;
+  height: 70px;
+  color: var(--gold-2);
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  filter: drop-shadow(0 0 14px rgba(214,174,82,.18));
+}
+.brand-home:hover .wheel-logo { transform: translateY(-1px); box-shadow: none !important; filter: drop-shadow(0 0 18px rgba(215,32,63,.32)); }
+.wheel-logo svg { width: 62px; height: 62px; }
+.wheel-ring, .wheel-line, .wheel-light { stroke-width: 2.6; }
+.main-nav {
+  margin-top: 1.05rem;
+  padding: .35rem;
+  border-radius: 18px;
+  background: rgba(3,3,5,.68);
+  border-color: rgba(214,174,82,.18);
+}
+.nav-tab {
+  padding: .66rem 1rem;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.nav-tab.is-active,
+.nav-tab:hover {
+  color: #07070a;
+  background: linear-gradient(135deg, #d6ae52, #f1d582);
+}
+.broadcast-card,
+.broadcast-stage,
+.side-card,
+.room-panel,
+.modal-card,
+.empty-state {
+  background:
+    linear-gradient(145deg, rgba(15,15,22,.96), rgba(3,3,5,.97)),
+    radial-gradient(circle at top left, rgba(215,32,63,.10), transparent 44%);
+  border-color: rgba(214,174,82,.20);
+}
+.kicker { color: rgba(214,174,82,.78); letter-spacing: .12em; }
+.panel-title { margin: 0; }
+.list-toolbar {
+  min-height: 2.6rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .9rem;
+}
+.icon-button {
+  width: 2.45rem;
+  height: 2.45rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(214,174,82,.25);
+  background: rgba(255,255,255,.035);
+  color: var(--gold-2);
+  font-size: 1.25rem;
+  line-height: 1;
+  box-shadow: none;
+}
+.icon-button:hover {
+  background: rgba(215,32,63,.13);
+  border-color: rgba(215,32,63,.50);
+  transform: rotate(18deg);
+}
+.write-button {
+  border: 1px solid rgba(214,174,82,.38);
+  color: #08080b;
+  background: linear-gradient(135deg, #d6ae52, #f1d582);
+  border-radius: 999px;
+  padding: .72rem 1.05rem;
+  font-weight: 800;
+  box-shadow: 0 12px 34px rgba(0,0,0,.28);
+}
+.write-button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.primary-action,
+.secondary-action,
+.ghost-button,
+.room-item button,
+.chat-form button {
+  border-radius: 999px;
+  font-weight: 750;
+}
+.primary-action,
+.room-item button:not(:disabled),
+.chat-form button {
+  color: #08080b;
+  background: linear-gradient(135deg, var(--gold), var(--gold-2));
+  border: 1px solid rgba(241,213,130,.35);
+}
+.secondary-action {
+  color: #fff3dc;
+  background: linear-gradient(135deg, rgba(215,32,63,.88), rgba(108,12,28,.92));
+  border: 1px solid rgba(255,78,104,.35);
+}
+.ghost-button {
+  color: var(--text);
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(214,174,82,.22);
+}
+.room-item,
+.party-item,
+.inventory-item,
+.member-item {
+  background: rgba(255,255,255,.034);
+  border-color: rgba(214,174,82,.16);
+}
+.room-item:hover:not(.is-disabled), .party-item:hover {
+  border-color: rgba(214,174,82,.42);
+  background: rgba(215,32,63,.055);
+}
+.room-item.is-disabled {
+  opacity: .47;
+  filter: grayscale(.2);
+}
+.badge.public { color: #f1d582; border-color: rgba(214,174,82,.36); }
+.badge.private, .badge.full { color: #ff8da0; border-color: rgba(215,32,63,.42); }
+.lounge-layout {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) var(--side-width);
+}
+.side-rail {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+}
+@media (max-width: 720px) {
+  .side-rail { position: static; }
+  .lounge-layout { grid-template-columns: 1fr; }
+}
