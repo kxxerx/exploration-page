@@ -1,10 +1,13 @@
 // exploration-site: v1.11 moderation-cleanup-and-my-content
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
-import { supabase } from "./supabaseClient.js";
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
 
-await revealMemberLinks();
+try {
+  await revealMemberLinks();
+} catch (error) {
+  console.warn("초기 세션 링크 확인 실패", error);
+}
 
 const ORG_LABELS = {
   baekildream: "백일몽 주식회사",
@@ -923,8 +926,8 @@ let myContentSelection = new Set();
 let myContentCache = [];
 
 function ensureMyContentPanel() {
-  const appPanel = qs("#appPanel") || qs(".main-panel");
-  if (appPanel && !qs("#tabMyContent")) {
+  const stage = qs(".broadcast-stage");
+  if (stage && !qs("#tabMyContent")) {
     const section = document.createElement("section");
     section.id = "tabMyContent";
     section.className = "tab-panel";
@@ -1808,6 +1811,7 @@ function switchTab(target) {
   ensureAdminPanel();
   ensureDynamicShell();
   const normalizedTarget = target || "rooms";
+  document.body.classList.toggle("wide-stage", normalizedTarget === "myContent" || normalizedTarget === "admin");
   document.querySelectorAll("[data-tab-target]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.tabTarget === normalizedTarget);
   });
@@ -1823,6 +1827,9 @@ function switchTab(target) {
   if (normalizedTarget === "mine") loadMyRooms();
   if (normalizedTarget === "myContent") loadMyContent(myContentPage || 1);
   if (normalizedTarget === "admin") loadAdminReports();
+  if (normalizedTarget === "myContent" || normalizedTarget === "admin") {
+    requestAnimationFrame(() => qs(".broadcast-stage")?.scrollIntoView({ block: "start" }));
+  }
 }
 
 
@@ -1918,6 +1925,7 @@ function ensureCommunityDetailModal() {
 }
 
 function ensureDynamicShell() {
+  ensureMyContentPanel();
   ensureReportModal();
   ensureReportReviewModal();
   ensureCommunityCreateModal();
@@ -2841,5 +2849,6 @@ try {
   updateNotificationBadge().catch(() => {});
   }
 } catch (error) {
-  showMessage(error.message, "error");
+  showLoggedOutView();
+  showMessage(error.message || "초기 화면을 불러오지 못했습니다.", "error");
 }

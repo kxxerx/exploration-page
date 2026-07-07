@@ -1864,3 +1864,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 @media (max-width: 680px) {
   .party-schedule div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+body.wide-stage #appPanel {
+  grid-template-columns: minmax(0, 1fr);
+}
+body.wide-stage .side-rail {
+  display: none;
+}
+body.wide-stage .broadcast-stage {
+  min-height: min(760px, calc(100vh - 150px));
+}
+
+body.wide-stage #tabMyContent {
+  width: 100%;
+}
