@@ -81,6 +81,88 @@ function formatDate(value) {
   return date.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
 }
 
+function formatDateLong(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatDateTimeLocal(date) {
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseLocalDateTimeValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function remainingTimeText(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "남은 시간 확인 불가";
+  const diff = date.getTime() - Date.now();
+  if (diff <= 0) return "마감됨";
+  const totalMinutes = Math.ceil(diff / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (days) parts.push(`${days}일`);
+  if (hours) parts.push(`${hours}시간`);
+  if (!days && minutes) parts.push(`${minutes}분`);
+  return `${parts.join(" ") || "1분 미만"} 남음`;
+}
+
+function getPartyScheduleHtml(post) {
+  const created = formatDateLong(post.created_at);
+  const deadline = formatDateLong(post.recruitment_deadline);
+  const remaining = post.recruitment_deadline ? remainingTimeText(post.recruitment_deadline) : "남은 시간 확인 불가";
+  const explorationStart = post.exploration_starts_at || null;
+  const playText = explorationStart ? `${formatDateLong(explorationStart)}부터` : (post.play_time || "미정");
+  return `
+    <dl class="party-schedule">
+      <div><dt>모집 기간</dt><dd>${safeText(created)} ~ ${safeText(deadline)} <span class="party-remaining">(${safeText(remaining)})</span></dd></div>
+      <div><dt>탐사 일자</dt><dd>${safeText(playText)}</dd></div>
+    </dl>`;
+}
+
+function setupPartyDateInputs(prefix = "party", post = null) {
+  const deadlineInput = qs(`#${prefix}RecruitmentDeadline`);
+  const startInput = qs(`#${prefix}PlayStartAt`);
+  const now = new Date();
+  const minDeadline = new Date(now.getTime() + 60 * 60 * 1000);
+  const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  if (deadlineInput) {
+    deadlineInput.min = formatDateTimeLocal(minDeadline);
+    deadlineInput.max = formatDateTimeLocal(maxDate);
+    deadlineInput.step = "60";
+    deadlineInput.value = post?.recruitment_deadline ? formatDateTimeLocal(new Date(post.recruitment_deadline)) : formatDateTimeLocal(new Date(now.getTime() + 3 * 60 * 60 * 1000));
+  }
+  if (startInput) {
+    startInput.min = deadlineInput?.value || formatDateTimeLocal(minDeadline);
+    startInput.max = formatDateTimeLocal(maxDate);
+    startInput.step = "60";
+    startInput.value = post?.exploration_starts_at ? formatDateTimeLocal(new Date(post.exploration_starts_at)) : formatDateTimeLocal(new Date(now.getTime() + 4 * 60 * 60 * 1000));
+  }
+}
+
+function validatePartyDateInputs(prefix = "party") {
+  const deadline = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentDeadline`)?.value);
+  const start = parseLocalDateTimeValue(qs(`#${prefix}PlayStartAt`)?.value);
+  const now = new Date();
+  const minDeadline = new Date(now.getTime() + 60 * 60 * 1000 - 15000);
+  const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 15000);
+  if (!deadline) throw new Error("모집 마감 시간을 입력하세요.");
+  if (!start) throw new Error("탐사 일자를 입력하세요.");
+  if (deadline < minDeadline) throw new Error("모집 마감 시간은 지금부터 최소 1시간 이후로 지정해야 합니다.");
+  if (deadline > maxDate) throw new Error("모집 마감 시간은 최대 7일 뒤까지만 지정할 수 있습니다.");
+  if (start < deadline) throw new Error("탐사 일자는 모집 마감 시간 이후로 지정하세요.");
+  if (start > maxDate) throw new Error("탐사 일자는 최대 7일 뒤까지만 지정할 수 있습니다.");
+  return { deadlineIso: deadline.toISOString(), startIso: start.toISOString() };
+}
+
 function getStateJson() {
   return currentState?.state_json && typeof currentState.state_json === "object" ? currentState.state_json : {};
 }
@@ -559,7 +641,6 @@ function renderPartyPosts() {
     const hasApplied = !!post.has_applied;
     const count = Number(post.applicant_count || 0);
     const comments = Number(post.comment_count || 0);
-    const deadlineText = post.recruitment_deadline ? ` · 마감 ${formatDate(post.recruitment_deadline)}` : "";
     const statusBadge = isClosed
       ? `<span class="badge full">모집 마감</span>`
       : `<span class="badge public">모집 중</span>`;
@@ -579,7 +660,8 @@ function renderPartyPosts() {
           <strong>${safeText(post.title || "익명 모집")}</strong>
           ${statusBadge}
         </header>
-        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개${safeText(deadlineText)}</div>
+        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+        ${getPartyScheduleHtml(post)}
         <p class="party-item-content">${safeText(post.content || "내용 없음")}</p>
         <footer class="party-actions">
           <button type="button" class="ghost-button" data-detail-party="${safeAttr(post.id)}">자세히 보기</button>
@@ -611,7 +693,8 @@ function renderPartyDetail(post) {
     </div>
     <p class="kicker">Anonymous Board</p>
     <h2>${safeText(post.title || "익명 모집")}</h2>
-    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(post.play_time || "시간 미정")} · 신청 ${count}명 · 댓글 ${comments}개${post.recruitment_deadline ? ` · 마감 ${formatDate(post.recruitment_deadline)}` : ""}</div>
+    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+    ${getPartyScheduleHtml(post)}
     <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
     ${isClosed ? `<p class="small muted">모집 마감된 글입니다. 마감 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
   `;
@@ -858,7 +941,7 @@ function ensureMyContentPanel() {
       </div>
       <div id="myContentList" class="community-list muted">작성 내역을 불러오는 중...</div>
       <div id="myContentPagination" class="pagination-row"></div>`;
-    appPanel.appendChild(section);
+    stage.appendChild(section);
   }
   const desk = qs(".action-card");
   if (desk && !qs("#myContentDeskButton")) {
@@ -1738,6 +1821,7 @@ function switchTab(target) {
   if (normalizedTarget === "party") loadPartyPosts();
   if (normalizedTarget === "community") loadCommunityPosts(communityPage || 1);
   if (normalizedTarget === "mine") loadMyRooms();
+  if (normalizedTarget === "myContent") loadMyContent(myContentPage || 1);
   if (normalizedTarget === "admin") loadAdminReports();
 }
 
@@ -2319,17 +2403,40 @@ qs("#roomList")?.addEventListener("click", async (event) => {
   }
 });
 
-qs("#openCreatePartyModal")?.addEventListener("click", () => openModal("#createPartyModal"));
+qs("#openCreatePartyModal")?.addEventListener("click", () => {
+  setupPartyDateInputs("party");
+  openModal("#createPartyModal");
+});
+
+qs("#partyRecruitmentDeadline")?.addEventListener("change", () => {
+  const startInput = qs("#partyPlayStartAt");
+  const deadlineInput = qs("#partyRecruitmentDeadline");
+  if (startInput && deadlineInput) {
+    startInput.min = deadlineInput.value;
+    if (startInput.value && startInput.value < deadlineInput.value) startInput.value = deadlineInput.value;
+  }
+});
+
+qs("#editPartyRecruitmentDeadline")?.addEventListener("change", () => {
+  const startInput = qs("#editPartyPlayStartAt");
+  const deadlineInput = qs("#editPartyRecruitmentDeadline");
+  if (startInput && deadlineInput) {
+    startInput.min = deadlineInput.value;
+    if (startInput.value && startInput.value < deadlineInput.value) startInput.value = deadlineInput.value;
+  }
+});
 
 qs("#createPartyForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    const partyDates = validatePartyDateInputs("party");
     const { error } = await supabase.rpc("create_exploration_party_post", {
       p_title: qs("#partyTitle").value.trim(),
       p_scenario_id: qs("#partyScenarioSelect").value || null,
-      p_play_time: qs("#partyTime").value.trim() || null,
+      p_play_time: null,
       p_content: qs("#partyContent").value.trim() || null,
-      p_recruitment_hours: Number(qs("#partyRecruitmentHours")?.value || 24)
+      p_recruitment_deadline: partyDates.deadlineIso,
+      p_exploration_starts_at: partyDates.startIso
     });
     if (error) throw error;
     closeModal("#createPartyModal");
@@ -2380,10 +2487,8 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       qs("#editPartyId").value = post.id;
       qs("#editPartyTitle").value = post.title || "";
       qs("#editPartyScenarioSelect").value = post.scenario_id || "";
-      qs("#editPartyTime").value = post.play_time || "";
       qs("#editPartyContent").value = post.content || "";
-      const hours = post.recruitment_hours || 24;
-      if (qs("#editPartyRecruitmentHours")) qs("#editPartyRecruitmentHours").value = String(hours);
+      setupPartyDateInputs("editParty", post);
       openModal("#editPartyModal");
       return;
     }
@@ -2460,13 +2565,15 @@ qs("#partyCommentList")?.addEventListener("click", async (event) => {
 qs("#editPartyForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    const partyDates = validatePartyDateInputs("editParty");
     const { error } = await supabase.rpc("update_exploration_party_post", {
       p_post_id: qs("#editPartyId").value,
       p_title: qs("#editPartyTitle").value.trim(),
       p_scenario_id: qs("#editPartyScenarioSelect").value || null,
-      p_play_time: qs("#editPartyTime").value.trim() || null,
+      p_play_time: null,
       p_content: qs("#editPartyContent").value.trim() || null,
-      p_recruitment_hours: Number(qs("#editPartyRecruitmentHours")?.value || 24)
+      p_recruitment_deadline: partyDates.deadlineIso,
+      p_exploration_starts_at: partyDates.startIso
     });
     if (error) throw error;
     closeModal("#editPartyModal");

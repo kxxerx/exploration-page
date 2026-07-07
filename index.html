@@ -239,8 +239,11 @@
       <label>희망 시나리오
         <select id="partyScenarioSelect"></select>
       </label>
-      <label>희망 시간
-        <input id="partyTime" type="text" maxlength="80" placeholder="예: 토요일 22시 이후">
+      <label>모집 마감 시간
+        <input id="partyRecruitmentDeadline" type="datetime-local" required>
+      </label>
+      <label>탐사 일자
+        <input id="partyPlayStartAt" type="datetime-local" required>
       </label>
       <label>모집 내용
         <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기를 적어줘."></textarea>
@@ -261,8 +264,11 @@
       <label>희망 시나리오
         <select id="editPartyScenarioSelect"></select>
       </label>
-      <label>희망 시간
-        <input id="editPartyTime" type="text" maxlength="80">
+      <label>모집 마감 시간
+        <input id="editPartyRecruitmentDeadline" type="datetime-local" required>
+      </label>
+      <label>탐사 일자
+        <input id="editPartyPlayStartAt" type="datetime-local" required>
       </label>
       <label>모집 내용
         <textarea id="editPartyContent" rows="5" maxlength="600"></textarea>
