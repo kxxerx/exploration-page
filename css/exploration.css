@@ -1959,3 +1959,15 @@ input[type="file"]::file-selector-button {
 input[type="file"]::file-selector-button:hover {
   background: rgba(214,182,108,.18);
 }
+
+/* v1.15.2 hotfix: mobile live-room spacing */
+@media (max-width: 720px) {
+  body.in-room .room-actions {
+    margin-bottom: 14px !important;
+  }
+  body.in-room .scenario-box,
+  body.in-room .scenario-stage,
+  body.in-room .scenario-panel {
+    margin-top: 10px;
+  }
+}

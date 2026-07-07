@@ -173,73 +173,76 @@ function getPartyScheduleHtml(post) {
     </dl>`;
 }
 
+function getDurationInput(prefix = "party") {
+  return qs(`#${prefix}RecruitmentDurationDays`);
+}
+
+function computeDeadlineFromDuration(prefix = "party") {
+  const start = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentStartAt`)?.value) || new Date();
+  const duration = Math.min(7, Math.max(1, Number(getDurationInput(prefix)?.value || 7)));
+  return endOfDayAfterDays(start, duration);
+}
+
 function setupPartyDateInputs(prefix = "party", post = null) {
   const startInput = qs(`#${prefix}RecruitmentStartAt`);
   const deadlineInput = qs(`#${prefix}RecruitmentDeadline`);
   const playInput = qs(`#${prefix}PlayStartAt`);
+  const durationInput = getDurationInput(prefix);
   const capacityInput = qs(`#${prefix}RecruitmentCapacity`);
   const now = new Date();
   const defaultStart = post?.recruitment_start_at ? new Date(post.recruitment_start_at) : now;
-  const defaultDeadline = post?.recruitment_deadline ? new Date(post.recruitment_deadline) : new Date(defaultStart.getTime() + 3 * 60 * 60 * 1000);
-  const defaultPlay = post?.exploration_starts_at ? new Date(post.exploration_starts_at) : new Date(defaultDeadline.getTime() + 60 * 60 * 1000);
+  const defaultDeadline = post?.recruitment_deadline ? new Date(post.recruitment_deadline) : endOfDayAfterDays(defaultStart, 7);
+  const startDay = new Date(defaultStart.getFullYear(), defaultStart.getMonth(), defaultStart.getDate()).getTime();
+  const deadlineDay = new Date(defaultDeadline.getFullYear(), defaultDeadline.getMonth(), defaultDeadline.getDate()).getTime();
+  const inferredDuration = Math.min(7, Math.max(1, Math.round((deadlineDay - startDay) / 86400000) || 7));
+  const normalizedDeadline = endOfDayAfterDays(defaultStart, inferredDuration);
+  const defaultPlay = post?.exploration_starts_at ? new Date(post.exploration_starts_at) : new Date(normalizedDeadline.getTime() + 60 * 60 * 1000);
   if (startInput) {
     startInput.removeAttribute("min");
+    startInput.removeAttribute("max");
     startInput.step = "60";
     startInput.value = formatDateTimeLocal(defaultStart);
+    startInput.dataset.lastValue = startInput.value;
   }
+  if (durationInput) durationInput.value = String(inferredDuration);
   if (deadlineInput) {
-    deadlineInput.min = formatDateTimeLocal(new Date(defaultStart.getTime() + 60 * 60 * 1000));
-    deadlineInput.max = formatDateTimeLocal(new Date(defaultStart.getTime() + 7 * 24 * 60 * 60 * 1000));
-    deadlineInput.step = "60";
-    deadlineInput.value = formatDateTimeLocal(defaultDeadline);
+    deadlineInput.value = formatDateTimeLocal(normalizedDeadline);
   }
   if (playInput) {
-    playInput.min = formatDateTimeLocal(defaultDeadline);
+    playInput.removeAttribute("min");
     playInput.removeAttribute("max");
     playInput.step = "60";
     playInput.value = formatDateTimeLocal(defaultPlay);
   }
   if (capacityInput) {
-    capacityInput.value = String(Math.min(4, Math.max(2, Number(post?.recruitment_capacity || 4))));
+    capacityInput.value = String(Math.min(3, Math.max(2, Number(post?.recruitment_capacity || 2))));
   }
 }
 
-function syncPartyDateLimits(prefix = "party") {
+function syncPartyDateLimits(prefix = "party", changedField = "") {
   const startInput = qs(`#${prefix}RecruitmentStartAt`);
   const deadlineInput = qs(`#${prefix}RecruitmentDeadline`);
   const playInput = qs(`#${prefix}PlayStartAt`);
-  const start = parseLocalDateTimeValue(startInput?.value) || new Date();
-  if (deadlineInput) {
-    const minDeadline = new Date(start.getTime() + 60 * 60 * 1000);
-    const maxDeadline = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
-    deadlineInput.min = formatDateTimeLocal(minDeadline);
-    deadlineInput.max = formatDateTimeLocal(maxDeadline);
-    const currentDeadline = parseLocalDateTimeValue(deadlineInput.value);
-    if (!currentDeadline || currentDeadline < minDeadline) deadlineInput.value = formatDateTimeLocal(minDeadline);
-    if (parseLocalDateTimeValue(deadlineInput.value) > maxDeadline) deadlineInput.value = formatDateTimeLocal(maxDeadline);
-  }
-  const deadline = parseLocalDateTimeValue(deadlineInput?.value);
-  if (playInput && deadline) {
-    playInput.min = formatDateTimeLocal(deadline);
-    playInput.removeAttribute("max");
-    const currentPlay = parseLocalDateTimeValue(playInput.value);
-    if (!currentPlay || currentPlay < deadline) playInput.value = formatDateTimeLocal(new Date(deadline.getTime() + 60 * 60 * 1000));
+  if (!deadlineInput) return;
+  deadlineInput.value = formatDateTimeLocal(computeDeadlineFromDuration(prefix));
+  if (startInput) startInput.dataset.lastValue = startInput.value;
+  // 탐사 일자는 사용자가 정한 값을 유지한다. 비어 있을 때만 기본값을 채운다.
+  if (playInput && !playInput.value) {
+    playInput.value = formatDateTimeLocal(new Date(computeDeadlineFromDuration(prefix).getTime() + 60 * 60 * 1000));
   }
 }
 
 function validatePartyDateInputs(prefix = "party") {
   const recruitmentStart = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentStartAt`)?.value);
-  const deadline = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentDeadline`)?.value);
+  const deadline = computeDeadlineFromDuration(prefix);
   const playStart = parseLocalDateTimeValue(qs(`#${prefix}PlayStartAt`)?.value);
-  const capacity = Number(qs(`#${prefix}RecruitmentCapacity`)?.value || 4);
-  const now = new Date();
+  const capacity = Number(qs(`#${prefix}RecruitmentCapacity`)?.value || 2);
   if (!recruitmentStart) throw new Error("모집 시작 시간을 입력하세요.");
-  if (!deadline) throw new Error("모집 마감 시간을 입력하세요.");
+  if (!deadline) throw new Error("모집 기간을 선택하세요.");
   if (!playStart) throw new Error("탐사 일자를 입력하세요.");
-  if (deadline < new Date(recruitmentStart.getTime() + 60 * 60 * 1000 - 15000)) throw new Error("모집 마감 시간은 모집 시작 시간보다 최소 1시간 이후로 지정해야 합니다.");
-  if (deadline > new Date(recruitmentStart.getTime() + 7 * 24 * 60 * 60 * 1000 + 15000)) throw new Error("모집 마감 시간은 모집 시작 시간 기준 최대 7일 뒤까지만 지정할 수 있습니다.");
-  if (playStart < deadline) throw new Error("탐사 일자는 모집 마감 시간 이후로 지정하세요.");
-  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 4) throw new Error("모집 인원은 2~4명 사이로 지정하세요.");
+  const duration = Number(getDurationInput(prefix)?.value || 7);
+  if (!Number.isInteger(duration) || duration < 1 || duration > 7) throw new Error("모집 기간은 1~7일 중에서 선택하세요.");
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 3) throw new Error("모집 인원은 2~3명만 지정할 수 있습니다.");
   return { recruitmentStartIso: recruitmentStart.toISOString(), deadlineIso: deadline.toISOString(), startIso: playStart.toISOString(), capacity };
 }
 
@@ -279,17 +282,14 @@ function getShopItemName(row) {
 
 function getShopItemCategory(row) {
   const item = row?.items || {};
-  return String(item.category || item.item_kind || row?.category || row?.item_kind || "").toLowerCase();
+  return String(item.category || row?.category || "").toLowerCase();
 }
 
 function isShopInventoryRowVisible(row) {
   const category = getShopItemCategory(row);
   const visitorType = String(currentProfile?.visitor_type || "human").toLowerCase();
   const isEntity = visitorType === "entity" || String(currentProfile?.organization_code || "").toLowerCase() === "entity";
-  if (!category) return true;
-  const entityKeys = ["special", "special_product", "special_goods", "entity", "괴이", "특별"];
-  const snackKeys = ["snack", "snacks", "snack_button", "snackbutton", "food", "간식", "스낵"];
-  return isEntity ? entityKeys.some((key) => category.includes(key)) : snackKeys.some((key) => category.includes(key));
+  return isEntity ? category === "special" : category === "cleanse";
 }
 
 function getVisibleShopInventory() {
@@ -304,7 +304,7 @@ function getShopItemMeta(itemId) {
     id: rawId,
     name: getShopItemName(row),
     type: "shop",
-    detail: "상점에서 구입한 소지품입니다. 탐사 중 사용할 수 있는지는 진행 조건과 방 설정에 따라 달라집니다.",
+    detail: row?.items?.description || "상점에서 구입한 소지품입니다. 탐사 중 사용할 수 있는지는 진행 조건과 방 설정에 따라 달라집니다.",
     quantity: Number(row.quantity || 0)
   };
 }
@@ -353,6 +353,20 @@ function clampMetric(value) {
   return Math.max(0, Math.min(100, Number(value || 0)));
 }
 
+function isEntityProfile(profile = currentProfile) {
+  return String(profile?.visitor_type || "").toLowerCase() === "entity" || String(profile?.organization_code || "").toLowerCase() === "entity";
+}
+
+function hasEntityLifeMask(profile = currentProfile) {
+  return !isEntityProfile(profile) || !!profile?.current_life_item_id;
+}
+
+async function requireEntityLifeMask() {
+  if (hasEntityLifeMask()) return true;
+  await themedAlert("초자연적 힘을 가진 존재가 있는 세계에는 접근할 수 없습니다. 접근하길 원한다면 초자연적 힘을 가진 존재를 속일 수 있는 가면을 착용하십시오.", "접근 불가");
+  return false;
+}
+
 function buildMetricBar(value, variant = "pollution") {
   const pct = clampMetric(value);
   return `<div class="metric-bar ${variant}" title="${pct}%"><span style="width:${pct}%"></span></div>`;
@@ -387,8 +401,13 @@ function buildStatePatchForEffects(effects = []) {
     }
     if (effect.type === "pollution") {
       const org = myMember?.organization_code_snapshot || currentProfile?.organization_code;
+      const visitorType = myMember?.visitor_type_snapshot || currentProfile?.visitor_type;
       const delta = org === "disaster_agency" && effect.disasterAgencyAmount != null ? Number(effect.disasterAgencyAmount) : Number(effect.amount || 0);
-      myMetric.pollution = clampMetric(Number(myMetric.pollution || 0) + delta);
+      if (String(visitorType || "").toLowerCase() === "entity" || String(org || "").toLowerCase() === "entity") {
+        myMetric.mask_collapse_rate = clampMetric(Number(myMetric.mask_collapse_rate || 0) + delta);
+      } else {
+        myMetric.pollution = clampMetric(Number(myMetric.pollution || 0) + delta);
+      }
       logs.push("오염도가 갱신됐습니다.");
     }
     if (effect.type === "mask_collapse") {
@@ -543,6 +562,7 @@ async function loadProfile() {
       currency,
       pollution,
       mask_collapse_rate,
+      current_life_item_id,
       role,
       status
     `)
@@ -926,7 +946,7 @@ function renderCommunityPosts() {
         <span class="badge public">${safeText(communityStatusLabel(post))}</span>
       </header>
       <div class="community-item-meta">
-        ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(ORG_LABELS[post.organization_code] || post.organization_label || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
+        ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(post.organization_label || ORG_LABELS[post.organization_code] || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
       </div>
       <p class="community-item-content">${safeText(post.body || "").slice(0, 180)}${String(post.body || "").length > 180 ? "..." : ""}</p>
       <footer class="community-actions">
@@ -981,7 +1001,7 @@ function renderCommunityDetail(post) {
     </div>
     <p class="kicker">Anonymous Lounge</p>
     <h2>${safeText(post.title || "익명 게시글")}</h2>
-    <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(ORG_LABELS[post.organization_code] || post.organization_label || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
+    <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(post.organization_label || ORG_LABELS[post.organization_code] || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
     <div class="community-detail-content">${safeText(post.body || "")}</div>
   `;
 }
@@ -1167,6 +1187,7 @@ async function loadScenario(scenarioId) {
 }
 
 async function createRoom({ scenarioId, title, maxPlayers, visibility = "public", roomPassword = "", startSectionKey = null, stateJson = {} }) {
+  if (!(await requireEntityLifeMask())) return;
   const scenario = await loadScenario(scenarioId);
   const startKey = startSectionKey || scenario.startSection || "intro";
   const { data, error } = await supabase.rpc("create_exploration_room", {
@@ -1187,6 +1208,7 @@ async function createRoom({ scenarioId, title, maxPlayers, visibility = "public"
 }
 
 async function joinRoomByCode(inviteCode, roomPassword = "") {
+  if (!(await requireEntityLifeMask())) return;
   const { data, error } = await supabase.rpc("join_exploration_room", {
     p_invite_code: inviteCode.trim().toUpperCase(),
     p_room_password: roomPassword || null
@@ -1199,6 +1221,7 @@ async function joinRoomByCode(inviteCode, roomPassword = "") {
 }
 
 async function joinPublicRoomById(roomId) {
+  if (!(await requireEntityLifeMask())) return;
   const { data, error } = await supabase.rpc("join_exploration_room_by_id", { p_room_id: roomId });
   if (error) throw error;
   showMessage("탐사방에 입장했습니다.", "success");
@@ -1258,6 +1281,7 @@ async function loadMyRooms() {
 }
 
 async function openRoom(roomId, options = {}) {
+  if (!(await requireEntityLifeMask())) return;
   const { showSplash = true } = options;
   forceRoomMode();
   if (showSplash) await showOnAirSplash();
@@ -1890,6 +1914,55 @@ function closeModal(selector) {
   if (!modal) return;
   if (typeof modal.close === "function" && modal.open) modal.close();
   else modal.removeAttribute("open");
+}
+
+function ensureThemedConfirmModal() {
+  let modal = qs("#themedConfirmModal");
+  if (modal) return modal;
+  modal = document.createElement("dialog");
+  modal.id = "themedConfirmModal";
+  modal.className = "modal-card confirm-modal";
+  modal.innerHTML = `
+    <h2 id="themedConfirmTitle">확인</h2>
+    <div id="themedConfirmMessage" class="confirm-message"></div>
+    <div class="modal-actions confirm-actions">
+      <button id="themedConfirmOk" type="button" class="primary-action">확인</button>
+      <button id="themedConfirmCancel" type="button" class="ghost-button">취소</button>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function themedConfirm(message, title = "확인") {
+  const modal = ensureThemedConfirmModal();
+  const titleNode = qs("#themedConfirmTitle");
+  const messageNode = qs("#themedConfirmMessage");
+  const okButton = qs("#themedConfirmOk");
+  const cancelButton = qs("#themedConfirmCancel");
+  if (titleNode) titleNode.textContent = title;
+  if (messageNode) messageNode.innerHTML = safeText(message).replace(/\n/g, "<br>");
+  return new Promise((resolve) => {
+    const cleanup = (result) => {
+      okButton?.removeEventListener("click", onOk);
+      cancelButton?.removeEventListener("click", onCancel);
+      modal.removeEventListener("cancel", onCancel);
+      modal.removeEventListener("close", onClose);
+      if (modal.open) closeModal("#themedConfirmModal");
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = (event) => { event?.preventDefault?.(); cleanup(false); };
+    const onClose = () => cleanup(false);
+    okButton?.addEventListener("click", onOk, { once: true });
+    cancelButton?.addEventListener("click", onCancel, { once: true });
+    modal.addEventListener("cancel", onCancel, { once: true });
+    modal.addEventListener("close", onClose, { once: true });
+    openModal("#themedConfirmModal");
+  });
+}
+
+function themedAlert(message, title = "안내") {
+  return themedConfirm(message, title);
 }
 
 
@@ -2573,10 +2646,10 @@ qs("#openCreatePartyModal")?.addEventListener("click", () => {
   openModal("#createPartyModal");
 });
 
-["partyRecruitmentStartAt", "partyRecruitmentDeadline"].forEach((id) => {
+["partyRecruitmentStartAt", "partyRecruitmentDurationDays"].forEach((id) => {
   qs(`#${id}`)?.addEventListener("change", () => syncPartyDateLimits("party"));
 });
-["editPartyRecruitmentStartAt", "editPartyRecruitmentDeadline"].forEach((id) => {
+["editPartyRecruitmentStartAt", "editPartyRecruitmentDurationDays"].forEach((id) => {
   qs(`#${id}`)?.addEventListener("change", () => syncPartyDateLimits("editParty"));
 });
 
@@ -2757,6 +2830,7 @@ qs("#partyRoomForm")?.addEventListener("submit", async (event) => {
     if (visibility === "private" && !/^\d{1,8}$/.test(roomPassword)) {
       throw new Error("비공개방 비밀번호는 숫자 1~8자리로 입력하세요.");
     }
+    if (!(await requireEntityLifeMask())) return;
     const { data, error } = await supabase.rpc("create_room_from_exploration_party_post", {
       p_post_id: qs("#partyRoomPostId").value,
       p_title: qs("#partyRoomTitle").value.trim(),

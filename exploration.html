@@ -303,7 +303,7 @@
         <select id="partyRecruitmentCapacity">
           <option value="2">2명</option>
           <option value="3">3명</option>
-          <option value="4" selected>4명</option>
+          
         </select>
       </label>
       <label>모집 시작 시간
@@ -313,12 +313,17 @@
           <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentStartAt" data-shift-months="1">›</button>
         </div>
       </label>
-      <label>모집 마감 시간
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentDeadline" data-shift-months="-1">‹</button>
-          <input id="partyRecruitmentDeadline" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentDeadline" data-shift-months="1">›</button>
-        </div>
+      <label>모집 기간
+        <select id="partyRecruitmentDurationDays" required>
+          <option value="1">1일</option>
+          <option value="2">2일</option>
+          <option value="3">3일</option>
+          <option value="4">4일</option>
+          <option value="5">5일</option>
+          <option value="6">6일</option>
+          <option value="7" selected>7일</option>
+        </select>
+        <input id="partyRecruitmentDeadline" type="hidden">
       </label>
       <label>탐사 일자
         <div class="datetime-field">
@@ -350,7 +355,7 @@
         <select id="editPartyRecruitmentCapacity">
           <option value="2">2명</option>
           <option value="3">3명</option>
-          <option value="4">4명</option>
+          
         </select>
       </label>
       <label>모집 시작 시간
@@ -360,12 +365,17 @@
           <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentStartAt" data-shift-months="1">›</button>
         </div>
       </label>
-      <label>모집 마감 시간
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentDeadline" data-shift-months="-1">‹</button>
-          <input id="editPartyRecruitmentDeadline" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentDeadline" data-shift-months="1">›</button>
-        </div>
+      <label>모집 기간
+        <select id="editPartyRecruitmentDurationDays" required>
+          <option value="1">1일</option>
+          <option value="2">2일</option>
+          <option value="3">3일</option>
+          <option value="4">4일</option>
+          <option value="5">5일</option>
+          <option value="6">6일</option>
+          <option value="7" selected>7일</option>
+        </select>
+        <input id="editPartyRecruitmentDeadline" type="hidden">
       </label>
       <label>탐사 일자
         <div class="datetime-field">
@@ -393,7 +403,7 @@
         <select id="partyRoomMaxPlayers">
           <option value="2">2명</option>
           <option value="3">3명</option>
-          <option value="4">4명</option>
+          
         </select>
       </label>
       <label>공개 여부
@@ -445,7 +455,7 @@
         <select id="settingsMaxPlayers">
           <option value="2">2명</option>
           <option value="3">3명</option>
-          <option value="4">4명</option>
+          
         </select>
       </label>
       <label>공개 여부
