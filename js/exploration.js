@@ -1616,18 +1616,18 @@ async function loadAdminReports() {
       <p>${safeText(report.detail || "상세 내용 없음")}</p>
       <div class="report-snapshot">${safeText(report.content_snapshot || "내용 스냅샷 없음")}</div>
       <div class="party-actions">
-        <button type="button" class="secondary-action" data-review-report="valid" data-report-id="${safeAttr(report.id)}">신고 접수</button>
-        <button type="button" class="ghost-button" data-review-report="dismiss_false" data-report-id="${safeAttr(report.id)}">오신고</button>
-        <button type="button" class="ghost-button danger" data-review-report="dismiss_malicious" data-report-id="${safeAttr(report.id)}">악의적 신고</button>
+        <button type="button" class="secondary-action" data-review-report="accepted" data-report-id="${safeAttr(report.id)}">신고 접수</button>
+        <button type="button" class="ghost-button" data-review-report="false_report" data-report-id="${safeAttr(report.id)}">오신고</button>
+        <button type="button" class="ghost-button danger" data-review-report="malicious_report" data-report-id="${safeAttr(report.id)}">악의적 신고</button>
       </div>
     </article>
   `).join("");
 }
 
 function reportActionLabel(action) {
-  if (action === "dismiss_false") return "오신고";
-  if (action === "dismiss_malicious") return "악의적 신고";
-  return "신고 처리";
+  if (["false_report", "dismiss_false", "misreport"].includes(action)) return "오신고";
+  if (["malicious_report", "dismiss_malicious", "malicious"].includes(action)) return "악의적 신고";
+  return "신고 접수";
 }
 
 function openReportReviewModal(reportId, action) {
@@ -1963,12 +1963,21 @@ async function loadNotifications(mode = notificationMode) {
     box.textContent = `알림을 불러오지 못했습니다: ${error.message}`;
     return;
   }
-  if (!items.length) {
+  const readAt = getNotificationReadAt(notificationMode);
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+  const visibleItems = items.filter((item) => {
+    const itemTime = new Date(item.created_at).getTime();
+    if (!Number.isFinite(itemTime)) return true;
+    const isRead = readAt && itemTime <= readAt;
+    return !(isRead && nowMs - itemTime > twoDaysMs);
+  });
+  if (!visibleItems.length) {
     box.textContent = notificationMode === "community" ? "익명 게시판 알림이 없습니다." : (notificationMode === "reports" ? "신고 처리 알림이 없습니다." : "파티글 알림이 없습니다.");
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = items.map((item) => `
+  box.innerHTML = visibleItems.map((item) => `
     <article class="notification-item">
       <div>
         <strong>${safeText(item.title || "알림")}</strong>

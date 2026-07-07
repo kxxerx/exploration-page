@@ -1768,3 +1768,15 @@ select { color-scheme: dark; }
 .my-content-check { display:flex; align-items:flex-start; justify-content:center; padding-top: 4px; }
 .my-content-check input { accent-color: #d6b66c; }
 .my-content-body p { margin: 8px 0 0; color: rgba(247, 238, 218, 0.84); line-height: 1.6; }
+
+/* v1.12 notification spacing polish */
+.notification-list.muted {
+  min-height: 96px;
+  align-content: start;
+  padding: 18px 16px;
+  border: 1px solid rgba(216,183,114,.14);
+  border-radius: 18px;
+  background: rgba(255,255,255,.025);
+  line-height: 1.65;
+}
+#notificationList:empty::before { content: "알림이 없습니다."; }
