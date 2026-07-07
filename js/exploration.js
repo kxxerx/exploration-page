@@ -61,7 +61,7 @@ const COMMUNITY_PAGE_SIZE = 10;
 const COMMENT_PREVIEW_LIMIT = 5;
 let currentAccessToken = null;
 const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001", "/test disaster001", "/test disaster-001"]);
-const ROOM_EXIT_NOTICE_TEXT = "이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다.";
+const ROOM_EXIT_NOTICE_TEXT = "라이브 룸에서 나가시겠습니까? 진행 내역을 보존하려면 파일을 내려받는 것을 권장합니다. 마지막 참가자가 나가면 방이 영구적으로 삭제될 수 있습니다.";
 let roomExitNoticeShownFor = null;
 let endingSettlementInFlight = false;
 
@@ -102,6 +102,47 @@ function parseLocalDateTimeValue(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function addMonths(date, amount) {
+  const next = new Date(date.getTime());
+  const originalDay = next.getDate();
+  next.setDate(1);
+  next.setMonth(next.getMonth() + Number(amount || 0));
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(originalDay, lastDay));
+  return next;
+}
+
+function shiftDateTimeInput(inputId, months) {
+  const input = qs(`#${inputId}`);
+  if (!input) return;
+  const base = parseLocalDateTimeValue(input.value) || new Date();
+  input.value = formatDateTimeLocal(addMonths(base, months));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function remainingPeriodText(startValue, deadlineValue) {
+  const now = Date.now();
+  const start = new Date(startValue || 0).getTime();
+  const deadline = new Date(deadlineValue || 0).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(deadline)) return "기간 확인 불가";
+  if (now < start) return `${remainingTimeText(startValue)} 후 시작`;
+  return remainingTimeText(deadlineValue);
+}
+
+function getPartyComputedStatus(post) {
+  const now = Date.now();
+  const start = new Date(post.recruitment_start_at || post.created_at || 0).getTime();
+  const deadline = new Date(post.recruitment_deadline || 0).getTime();
+  const count = Number(post.applicant_count || 0);
+  const capacity = Number(post.recruitment_capacity || 0);
+  const complete = !!post.room_id || (capacity > 0 && count >= capacity);
+  if (complete) return { key: "complete", label: "모집 완료", closed: true, badgeClass: "full" };
+  if (Number.isFinite(deadline) && deadline <= now) return { key: "ended", label: "모집 종료", closed: true, badgeClass: "full" };
+  if (post.status === "closed") return { key: "complete", label: "모집 완료", closed: true, badgeClass: "full" };
+  if (Number.isFinite(start) && start > now) return { key: "scheduled", label: "모집 예정", closed: true, badgeClass: "private" };
+  return { key: "open", label: "모집 중", closed: false, badgeClass: "public" };
+}
+
 function remainingTimeText(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "남은 시간 확인 불가";
@@ -119,51 +160,87 @@ function remainingTimeText(value) {
 }
 
 function getPartyScheduleHtml(post) {
-  const created = formatDateLong(post.created_at);
+  const recruitmentStart = post.recruitment_start_at || post.created_at;
+  const startText = formatDateLong(recruitmentStart);
   const deadline = formatDateLong(post.recruitment_deadline);
-  const remaining = post.recruitment_deadline ? remainingTimeText(post.recruitment_deadline) : "남은 시간 확인 불가";
+  const remaining = post.recruitment_deadline ? remainingPeriodText(recruitmentStart, post.recruitment_deadline) : "남은 시간 확인 불가";
   const explorationStart = post.exploration_starts_at || null;
   const playText = explorationStart ? `${formatDateLong(explorationStart)}부터` : (post.play_time || "미정");
   return `
     <dl class="party-schedule">
-      <div><dt>모집 기간</dt><dd>${safeText(created)} ~ ${safeText(deadline)} <span class="party-remaining">(${safeText(remaining)})</span></dd></div>
+      <div><dt>모집 기간</dt><dd>${safeText(startText)} ~ ${safeText(deadline)} <span class="party-remaining">(${safeText(remaining)})</span></dd></div>
       <div><dt>탐사 일자</dt><dd>${safeText(playText)}</dd></div>
     </dl>`;
 }
 
 function setupPartyDateInputs(prefix = "party", post = null) {
+  const startInput = qs(`#${prefix}RecruitmentStartAt`);
   const deadlineInput = qs(`#${prefix}RecruitmentDeadline`);
-  const startInput = qs(`#${prefix}PlayStartAt`);
+  const playInput = qs(`#${prefix}PlayStartAt`);
+  const capacityInput = qs(`#${prefix}RecruitmentCapacity`);
   const now = new Date();
-  const minDeadline = new Date(now.getTime() + 60 * 60 * 1000);
-  const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  if (deadlineInput) {
-    deadlineInput.min = formatDateTimeLocal(minDeadline);
-    deadlineInput.max = formatDateTimeLocal(maxDate);
-    deadlineInput.step = "60";
-    deadlineInput.value = post?.recruitment_deadline ? formatDateTimeLocal(new Date(post.recruitment_deadline)) : formatDateTimeLocal(new Date(now.getTime() + 3 * 60 * 60 * 1000));
-  }
+  const defaultStart = post?.recruitment_start_at ? new Date(post.recruitment_start_at) : now;
+  const defaultDeadline = post?.recruitment_deadline ? new Date(post.recruitment_deadline) : new Date(defaultStart.getTime() + 3 * 60 * 60 * 1000);
+  const defaultPlay = post?.exploration_starts_at ? new Date(post.exploration_starts_at) : new Date(defaultDeadline.getTime() + 60 * 60 * 1000);
   if (startInput) {
-    startInput.min = deadlineInput?.value || formatDateTimeLocal(minDeadline);
-    startInput.max = formatDateTimeLocal(maxDate);
+    startInput.removeAttribute("min");
     startInput.step = "60";
-    startInput.value = post?.exploration_starts_at ? formatDateTimeLocal(new Date(post.exploration_starts_at)) : formatDateTimeLocal(new Date(now.getTime() + 4 * 60 * 60 * 1000));
+    startInput.value = formatDateTimeLocal(defaultStart);
+  }
+  if (deadlineInput) {
+    deadlineInput.min = formatDateTimeLocal(new Date(defaultStart.getTime() + 60 * 60 * 1000));
+    deadlineInput.max = formatDateTimeLocal(new Date(defaultStart.getTime() + 7 * 24 * 60 * 60 * 1000));
+    deadlineInput.step = "60";
+    deadlineInput.value = formatDateTimeLocal(defaultDeadline);
+  }
+  if (playInput) {
+    playInput.min = formatDateTimeLocal(defaultDeadline);
+    playInput.removeAttribute("max");
+    playInput.step = "60";
+    playInput.value = formatDateTimeLocal(defaultPlay);
+  }
+  if (capacityInput) {
+    capacityInput.value = String(Math.min(4, Math.max(2, Number(post?.recruitment_capacity || 4))));
+  }
+}
+
+function syncPartyDateLimits(prefix = "party") {
+  const startInput = qs(`#${prefix}RecruitmentStartAt`);
+  const deadlineInput = qs(`#${prefix}RecruitmentDeadline`);
+  const playInput = qs(`#${prefix}PlayStartAt`);
+  const start = parseLocalDateTimeValue(startInput?.value) || new Date();
+  if (deadlineInput) {
+    const minDeadline = new Date(start.getTime() + 60 * 60 * 1000);
+    const maxDeadline = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+    deadlineInput.min = formatDateTimeLocal(minDeadline);
+    deadlineInput.max = formatDateTimeLocal(maxDeadline);
+    const currentDeadline = parseLocalDateTimeValue(deadlineInput.value);
+    if (!currentDeadline || currentDeadline < minDeadline) deadlineInput.value = formatDateTimeLocal(minDeadline);
+    if (parseLocalDateTimeValue(deadlineInput.value) > maxDeadline) deadlineInput.value = formatDateTimeLocal(maxDeadline);
+  }
+  const deadline = parseLocalDateTimeValue(deadlineInput?.value);
+  if (playInput && deadline) {
+    playInput.min = formatDateTimeLocal(deadline);
+    playInput.removeAttribute("max");
+    const currentPlay = parseLocalDateTimeValue(playInput.value);
+    if (!currentPlay || currentPlay < deadline) playInput.value = formatDateTimeLocal(new Date(deadline.getTime() + 60 * 60 * 1000));
   }
 }
 
 function validatePartyDateInputs(prefix = "party") {
+  const recruitmentStart = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentStartAt`)?.value);
   const deadline = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentDeadline`)?.value);
-  const start = parseLocalDateTimeValue(qs(`#${prefix}PlayStartAt`)?.value);
+  const playStart = parseLocalDateTimeValue(qs(`#${prefix}PlayStartAt`)?.value);
+  const capacity = Number(qs(`#${prefix}RecruitmentCapacity`)?.value || 4);
   const now = new Date();
-  const minDeadline = new Date(now.getTime() + 60 * 60 * 1000 - 15000);
-  const maxDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000 + 15000);
+  if (!recruitmentStart) throw new Error("모집 시작 시간을 입력하세요.");
   if (!deadline) throw new Error("모집 마감 시간을 입력하세요.");
-  if (!start) throw new Error("탐사 일자를 입력하세요.");
-  if (deadline < minDeadline) throw new Error("모집 마감 시간은 지금부터 최소 1시간 이후로 지정해야 합니다.");
-  if (deadline > maxDate) throw new Error("모집 마감 시간은 최대 7일 뒤까지만 지정할 수 있습니다.");
-  if (start < deadline) throw new Error("탐사 일자는 모집 마감 시간 이후로 지정하세요.");
-  if (start > maxDate) throw new Error("탐사 일자는 최대 7일 뒤까지만 지정할 수 있습니다.");
-  return { deadlineIso: deadline.toISOString(), startIso: start.toISOString() };
+  if (!playStart) throw new Error("탐사 일자를 입력하세요.");
+  if (deadline < new Date(recruitmentStart.getTime() + 60 * 60 * 1000 - 15000)) throw new Error("모집 마감 시간은 모집 시작 시간보다 최소 1시간 이후로 지정해야 합니다.");
+  if (deadline > new Date(recruitmentStart.getTime() + 7 * 24 * 60 * 60 * 1000 + 15000)) throw new Error("모집 마감 시간은 모집 시작 시간 기준 최대 7일 뒤까지만 지정할 수 있습니다.");
+  if (playStart < deadline) throw new Error("탐사 일자는 모집 마감 시간 이후로 지정하세요.");
+  if (!Number.isInteger(capacity) || capacity < 2 || capacity > 4) throw new Error("모집 인원은 2~4명 사이로 지정하세요.");
+  return { recruitmentStartIso: recruitmentStart.toISOString(), deadlineIso: deadline.toISOString(), startIso: playStart.toISOString(), capacity };
 }
 
 function getStateJson() {
@@ -192,9 +269,54 @@ function getRoomInventoryMap() {
   return inv && typeof inv === "object" ? inv : {};
 }
 
+function getShopItemId(row) {
+  return normalizeItemId(row?.items?.id || row?.item_id || row?.id);
+}
+
+function getShopItemName(row) {
+  return row?.items?.name || row?.name || "상점 아이템";
+}
+
+function getShopItemCategory(row) {
+  const item = row?.items || {};
+  return String(item.category || item.item_kind || row?.category || row?.item_kind || "").toLowerCase();
+}
+
+function isShopInventoryRowVisible(row) {
+  const category = getShopItemCategory(row);
+  const visitorType = String(currentProfile?.visitor_type || "human").toLowerCase();
+  const isEntity = visitorType === "entity" || String(currentProfile?.organization_code || "").toLowerCase() === "entity";
+  if (!category) return true;
+  const entityKeys = ["special", "special_product", "special_goods", "entity", "괴이", "특별"];
+  const snackKeys = ["snack", "snacks", "snack_button", "snackbutton", "food", "간식", "스낵"];
+  return isEntity ? entityKeys.some((key) => category.includes(key)) : snackKeys.some((key) => category.includes(key));
+}
+
+function getVisibleShopInventory() {
+  return (currentInventory || []).filter((row) => Number(row.quantity || 0) > 0 && isShopInventoryRowVisible(row));
+}
+
+function getShopItemMeta(itemId) {
+  const rawId = String(itemId || "").replace(/^shop:/, "");
+  const row = getVisibleShopInventory().find((entry) => getShopItemId(entry) === rawId);
+  if (!row) return null;
+  return {
+    id: rawId,
+    name: getShopItemName(row),
+    type: "shop",
+    detail: "상점에서 구입한 소지품입니다. 탐사 중 사용할 수 있는지는 진행 조건과 방 설정에 따라 달라집니다.",
+    quantity: Number(row.quantity || 0)
+  };
+}
+
+function hasShopItem(itemId) {
+  const id = normalizeItemId(String(itemId || "").replace(/^shop:/, ""));
+  return !!id && getVisibleShopInventory().some((row) => getShopItemId(row) === id);
+}
+
 function hasRoomItem(itemId) {
   const id = normalizeItemId(itemId);
-  return !!id && Number(getRoomInventoryMap()[id]?.quantity || 0) > 0;
+  return !!id && (Number(getRoomInventoryMap()[id]?.quantity || 0) > 0 || hasShopItem(id));
 }
 
 function getMemberMetric(member) {
@@ -499,7 +621,7 @@ async function loadInventory() {
     .eq("user_id", currentProfile.id)
     .gt("quantity", 0)
     .order("updated_at", { ascending: false })
-    .limit(6);
+    .limit(50);
 
   if (error) {
     box.textContent = `가방을 불러오지 못했습니다: ${error.message}`;
@@ -507,17 +629,17 @@ async function loadInventory() {
   }
 
   currentInventory = data || [];
-  if (!currentInventory.length) {
+  const visibleInventory = getVisibleShopInventory();
+  if (!visibleInventory.length) {
     box.textContent = "가방에 표시할 아이템이 없습니다.";
     return;
   }
 
   box.classList.remove("muted");
-  box.innerHTML = currentInventory.map((row) => {
-    const item = row.items || {};
+  box.innerHTML = visibleInventory.slice(0, 8).map((row) => {
     return `
       <div class="inventory-item">
-        <strong>${safeText(item.name || "이름 없는 아이템")}</strong>
+        <strong>${safeText(getShopItemName(row) || "이름 없는 아이템")}</strong>
         <span>× ${Number(row.quantity || 0)}</span>
       </div>
     `;
@@ -640,19 +762,21 @@ function renderPartyPosts() {
     const scenario = scenarioList.find((item) => item.id === post.scenario_id);
     const isCreator = !!post.is_creator;
     const isAdmin = currentProfile?.role === "admin";
-    const isClosed = post.status === "closed";
+    const computedStatus = getPartyComputedStatus(post);
+    const isClosed = computedStatus.closed;
+    const isFinal = computedStatus.key === "ended" || computedStatus.key === "complete";
+    const canEnterRecruitment = computedStatus.key === "open";
     const hasApplied = !!post.has_applied;
     const count = Number(post.applicant_count || 0);
+    const capacity = Number(post.recruitment_capacity || 4);
     const comments = Number(post.comment_count || 0);
-    const statusBadge = isClosed
-      ? `<span class="badge full">모집 마감</span>`
-      : `<span class="badge public">모집 중</span>`;
+    const statusBadge = `<span class="badge ${safeAttr(computedStatus.badgeClass)}">${safeText(computedStatus.label)}</span>`;
     const ownerButtons = (isCreator || isAdmin) ? `
-      ${isCreator ? `<button type="button" class="ghost-button" data-edit-party="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>수정</button>` : ""}
+      ${isCreator ? `<button type="button" class="ghost-button" data-edit-party="${safeAttr(post.id)}" ${isFinal ? "disabled" : ""}>수정</button>` : ""}
       <button type="button" class="ghost-button danger" data-delete-party="${safeAttr(post.id)}">삭제</button>
-      ${isCreator ? `<button type="button" class="secondary-action" data-party-room="${safeAttr(post.id)}" ${isClosed ? "disabled" : ""}>방 만들기</button>` : ""}
+      ${isCreator ? `<button type="button" class="secondary-action" data-party-room="${safeAttr(post.id)}" ${!canEnterRecruitment ? "disabled" : ""}>방 만들기</button>` : ""}
     ` : "";
-    const applicantButtons = !isCreator && !isClosed ? (
+    const applicantButtons = !isCreator && canEnterRecruitment ? (
       hasApplied
         ? `<button type="button" class="ghost-button" data-cancel-party="${safeAttr(post.id)}">참여 취소</button>`
         : `<button type="button" class="primary-action" data-apply-party="${safeAttr(post.id)}">참여 의사</button>`
@@ -663,7 +787,7 @@ function renderPartyPosts() {
           <strong>${safeText(post.title || "익명 모집")}</strong>
           ${statusBadge}
         </header>
-        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+        <div class="party-item-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · 신청 ${count}/${capacity}명 · 댓글 ${comments}개</div>
         ${getPartyScheduleHtml(post)}
         <p class="party-item-content">${safeText(post.content || "내용 없음")}</p>
         <footer class="party-actions">
@@ -687,8 +811,10 @@ function renderPartyDetail(post) {
   const detail = qs("#partyDetailBody");
   if (!detail || !post) return;
   const scenario = scenarioList.find((item) => item.id === post.scenario_id);
-  const isClosed = post.status === "closed";
+  const computedStatus = getPartyComputedStatus(post);
+  const isClosed = computedStatus.closed;
   const count = Number(post.applicant_count || 0);
+  const capacity = Number(post.recruitment_capacity || 4);
   const comments = Number(post.comment_count || 0);
   detail.innerHTML = `
     <div class="detail-mini-actions">
@@ -696,10 +822,10 @@ function renderPartyDetail(post) {
     </div>
     <p class="kicker">Anonymous Board</p>
     <h2>${safeText(post.title || "익명 모집")}</h2>
-    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · 신청 ${count}명 · 댓글 ${comments}개</div>
+    <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(computedStatus.label)} · 신청 ${count}/${capacity}명 · 댓글 ${comments}개</div>
     ${getPartyScheduleHtml(post)}
     <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
-    ${isClosed ? `<p class="small muted">모집 마감된 글입니다. 마감 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
+    ${isClosed ? `<p class="small muted">현재 ${safeText(computedStatus.label)} 상태입니다. 모집 종료/완료 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
   `;
 }
 
@@ -1017,7 +1143,7 @@ function renderMyContent() {
 
 async function deleteMyContentItems(items) {
   if (!items?.length) return showMessage("삭제할 항목을 선택해 주세요.", "error");
-  if (!window.confirm(`${items.length}개 항목을 삭제할까요?`)) return;
+  if (!(await themedConfirm(`${items.length}개 항목을 삭제할까요?`, "삭제 확인"))) return;
   const payload = items.map((raw) => {
     const [kind, ...rest] = String(raw).split(":");
     return { kind, id: rest.join(":") };
@@ -1381,7 +1507,14 @@ function renderRoomInventory() {
   const box = qs("#roomInventoryList");
   if (!box) return;
   const inventory = getRoomInventoryMap();
-  const entries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0);
+  const scenarioEntries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0);
+  const shopEntries = getVisibleShopInventory().map((row) => ({
+    itemId: `shop:${getShopItemId(row)}`,
+    name: getShopItemName(row),
+    type: "shop",
+    quantity: Number(row.quantity || 0)
+  })).filter((item) => item.itemId !== "shop:");
+  const entries = [...scenarioEntries, ...shopEntries];
   if (!entries.length) {
     box.textContent = "아직 획득한 단서나 아이템이 없습니다.";
     box.classList.add("muted");
@@ -1389,22 +1522,23 @@ function renderRoomInventory() {
   }
   box.classList.remove("muted");
   box.innerHTML = entries.map((item) => {
-    const meta = getItemMeta(item.itemId);
+    const meta = String(item.itemId || "").startsWith("shop:") ? getShopItemMeta(item.itemId) : getItemMeta(item.itemId);
+    const label = meta?.type === "clue" ? "단서" : (meta?.type === "shop" ? "소지품" : "아이템");
     return `
       <button type="button" class="room-inventory-item" data-room-item="${safeAttr(item.itemId)}">
-        <strong>${safeText(meta.name || item.name || item.itemId)}</strong>
-        <span>${safeText(meta.type === "clue" ? "단서" : "아이템")} · ×${Number(item.quantity || 1)}</span>
+        <strong>${safeText(meta?.name || item.name || item.itemId)}</strong>
+        <span>${safeText(label)} · ×${Number(item.quantity || meta?.quantity || 1)}</span>
       </button>
     `;
   }).join("");
 }
 
 function openRoomItemDetail(itemId) {
-  const meta = getItemMeta(itemId);
+  const meta = String(itemId || "").startsWith("shop:") ? getShopItemMeta(itemId) : getItemMeta(itemId);
   qs("#inventoryDetailBody").innerHTML = `
-    <p class="kicker">${safeText(meta.type === "clue" ? "Clue" : "Item")}</p>
-    <h2>${safeText(meta.name || itemId)}</h2>
-    <div class="party-detail-content">${safeText(meta.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
+    <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
+    <h2>${safeText(meta?.name || itemId)}</h2>
+    <div class="party-detail-content">${safeText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
   `;
   openModal("#inventoryDetailModal");
 }
@@ -1584,9 +1718,9 @@ async function updateRoomSettings({ title, maxPlayers, visibility, roomPassword 
 }
 
 async function leaveCurrentRoom() {
-  if (!currentRoom) return;
-  const ok = window.confirm("정말 나가시겠습니까? 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다. 마지막 참가자가 나가면 방이 영구적으로 삭제될 수 있습니다.");
-  if (!ok) return;
+  if (!currentRoom) return false;
+  const ok = await themedConfirm(ROOM_EXIT_NOTICE_TEXT, "라이브 룸에서 나가시겠습니까?");
+  if (!ok) return false;
   const roomId = currentRoom.id;
   await closeRealtime();
   stopHeartbeat();
@@ -1602,11 +1736,12 @@ async function leaveCurrentRoom() {
   await Promise.all([loadMyRooms(), loadRoomList()]);
   showMessage(data?.room_deleted ? "마지막 참가자가 나가 탐사방이 삭제되었습니다." : "라운지로 나왔습니다.", "success");
   qs("#appPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  return true;
 }
 
 async function clearChat() {
-  if (!currentRoom) return;
-  const ok = window.confirm("현재 방 채팅 로그를 DB에서 삭제할까요? 다운로드하지 않은 로그는 사라집니다.");
+  if (!currentRoom) return false;
+  const ok = await themedConfirm("현재 방 채팅 로그를 DB에서 삭제할까요? 다운로드하지 않은 로그는 사라집니다.", "채팅 초기화");
   if (!ok) return;
   const { error } = await supabase.rpc("clear_exploration_room_messages", { p_room_id: currentRoom.id });
   if (error) {
@@ -2146,6 +2281,14 @@ document.querySelectorAll("[data-tab-target]").forEach((button) => {
   button.addEventListener("click", () => switchTab(button.dataset.tabTarget));
 });
 
+qs(".brand-home")?.addEventListener("click", async (event) => {
+  if (!currentRoom) return;
+  event.preventDefault();
+  const href = event.currentTarget?.getAttribute("href") || "index.html";
+  const left = await leaveCurrentRoom();
+  if (left) window.location.href = href;
+});
+
 document.addEventListener("click", async (event) => {
   const bell = event.target.closest("#notificationBell");
   if (bell) { await openNotificationCenter(notificationMode); return; }
@@ -2154,7 +2297,16 @@ document.addEventListener("click", async (event) => {
   const myContentDesk = event.target.closest("#myContentDeskButton");
   if (myContentDesk) { switchTab("myContent"); await loadMyContent(1); return; }
   const navTab = event.target.closest("[data-tab-target]");
-  if (navTab) { switchTab(navTab.dataset.tabTarget); return; }
+  if (navTab) {
+    if (currentRoom) {
+      event.preventDefault();
+      const left = await leaveCurrentRoom();
+      if (left) switchTab(navTab.dataset.tabTarget);
+      return;
+    }
+    switchTab(navTab.dataset.tabTarget);
+    return;
+  }
   const modeBtn = event.target.closest("[data-notification-mode]");
   if (modeBtn) { await loadNotifications(modeBtn.dataset.notificationMode); markNotificationsRead(modeBtn.dataset.notificationMode); return; }
   const refresh = event.target.closest("#refreshNotifications");
@@ -2224,7 +2376,7 @@ qs("#communityList")?.addEventListener("click", async (event) => {
   const pageBtn = event.target.closest("[data-community-page]");
   if (detail) return openCommunityDetail(detail.dataset.detailCommunity);
   if (del) {
-    if (!window.confirm("이 게시글을 삭제할까요?")) return;
+    if (!(await themedConfirm("이 게시글을 삭제할까요?", "삭제 확인"))) return;
     try {
       const { error } = await supabase.rpc("delete_exploration_community_post", { p_post_id: del.dataset.deleteCommunityPost });
       if (error) throw error;
@@ -2274,7 +2426,7 @@ qs("#communityDetailModal")?.addEventListener("click", async (event) => {
     return;
   }
   if (delPost) {
-    if (!window.confirm("이 게시글을 삭제할까요?")) return;
+    if (!(await themedConfirm("이 게시글을 삭제할까요?", "삭제 확인"))) return;
     try {
       const { error } = await supabase.rpc("delete_exploration_community_post", { p_post_id: delPost.dataset.deleteCommunityPost });
       if (error) throw error;
@@ -2285,7 +2437,7 @@ qs("#communityDetailModal")?.addEventListener("click", async (event) => {
     return;
   }
   if (delComment) {
-    if (!window.confirm("이 댓글을 삭제할까요?")) return;
+    if (!(await themedConfirm("이 댓글을 삭제할까요?", "삭제 확인"))) return;
     try {
       const { error } = await supabase.rpc("delete_exploration_community_comment", { p_comment_id: delComment.dataset.deleteCommunityComment });
       if (error) throw error;
@@ -2370,14 +2522,19 @@ qs("#resumeRoomForm")?.addEventListener("submit", async (event) => {
     if (!file) throw new Error("저장 파일을 선택하세요.");
     const save = await readJsonFile(file);
     if (save.format !== "pollution-exploration-save-v1") throw new Error("지원하지 않는 저장 파일입니다.");
+    const visibility = qs("#resumeRoomVisibility")?.value || "private";
+    const roomPassword = qs("#resumeRoomPassword")?.value.trim() || "";
+    if (visibility === "private" && !/^\d{1,8}$/.test(roomPassword)) {
+      throw new Error("비공개방 비밀번호는 숫자 1~8자리로 입력하세요.");
+    }
     await createRoom({
       scenarioId: save.scenarioId,
       title: qs("#resumeRoomTitle").value.trim() || `${save.roomTitle || "탐사"} 이어하기`,
       maxPlayers: 3,
       startSectionKey: save.currentSectionKey,
       stateJson: save.stateJson || {},
-      visibility: "public",
-      roomPassword: ""
+      visibility,
+      roomPassword
     });
   } catch (error) {
     showMessage(error.message, "error");
@@ -2396,7 +2553,7 @@ qs("#roomList")?.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-join-public-room]");
   try {
     if (adminDelete) {
-      const ok = window.confirm("이 탐사방을 관리자 권한으로 삭제할까요? 채팅과 진행 상태도 함께 삭제됩니다.");
+      const ok = await themedConfirm("이 탐사방을 관리자 권한으로 삭제할까요? 채팅과 진행 상태도 함께 삭제됩니다.", "관리자 삭제");
       if (!ok) return;
       const { error } = await supabase.rpc("admin_delete_exploration_room", { p_room_id: adminDelete.dataset.adminDeleteRoom });
       if (error) throw error;
@@ -2416,22 +2573,17 @@ qs("#openCreatePartyModal")?.addEventListener("click", () => {
   openModal("#createPartyModal");
 });
 
-qs("#partyRecruitmentDeadline")?.addEventListener("change", () => {
-  const startInput = qs("#partyPlayStartAt");
-  const deadlineInput = qs("#partyRecruitmentDeadline");
-  if (startInput && deadlineInput) {
-    startInput.min = deadlineInput.value;
-    if (startInput.value && startInput.value < deadlineInput.value) startInput.value = deadlineInput.value;
-  }
+["partyRecruitmentStartAt", "partyRecruitmentDeadline"].forEach((id) => {
+  qs(`#${id}`)?.addEventListener("change", () => syncPartyDateLimits("party"));
+});
+["editPartyRecruitmentStartAt", "editPartyRecruitmentDeadline"].forEach((id) => {
+  qs(`#${id}`)?.addEventListener("change", () => syncPartyDateLimits("editParty"));
 });
 
-qs("#editPartyRecruitmentDeadline")?.addEventListener("change", () => {
-  const startInput = qs("#editPartyPlayStartAt");
-  const deadlineInput = qs("#editPartyRecruitmentDeadline");
-  if (startInput && deadlineInput) {
-    startInput.min = deadlineInput.value;
-    if (startInput.value && startInput.value < deadlineInput.value) startInput.value = deadlineInput.value;
-  }
+document.addEventListener("click", (event) => {
+  const shiftButton = event.target.closest("[data-shift-datetime]");
+  if (!shiftButton) return;
+  shiftDateTimeInput(shiftButton.dataset.shiftDatetime, Number(shiftButton.dataset.shiftMonths || 0));
 });
 
 qs("#createPartyForm")?.addEventListener("submit", async (event) => {
@@ -2443,8 +2595,10 @@ qs("#createPartyForm")?.addEventListener("submit", async (event) => {
       p_scenario_id: qs("#partyScenarioSelect").value || null,
       p_play_time: null,
       p_content: qs("#partyContent").value.trim() || null,
+      p_recruitment_start_at: partyDates.recruitmentStartIso,
       p_recruitment_deadline: partyDates.deadlineIso,
-      p_exploration_starts_at: partyDates.startIso
+      p_exploration_starts_at: partyDates.startIso,
+      p_recruitment_capacity: partyDates.capacity
     });
     if (error) throw error;
     closeModal("#createPartyModal");
@@ -2496,12 +2650,13 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       qs("#editPartyTitle").value = post.title || "";
       qs("#editPartyScenarioSelect").value = post.scenario_id || "";
       qs("#editPartyContent").value = post.content || "";
+      qs("#editPartyRecruitmentCapacity").value = String(Math.min(4, Math.max(2, Number(post.recruitment_capacity || 4))));
       setupPartyDateInputs("editParty", post);
       openModal("#editPartyModal");
       return;
     }
     if (deleteButton) {
-      const ok = window.confirm("이 익명 모집글을 삭제할까요?");
+      const ok = await themedConfirm("이 익명 모집글을 삭제할까요?", "삭제 확인");
       if (!ok) return;
       const { error } = await supabase.rpc("delete_exploration_party_post", { p_post_id: deleteButton.dataset.deleteParty });
       if (error) throw error;
@@ -2514,7 +2669,7 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       if (!post) return;
       qs("#partyRoomPostId").value = post.id;
       qs("#partyRoomTitle").value = post.title || "익명 모집 탐사방";
-      qs("#partyRoomMaxPlayers").value = String(Math.min(4, Math.max(2, Number(post.applicant_count || 0) + 1)));
+      qs("#partyRoomMaxPlayers").value = String(Math.min(4, Math.max(2, Number(post.recruitment_capacity || post.applicant_count || 2))));
       qs("#partyRoomVisibility").value = "private";
       qs("#partyRoomPasswordField").hidden = false;
       openModal("#partyRoomModal");
@@ -2557,7 +2712,7 @@ qs("#partyCommentList")?.addEventListener("click", async (event) => {
     return;
   }
   if (!deleteButton || !currentPartyDetailId) return;
-  const ok = window.confirm("이 댓글을 삭제할까요?");
+  const ok = await themedConfirm("이 댓글을 삭제할까요?", "삭제 확인");
   if (!ok) return;
   try {
     const { error } = await supabase.rpc("delete_exploration_party_comment", { p_comment_id: deleteButton.dataset.deleteComment });
@@ -2580,8 +2735,10 @@ qs("#editPartyForm")?.addEventListener("submit", async (event) => {
       p_scenario_id: qs("#editPartyScenarioSelect").value || null,
       p_play_time: null,
       p_content: qs("#editPartyContent").value.trim() || null,
+      p_recruitment_start_at: partyDates.recruitmentStartIso,
       p_recruitment_deadline: partyDates.deadlineIso,
-      p_exploration_starts_at: partyDates.startIso
+      p_exploration_starts_at: partyDates.startIso,
+      p_recruitment_capacity: partyDates.capacity
     });
     if (error) throw error;
     closeModal("#editPartyModal");
@@ -2627,6 +2784,12 @@ qs("#roomVisibility")?.addEventListener("change", () => {
   const isPrivate = qs("#roomVisibility").value === "private";
   qs("#roomPasswordField").hidden = !isPrivate;
   qs("#roomPassword").required = isPrivate;
+});
+
+qs("#resumeRoomVisibility")?.addEventListener("change", () => {
+  const isPrivate = qs("#resumeRoomVisibility").value === "private";
+  qs("#resumeRoomPasswordField").hidden = !isPrivate;
+  qs("#resumeRoomPassword").required = isPrivate;
 });
 
 qs("#settingsVisibility")?.addEventListener("change", () => {
@@ -2784,6 +2947,16 @@ document.addEventListener("click", async (event) => {
   const reviewButton = event.target.closest("[data-review-report]");
   if (!reviewButton) return;
   openReportReviewModal(reviewButton.dataset.reportId, reviewButton.dataset.reviewReport);
+});
+
+qs("#refreshRoomInventory")?.addEventListener("click", async () => {
+  try {
+    await loadInventory();
+    renderRoomInventory();
+    showMessage("탐사 인벤토리를 다시 불러왔습니다.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
 });
 
 qs("#roomInventoryList")?.addEventListener("click", (event) => {

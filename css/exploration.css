@@ -1878,3 +1878,84 @@ body.wide-stage .broadcast-stage {
 body.wide-stage #tabMyContent {
   width: 100%;
 }
+
+/* v1.15 scheduling, themed dialogs, inventory polish */
+.my-content-toolbar {
+  align-items: flex-end !important;
+  gap: .75rem;
+}
+.my-content-toolbar > strong {
+  line-height: 2.05rem;
+}
+.my-content-toolbar .mini-actions {
+  align-items: center;
+  padding-top: .2rem;
+}
+.confirm-modal {
+  max-width: 460px;
+}
+.confirm-message {
+  margin: .6rem 0 1.15rem;
+  color: rgba(247,238,218,.86);
+  line-height: 1.7;
+  white-space: pre-line;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: .55rem;
+  flex-wrap: wrap;
+}
+dialog.modal-card {
+  border: 1px solid var(--lux-line);
+  background: linear-gradient(145deg, rgba(18,18,23,.98), rgba(7,7,11,.98));
+  color: var(--text);
+  border-radius: 22px;
+}
+dialog.modal-card::backdrop {
+  background: radial-gradient(circle at 50% 20%, rgba(139,30,45,.28), transparent 38%), rgba(0,0,0,.78);
+  backdrop-filter: blur(7px);
+}
+.datetime-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: .4rem;
+  align-items: center;
+}
+.datetime-field input {
+  min-width: 0;
+}
+.datetime-field .mini-button {
+  min-width: 2.15rem;
+  padding-inline: .55rem;
+}
+.party-schedule dd {
+  line-height: 1.55;
+}
+.badge.private {
+  border-color: rgba(214,182,108,.48);
+  background: rgba(214,182,108,.1);
+  color: #e7d09a;
+}
+.inventory-item,
+.room-inventory-item {
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.room-inventory-item:hover {
+  transform: translateY(-1px);
+}
+input[type="file"] {
+  color: rgba(247,238,218,.86);
+}
+input[type="file"]::file-selector-button {
+  margin-right: .75rem;
+  border: 1px solid rgba(214,182,108,.38);
+  border-radius: 999px;
+  padding: .46rem .78rem;
+  background: rgba(214,182,108,.1);
+  color: var(--text);
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover {
+  background: rgba(214,182,108,.18);
+}

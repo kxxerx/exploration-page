@@ -121,7 +121,7 @@
         </div>
         <div class="room-actions">
           <button id="copyInviteCode" type="button" class="ghost-button">초대코드 복사</button>
-          <button id="downloadSave" type="button" class="ghost-button">저장파일</button>
+          <button id="downloadSave" type="button" class="ghost-button">파일 저장</button>
           <button id="downloadChat" type="button" class="ghost-button">채팅 저장</button>
           <button id="openRoomSettings" type="button" class="ghost-button host-only" hidden>방 설정</button>
           <button id="clearChat" type="button" class="ghost-button danger host-only" hidden>채팅 초기화</button>
@@ -168,8 +168,8 @@
 
 
   <dialog id="roomExitNoticeModal" class="modal-card notice-modal">
-    <h2>탐사방 이용 안내</h2>
-    <p>이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 저장 파일을 내려받는 것을 권장합니다.</p>
+    <h2>라이브 룸 이용 안내</h2>
+    <p>이 페이지에서 벗어나면 탐사방에서 자동으로 퇴장되며, 당신이 마지막 참가자라면 방이 영구적으로 삭제될 수 있습니다. 진행 내역을 보존하려면 파일을 내려받는 것을 권장합니다.</p>
     <button id="closeRoomExitNotice" type="button" class="primary-action full">확인</button>
   </dialog>
 
@@ -239,11 +239,33 @@
       <label>희망 시나리오
         <select id="partyScenarioSelect"></select>
       </label>
+      <label>모집 인원
+        <select id="partyRecruitmentCapacity">
+          <option value="2">2명</option>
+          <option value="3">3명</option>
+          <option value="4" selected>4명</option>
+        </select>
+      </label>
+      <label>모집 시작 시간
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentStartAt" data-shift-months="-1">‹</button>
+          <input id="partyRecruitmentStartAt" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentStartAt" data-shift-months="1">›</button>
+        </div>
+      </label>
       <label>모집 마감 시간
-        <input id="partyRecruitmentDeadline" type="datetime-local" required>
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentDeadline" data-shift-months="-1">‹</button>
+          <input id="partyRecruitmentDeadline" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentDeadline" data-shift-months="1">›</button>
+        </div>
       </label>
       <label>탐사 일자
-        <input id="partyPlayStartAt" type="datetime-local" required>
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="partyPlayStartAt" data-shift-months="-1">‹</button>
+          <input id="partyPlayStartAt" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="partyPlayStartAt" data-shift-months="1">›</button>
+        </div>
       </label>
       <label>모집 내용
         <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기를 적어줘."></textarea>
@@ -264,11 +286,33 @@
       <label>희망 시나리오
         <select id="editPartyScenarioSelect"></select>
       </label>
+      <label>모집 인원
+        <select id="editPartyRecruitmentCapacity">
+          <option value="2">2명</option>
+          <option value="3">3명</option>
+          <option value="4">4명</option>
+        </select>
+      </label>
+      <label>모집 시작 시간
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentStartAt" data-shift-months="-1">‹</button>
+          <input id="editPartyRecruitmentStartAt" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentStartAt" data-shift-months="1">›</button>
+        </div>
+      </label>
       <label>모집 마감 시간
-        <input id="editPartyRecruitmentDeadline" type="datetime-local" required>
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentDeadline" data-shift-months="-1">‹</button>
+          <input id="editPartyRecruitmentDeadline" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentDeadline" data-shift-months="1">›</button>
+        </div>
       </label>
       <label>탐사 일자
-        <input id="editPartyPlayStartAt" type="datetime-local" required>
+        <div class="datetime-field">
+          <button type="button" class="mini-button" data-shift-datetime="editPartyPlayStartAt" data-shift-months="-1">‹</button>
+          <input id="editPartyPlayStartAt" type="datetime-local" required>
+          <button type="button" class="mini-button" data-shift-datetime="editPartyPlayStartAt" data-shift-months="1">›</button>
+        </div>
       </label>
       <label>모집 내용
         <textarea id="editPartyContent" rows="5" maxlength="600"></textarea>
@@ -315,6 +359,15 @@
       </label>
       <label>새 방 제목
         <input id="resumeRoomTitle" type="text" maxlength="80" placeholder="이어하기 방">
+      </label>
+      <label>공개 여부
+        <select id="resumeRoomVisibility">
+          <option value="private">비공개</option>
+          <option value="public">공개</option>
+        </select>
+      </label>
+      <label id="resumeRoomPasswordField">비공개 비밀번호 <span class="small muted">숫자만</span>
+        <input id="resumeRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
       </label>
       <button type="submit" class="primary-action">저장 지점에서 새 방 만들기</button>
     </form>
