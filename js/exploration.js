@@ -998,7 +998,7 @@ function renderPartyDetail(post) {
     <div class="room-meta">${safeText(scenario?.title || post.scenario_id || "시나리오 미정")} · ${safeText(computedStatus.label)} · 신청 ${count}/${capacity}명 · 댓글 ${comments}개</div>
     ${getPartyScheduleHtml(post)}
     <div class="party-detail-content">${safeText(post.content || "내용 없음")}</div>
-    ${isClosed ? `<p class="small muted">현재 ${safeText(computedStatus.label)} 상태입니다. 모집 종료/완료 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
+    ${isClosed ? `<p class="small muted party-status-note">현재 ${safeText(computedStatus.label)} 상태입니다. 모집 종료/완료 후 2일이 지나면 목록 정리 시 삭제됩니다.</p>` : ""}
   `;
 }
 
@@ -1332,7 +1332,8 @@ async function loadScenario(scenarioId) {
   if (scenarioCache.has(scenarioId)) return scenarioCache.get(scenarioId);
   const meta = scenarioList.find((item) => item.id === scenarioId);
   if (!meta) throw new Error("시나리오 정보를 찾을 수 없습니다.");
-  const response = await fetch(`scenarios/${meta.file}?ts=${Date.now()}`, { cache: "no-store" });
+  const scenarioPath = String(meta.file || "").startsWith("scenarios/") ? String(meta.file) : `scenarios/${meta.file}`;
+  const response = await fetch(`${scenarioPath}?ts=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error("시나리오 파일을 불러오지 못했습니다.");
   const scenario = await response.json();
   scenarioCache.set(scenarioId, scenario);
