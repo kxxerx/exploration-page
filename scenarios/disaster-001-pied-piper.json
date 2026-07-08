@@ -104,7 +104,8 @@
           ],
           "popupTitle": "아이템 획득",
           "popupMessage": "더러운 쓰레기 수거함에서 [동물 모양 아이싱 쿠키]를 주웠습니다.",
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : 쓰레기 수거함을 뒤진다."
+          "systemMessage": "{actor}이 쓰레기 수거함을 뒤졌습니다.",
+          "disabledReason": "이미 누군가 쓰레기 수거함을 뒤졌습니다."
         }
       ],
       "effects": [
@@ -246,15 +247,18 @@
           ],
           "noConsensus": true,
           "instant": true,
-          "requires": {
-            "not_state_flag": "used_s5_1_702dc0"
-          },
           "setState": {
             "flags": {
-              "used_s5_1_702dc0": true
+              "used_s5_1_purchase_made": true
             }
           },
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [LED 반짝이 사자 머리띠]을(를) 획득한다."
+          "systemMessage": "{actor}이 LED 반짝이 사자 머리띠를 샀습니다.",
+          "disabledWhen": {
+            "state_flag": "used_s5_1_purchase_made"
+          },
+          "disabledReason": "이미 기념품샵에서 물건을 구입했습니다.",
+          "globalOnce": true,
+          "onceScope": "room"
         },
         {
           "label": "눈이 뒤집힌 사자 인형을 산다",
@@ -267,15 +271,18 @@
           ],
           "noConsensus": true,
           "instant": true,
-          "requires": {
-            "not_state_flag": "used_s5_1_fe2a4c"
-          },
           "setState": {
             "flags": {
-              "used_s5_1_fe2a4c": true
+              "used_s5_1_purchase_made": true
             }
           },
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [눈이 뒤집힌 사자 인형]을(를) 획득한다."
+          "systemMessage": "{actor}이 눈이 뒤집힌 사자 인형을 샀습니다.",
+          "disabledWhen": {
+            "state_flag": "used_s5_1_purchase_made"
+          },
+          "disabledReason": "이미 기념품샵에서 물건을 구입했습니다.",
+          "globalOnce": true,
+          "onceScope": "room"
         },
         {
           "label": "마스코트 골든이 그려진 머그잔을 산다",
@@ -288,15 +295,18 @@
           ],
           "noConsensus": true,
           "instant": true,
-          "requires": {
-            "not_state_flag": "used_s5_1_4e721e"
-          },
           "setState": {
             "flags": {
-              "used_s5_1_4e721e": true
+              "used_s5_1_purchase_made": true
             }
           },
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [마스코트 골든이 그려진 머그잔]을(를) 획득한다."
+          "systemMessage": "{actor}이 마스코트 골든이 그려진 머그잔을 샀습니다.",
+          "disabledWhen": {
+            "state_flag": "used_s5_1_purchase_made"
+          },
+          "disabledReason": "이미 기념품샵에서 물건을 구입했습니다.",
+          "globalOnce": true,
+          "onceScope": "room"
         },
         {
           "label": "정신이 쏙 빠지는 에너지 드링크를 산다",
@@ -309,15 +319,18 @@
           ],
           "noConsensus": true,
           "instant": true,
-          "requires": {
-            "not_state_flag": "used_s5_1_419481"
-          },
           "setState": {
             "flags": {
-              "used_s5_1_419481": true
+              "used_s5_1_purchase_made": true
             }
           },
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [정신이 쏙 빠지는 에너지 드링크]을(를) 획득한다."
+          "systemMessage": "{actor}이 정신이 쏙 빠지는 에너지 드링크를 샀습니다.",
+          "disabledWhen": {
+            "state_flag": "used_s5_1_purchase_made"
+          },
+          "disabledReason": "이미 기념품샵에서 물건을 구입했습니다.",
+          "globalOnce": true,
+          "onceScope": "room"
         },
         {
           "label": "물건을 사지 않고 시계탑 광장으로 향한다",
@@ -1670,7 +1683,9 @@
     "glass_pistol": {
       "name": "유리손포",
       "type": "item",
-      "detail": "재난관리국에서 제조한 특제 유리구슬로 장전되는 퇴마용 권총. 아주 소형이라 장난감이나 라이터처럼 보인다."
+      "detail": "재난관리국에서 제조한 특제 유리구슬로 장전되는 퇴마용 권총. 아주 소형이라 장난감이나 라이터처럼 보인다.",
+      "usable": false,
+      "noUse": true
     },
     "obang_compass": {
       "name": "오방사계반",
@@ -1830,6 +1845,10 @@
     "dream_collector": {
       "message": "꿈결수집기는 탐사 중 자동으로 꿈결을 수집하는 장비입니다. 직접 사용할 수는 없습니다.",
       "usable": false
+    },
+    "glass_pistol": {
+      "usable": false,
+      "message": "유리손포는 직접 사용하는 아이템이 아닙니다."
     }
   },
   "defaultItemsByOrganization": {

@@ -418,6 +418,18 @@ function isGlobalInstantChoice(choice = {}) {
   return choice.onceScope === "room" || choice.globalOnce === true || choice.sharedOnce === true;
 }
 
+function isChoiceDynamicallyDisabled(choice = {}) {
+  if (choice.disabled) return true;
+  if (choice.disabledWhen && conditionMatches(choice.disabledWhen)) return true;
+  return false;
+}
+
+function getChoiceDisabledReason(choice = {}) {
+  if (choice.disabledReason) return choice.disabledReason;
+  if (choice.disabledWhen && conditionMatches(choice.disabledWhen)) return "이미 선택할 수 없는 상태입니다.";
+  return "아직 선택할 수 없습니다.";
+}
+
 function isChoiceAlreadyTakenByMe(choice = {}) {
   if (isGlobalInstantChoice(choice)) return false;
   const myFlags = getMyChoiceFlagsMap();
@@ -1606,6 +1618,7 @@ async function joinRoomByCode(inviteCode, roomPassword = "") {
   closeModal("#joinRoomModal");
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
+  await logRoomSystemMessageToRoom(data.room_id, `${getActorDisplayName(getCurrentActorNameForLog())}이 입장했습니다.`);
   await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
@@ -1615,6 +1628,7 @@ async function joinPublicRoomById(roomId) {
   if (error) throw error;
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
+  await logRoomSystemMessageToRoom(data.room_id, `${getActorDisplayName(getCurrentActorNameForLog())}이 입장했습니다.`);
   await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
@@ -1902,8 +1916,8 @@ async function renderRoom() {
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
     ${choices.map((choice, index) => {
-      const disabled = !!choice.disabled;
-      const disabledTitle = disabled ? ` title="${safeAttr(choice.disabledReason || "아직 선택할 수 없습니다.")}" aria-disabled="true" disabled` : "";
+      const disabled = isChoiceDynamicallyDisabled(choice);
+      const disabledTitle = disabled ? ` title="${safeAttr(getChoiceDisabledReason(choice))}" aria-disabled="true" disabled` : "";
       return `
       <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${isPersonalInstantChoice(choice, sectionKey) ? "instant-choice" : ""} ${disabled ? "disabled-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}"${disabledTitle}>
         ${safeText(cleanChoiceLabel(choice.label))}
@@ -1993,7 +2007,7 @@ function openRoomItemDetail(itemId) {
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
   const cleanItemId = String(itemId || "").replace(/^shop:/, "");
   const itemName = String(meta?.name || "").replace(/\s+/g, "");
-  const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || itemName === "꿈결수집기" || itemName === "낡고이상한동전";
+  const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || cleanItemId === "glass_pistol" || itemName === "꿈결수집기" || itemName === "낡고이상한동전" || itemName === "유리손포" || itemName === "유리손포도";
   const canUse = !noUseItem && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
   target.innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
@@ -2257,6 +2271,27 @@ async function logRoomSystemMessage(content) {
   }
 }
 
+async function logRoomSystemMessageToRoom(roomId, content) {
+  if (!roomId || !content) return;
+  try {
+    const { error } = await supabase.rpc("log_exploration_system_message", {
+      p_room_id: roomId,
+      p_content: content
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn("시스템 메시지 기록 실패", error);
+  }
+}
+
+function getCurrentActorNameForLog() {
+  return getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+}
+
+function buildActorSystemMessage(verbText) {
+  return `${getActorDisplayName(getCurrentActorNameForLog())}이 ${verbText}`;
+}
+
 function buildLocalChoiceProposal(payload) {
   const activeMembers = getActiveRoomMembers();
   return {
@@ -2390,8 +2425,8 @@ async function chooseNext(choice) {
   if (!choice || !currentRoom) return;
   choiceClickInProgress = true;
   try {
-  if (choice.disabled) {
-    showMessage(choice.disabledReason || "아직 선택할 수 없습니다.", "info");
+  if (isChoiceDynamicallyDisabled(choice)) {
+    showMessage(getChoiceDisabledReason(choice), "info");
     return;
   }
   const sectionKey = currentState?.current_section_key || "";
@@ -2550,6 +2585,7 @@ async function leaveCurrentRoom() {
   const ok = await themedConfirm(ROOM_EXIT_NOTICE_TEXT, "라이브 룸에서 나가시겠습니까?");
   if (!ok) return false;
   const roomId = currentRoom.id;
+  await logRoomSystemMessageToRoom(roomId, `${getActorDisplayName(getCurrentActorNameForLog())}이 퇴장했습니다.`);
   await closeRealtime();
   stopHeartbeat();
   const { data, error } = await supabase.rpc("leave_exploration_room", { p_room_id: roomId });

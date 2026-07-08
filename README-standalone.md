@@ -1,4 +1,4 @@
-# pollution-exploration standalone v1.17.13-trash-cookie-global-once
+# pollution-exploration standalone v1.17.14-souvenir-single-purchase-system-message
 
 - SQL 실행 필요 없음.
 - v1.17.9-personal-instant-items 기준 패치입니다.
@@ -11,11 +11,18 @@
 - standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.
 
 
-## v1.17.13-trash-cookie-global-once
+## v1.17.14-souvenir-single-purchase-system-message
 - 섹션 2에서 재난관리국 요원에게 `오방사계반을 사용한다` 선택지가 비활성 상태로 보이도록 추가했습니다.
 - 인벤토리에서 오방사계반을 사용해 단서 상태가 활성화되면 기존 `직원용 출입구로 진입한다` 선택지가 표시/활성화됩니다.
 
 
-## v1.17.13 수정
+## v1.17.14-souvenir-single-purchase-system-message
 - 드림랜드 이미지를 시나리오 본문을 가리지 않는 상단 배너 방식으로 고정했습니다.
 - 선택지 클릭 처리 중복/연타 방지 처리를 추가해 동전 획득 직후 다른 선택지가 먹통처럼 보이는 문제를 줄였습니다.
+
+
+## v1.17.14 변경 사항
+- 유리손포는 인벤토리 상세에서 사용 버튼이 뜨지 않도록 조정했습니다.
+- 기념품샵 구매 선택지 4개는 방 전체 기준으로 한 번 구매 후 모두 비활성화되며, 비활성 선택지 자체는 계속 보이도록 수정했습니다.
+- 시계탑 광장 이동 선택지는 구매 여부와 무관하게 계속 클릭할 수 있습니다.
+- 주요 행동 시스템 메시지를 자연문 형태로 정리했고, 입장/퇴장 시스템 메시지 기록을 추가했습니다.
