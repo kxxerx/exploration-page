@@ -1,7 +1,7 @@
 {
   "id": "disaster-001-pied-piper",
   "title": "드림랜드",
-  "version": "1.17.10-personal-inventory-dreamland-header",
+  "version": "1.17.11-obang-disabled-choice",
   "status": "active",
   "startSection": "s1",
   "sections": {
@@ -51,6 +51,16 @@
         {
           "label": "쓰레기 수거함을 밟고 올라가 담장을 넘어간다",
           "next": "s4_1"
+        },
+        {
+          "id": "s2_obang_compass_hint_disabled",
+          "label": "오방사계반을 사용한다",
+          "requires": {
+            "organization_code": "disaster_agency",
+            "not_state_flag": "obang_s2_found"
+          },
+          "disabled": true,
+          "disabledReason": "인벤토리에서 오방사계반을 사용하면 이 주변을 판별할 수 있습니다."
         },
         {
           "label": "직원용 출입구로 진입한다.",

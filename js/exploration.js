@@ -1873,11 +1873,15 @@ async function renderRoom() {
     : "";
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
-    ${choices.map((choice, index) => `
-      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${isPersonalInstantChoice(choice, sectionKey) ? "instant-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}">
+    ${choices.map((choice, index) => {
+      const disabled = !!choice.disabled;
+      const disabledTitle = disabled ? ` title="${safeAttr(choice.disabledReason || "아직 선택할 수 없습니다.")}" aria-disabled="true" disabled` : "";
+      return `
+      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${isPersonalInstantChoice(choice, sectionKey) ? "instant-choice" : ""} ${disabled ? "disabled-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}"${disabledTitle}>
         ${safeText(cleanChoiceLabel(choice.label))}
       </button>
-    `).join("")}
+    `;
+    }).join("")}
   `;
 
   qs("#choiceList").querySelectorAll("[data-choice-index]").forEach((button) => {
@@ -2354,6 +2358,10 @@ async function respondChoiceProposal(accept) {
 
 async function chooseNext(choice) {
   if (!choice || !currentRoom) return;
+  if (choice.disabled) {
+    showMessage(choice.disabledReason || "아직 선택할 수 없습니다.", "info");
+    return;
+  }
   const sectionKey = currentState?.current_section_key || "";
   if (isPersonalInstantChoice(choice, sectionKey)) {
     if (isChoiceAlreadyTakenByMe(choice)) return;
