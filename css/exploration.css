@@ -2229,7 +2229,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border: 1px solid rgba(255,241,210,.34);
 }
 
-/* v1.15.9: fixed live chat height, proposal modal spacing, Korean-particle polish */
+/* v1.16: shared effects, taller fixed chat, inventory scroll */
 .chat-card {
   min-height: 0;
 }
@@ -2269,5 +2269,37 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     height: 46vh;
     min-height: 330px;
     max-height: 520px;
+  }
+}
+
+
+/* v1.16: live chat and inventory height polish */
+.live-chat-card {
+  height: clamp(500px, 62vh, 740px);
+  max-height: 740px;
+}
+.room-inventory-card {
+  min-height: 0;
+  overflow: hidden;
+}
+.room-inventory-list {
+  max-height: clamp(260px, 36vh, 520px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: .25rem;
+  align-content: start;
+}
+.room-inventory-item {
+  display: block;
+  width: 100%;
+}
+@media (max-width: 720px) {
+  .live-chat-card {
+    height: 50vh;
+    min-height: 360px;
+    max-height: 560px;
+  }
+  .room-inventory-list {
+    max-height: 300px;
   }
 }

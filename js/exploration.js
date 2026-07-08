@@ -1,4 +1,4 @@
-// exploration-site: v1.15.9 chat-scroll-josa-proposal-polish
+// exploration-site: v1.16 shared-choice-effects-chat-inventory-scroll
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -454,13 +454,24 @@ function isSoloBlocked() {
   return activeCount < 2 && !getStateJson().soloTestMode;
 }
 
+function memberUsesEntityMetric(member) {
+  const visitorType = String(member?.visitor_type_snapshot || "").toLowerCase();
+  const org = String(member?.organization_code_snapshot || "").toLowerCase();
+  return visitorType === "entity" || org === "entity";
+}
+
+function getEffectTargetMembers() {
+  const activeMembers = getActiveRoomMembers();
+  if (activeMembers.length) return activeMembers;
+  const mine = getMyMemberSnapshot();
+  return mine ? [mine] : [];
+}
+
 function buildStatePatchForEffects(effects = []) {
   const state = getStateJson();
   const inventory = { ...(state.roomInventory || {}) };
   const metrics = { ...(state.memberMetrics || {}) };
-  const myMember = getMyMemberSnapshot();
-  const myId = currentProfile?.id;
-  const myMetric = { ...getMyMetric() };
+  const targetMembers = getEffectTargetMembers();
   const logs = [];
 
   for (const effect of effects || []) {
@@ -477,24 +488,34 @@ function buildStatePatchForEffects(effects = []) {
       logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
     }
     if (effect.type === "pollution") {
-      const org = myMember?.organization_code_snapshot || currentProfile?.organization_code;
-      const visitorType = myMember?.visitor_type_snapshot || currentProfile?.visitor_type;
-      const delta = org === "disaster_agency" && effect.disasterAgencyAmount != null ? Number(effect.disasterAgencyAmount) : Number(effect.amount || 0);
-      if (String(visitorType || "").toLowerCase() === "entity" || String(org || "").toLowerCase() === "entity") {
-        myMetric.mask_collapse_rate = clampMetric(Number(myMetric.mask_collapse_rate || 0) + delta);
-      } else {
-        myMetric.pollution = clampMetric(Number(myMetric.pollution || 0) + delta);
-      }
+      targetMembers.forEach((member) => {
+        if (!member?.user_id) return;
+        const org = String(member.organization_code_snapshot || "").toLowerCase();
+        const delta = org === "disaster_agency" && effect.disasterAgencyAmount != null
+          ? Number(effect.disasterAgencyAmount)
+          : Number(effect.amount || 0);
+        const metric = { ...getMemberMetric(member), ...(metrics[member.user_id] || {}) };
+        if (memberUsesEntityMetric(member)) {
+          metric.mask_collapse_rate = clampMetric(Number(metric.mask_collapse_rate || 0) + delta);
+        } else {
+          metric.pollution = clampMetric(Number(metric.pollution || 0) + delta);
+        }
+        metrics[member.user_id] = metric;
+      });
       logs.push("오염도가 갱신됐습니다.");
     }
     if (effect.type === "mask_collapse") {
       const delta = Number(effect.amount || 0);
-      myMetric.mask_collapse_rate = clampMetric(Number(myMetric.mask_collapse_rate || 0) + delta);
+      targetMembers.forEach((member) => {
+        if (!member?.user_id) return;
+        const metric = { ...getMemberMetric(member), ...(metrics[member.user_id] || {}) };
+        metric.mask_collapse_rate = clampMetric(Number(metric.mask_collapse_rate || 0) + delta);
+        metrics[member.user_id] = metric;
+      });
       logs.push("오염도가 갱신됐습니다.");
     }
   }
 
-  if (myId) metrics[myId] = { ...(metrics[myId] || {}), ...myMetric };
   const patch = { roomInventory: inventory, memberMetrics: metrics };
   if (logs.length) patch.lastEffectLog = logs;
   return patch;
