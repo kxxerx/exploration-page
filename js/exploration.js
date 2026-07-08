@@ -351,6 +351,23 @@ function getRoomInventoryMap() {
   return inv && typeof inv === "object" ? inv : {};
 }
 
+function getCurrentMemberOrganizationCode() {
+  const member = getMyMemberSnapshot();
+  return String(member?.organization_code_snapshot || currentProfile?.organization_code || "").toLowerCase();
+}
+
+function isPersonalDefaultItemVisible(itemId) {
+  const id = normalizeItemId(itemId);
+  const org = getCurrentMemberOrganizationCode();
+  const personalDefaults = {
+    disaster_agency: new Set(["glass_pistol", "obang_compass"]),
+    baekildream: new Set(["dream_collector"])
+  };
+  const isDefaultEquipment = Object.values(personalDefaults).some((set) => set.has(id));
+  if (!isDefaultEquipment) return true;
+  return personalDefaults[org]?.has(id) || false;
+}
+
 function getShopItemId(row) {
   return normalizeItemId(row?.items?.id || row?.item_id || row?.id);
 }
@@ -418,6 +435,28 @@ function cleanEffectText(text = "") {
   return String(text)
     .replace(/\n?\[획득\/변화\][\s\S]*?(?=\n\n|$)/g, "")
     .trim();
+}
+
+function renderStoryText(text = "") {
+  let html = safeText(cleanEffectText(text));
+  const effects = [
+    ["지직 지지직", "story-fx story-fx-electric"],
+    ["지지지직", "story-fx story-fx-electric"],
+    ["드 림 랜 드", "story-fx story-fx-dreamland"],
+    ["금일 영업 안내", "story-fx story-fx-red-sign"],
+    ["삐이이이", "story-fx story-fx-wind"],
+    ["즐거운... 드림랜드... 입니다, 손님...", "story-fx story-fx-rotten"],
+    ["끼이익", "story-fx story-fx-screech"],
+    ["딸랑딸랑", "story-fx story-fx-bell"],
+    ["어서오세요, 손님. 찾으시는 물건이 있으신가요?", "story-fx story-fx-uncanny"],
+    ["고맙습니다, 손님! 저희 골든 리조트의 기념품샵을 이용해주셨으니 특별한 공간으로 안내드리겠습니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["손님, 왜 가려고 하세요? 좀 더 둘러보세요.", "story-fx story-fx-red-sign"]
+  ];
+  for (const [phrase, className] of effects) {
+    const escaped = safeText(phrase);
+    html = html.split(escaped).join(`<span class="${className}">${escaped}</span>`);
+  }
+  return html;
 }
 
 function cleanChoiceLabel(label = "") {
@@ -796,7 +835,7 @@ function renderScenarioSelect() {
     scenarioList.forEach((scenario) => {
       const option = document.createElement("option");
       option.value = scenario.id;
-      option.textContent = `${scenario.title}${scenario.version ? ` · v${scenario.version}` : ""}`;
+      option.textContent = `${scenario.title}`;
       select.appendChild(option);
     });
   });
@@ -1631,31 +1670,48 @@ async function renderRoom() {
 
   qs("#roomTitleView").textContent = currentRoom.title;
   qs("#roomMetaView").textContent = `${scenario.title} · ${currentRoom.visibility === "private" ? "비공개" : "공개"} · 초대코드 ${currentRoom.invite_code} · ${currentRoom.status} · 최대 ${currentRoom.max_players}명`;
-  qs("#scenarioTitle").textContent = `${scenario.title} · ${sectionKey}`;
+  qs("#scenarioTitle").textContent = `${scenario.title}`;
   const imageNode = qs("#scenarioImage");
-  const imageUrl = section.image || section.imageUrl || scenario.coverImage || "";
-  if (imageNode && imageUrl) {
-    imageNode.hidden = false;
-    imageNode.style.backgroundImage = `linear-gradient(135deg, rgba(158,29,41,.18), rgba(232,179,90,.08)), url('${String(imageUrl).replaceAll("'", "%27")}')`;
-  } else if (imageNode) {
-    imageNode.hidden = true;
-    imageNode.style.backgroundImage = "";
-  }
-  document.querySelectorAll(".host-only").forEach((node) => { node.hidden = !isHost; });
-
   if (!section) {
+    qs("#sectionTitle").hidden = false;
     qs("#sectionTitle").textContent = "섹션 오류";
     qs("#storyText").textContent = `시나리오 파일에서 '${sectionKey}' 섹션을 찾지 못했습니다.`;
     qs("#choiceList").innerHTML = "";
+    if (imageNode) {
+      imageNode.hidden = true;
+      imageNode.classList.remove("scenario-image-placeholder");
+      imageNode.innerHTML = "";
+      imageNode.style.backgroundImage = "";
+    }
     return;
   }
 
-  qs("#sectionTitle").textContent = section.title || sectionKey;
+  const imageUrl = section.image || section.imageUrl || scenario.coverImage || "";
+  const visualPrompt = section.imagePrompt || section.visualPrompt || "";
+  if (imageNode && imageUrl) {
+    imageNode.hidden = false;
+    imageNode.classList.remove("scenario-image-placeholder");
+    imageNode.innerHTML = "";
+    imageNode.style.backgroundImage = `linear-gradient(135deg, rgba(158,29,41,.18), rgba(232,179,90,.08)), url('${String(imageUrl).replaceAll("'", "%27")}')`;
+  } else if (imageNode && visualPrompt) {
+    imageNode.hidden = false;
+    imageNode.classList.add("scenario-image-placeholder");
+    imageNode.style.backgroundImage = "";
+    imageNode.innerHTML = `<span>${safeText(section.imageLabel || "장면 이미지 준비 중")}</span>`;
+  } else if (imageNode) {
+    imageNode.hidden = true;
+    imageNode.classList.remove("scenario-image-placeholder");
+    imageNode.innerHTML = "";
+    imageNode.style.backgroundImage = "";
+  }
+
+  qs("#sectionTitle").textContent = "";
+  qs("#sectionTitle").hidden = true;
   const privateBlocks = (section.visibilityBlocks || [])
     .filter((block) => conditionMatches(block.condition || {}))
     .map((block) => `<div class="story-private">${safeText(block.text || "")}</div>`)
     .join("");
-  qs("#storyText").innerHTML = `${safeText(cleanEffectText(section.commonText || ""))}${privateBlocks}`;
+  qs("#storyText").innerHTML = `${renderStoryText(section.commonText || "")}${privateBlocks}`;
   const effectBox = qs("#sectionEffectLog");
   if (effectBox) {
     effectBox.hidden = true;
@@ -1724,7 +1780,7 @@ function renderRoomInventory() {
   const box = qs("#roomInventoryList");
   if (!box) return;
   const inventory = getRoomInventoryMap();
-  const scenarioEntries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0);
+  const scenarioEntries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0 && isPersonalDefaultItemVisible(item.itemId));
   const shopEntries = getVisibleShopInventory().map((row) => ({
     itemId: `shop:${getShopItemId(row)}`,
     name: getShopItemName(row),
@@ -1753,7 +1809,8 @@ function renderRoomInventory() {
 function openRoomItemDetail(itemId) {
   const isShopItem = String(itemId || "").startsWith("shop:");
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
-  const canUse = meta?.type !== "clue";
+  const cleanItemId = String(itemId || "").replace(/^shop:/, "");
+  const canUse = cleanItemId !== "dream_collector" && meta?.name !== "꿈결수집기" && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
   qs("#inventoryDetailBody").innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>

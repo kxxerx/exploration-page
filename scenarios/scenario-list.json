@@ -6,7 +6,6 @@
     "status": "published",
     "minPlayers": 1,
     "maxPlayers": 3,
-    "file": "scenarios/disaster-001-pied-piper.json",
-    "version": "1.17.2"
+    "file": "scenarios/disaster-001-pied-piper.json"
   }
 ]

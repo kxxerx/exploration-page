@@ -2398,3 +2398,106 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .party-detail-content + .party-status-note {
   margin-top: 16px !important;
 }
+
+
+/* v1.17.3 scenario polish: item use alignment, hidden location titles, story effects */
+#sectionTitle[hidden] { display: none !important; }
+.item-use-actions {
+  justify-content: flex-end !important;
+  margin-top: .95rem !important;
+}
+.scenario-image-placeholder {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(232,179,90,.18), transparent 28%),
+    radial-gradient(circle at 82% 70%, rgba(158,29,41,.28), transparent 34%),
+    linear-gradient(135deg, rgba(8,8,12,.96), rgba(26,10,16,.94));
+  position: relative;
+}
+.scenario-image-placeholder::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 5px);
+  mix-blend-mode: screen;
+  opacity: .35;
+}
+.scenario-image-placeholder span {
+  position: relative;
+  z-index: 1;
+  color: rgba(245,238,221,.82);
+  letter-spacing: .16em;
+  font-size: .86rem;
+  text-transform: uppercase;
+}
+.story-fx {
+  display: inline-block;
+  font-weight: 700;
+}
+.story-fx-electric {
+  color: #f1cf6a;
+  font-style: italic;
+  text-shadow: 0 0 8px rgba(241,207,106,.55), 2px 0 0 rgba(255,255,255,.14);
+  animation: storyElectricFlicker 1.15s steps(3, end) infinite;
+}
+.story-fx-dreamland {
+  color: #efe0a4;
+  letter-spacing: .32em;
+  text-shadow: 0 0 4px rgba(232,179,90,.62), 0 0 16px rgba(158,29,41,.58), 0 0 28px rgba(62,19,25,.9);
+  animation: dreamlandSignFlicker 2.4s infinite;
+}
+.story-fx-red-sign {
+  color: #ff5b5b;
+  text-shadow: 0 0 5px rgba(255,71,71,.7), 0 0 18px rgba(158,29,41,.6);
+  animation: redSignBlink 1.6s infinite;
+}
+.story-fx-wind {
+  color: rgba(230,238,255,.76);
+  font-style: italic;
+  text-shadow: 0 0 12px rgba(210,222,255,.38);
+  animation: windFade 2.7s ease-in-out infinite;
+}
+.story-fx-rotten, .story-fx-uncanny {
+  color: #d7b66c;
+  font-style: italic;
+  text-shadow: 0 0 8px rgba(158,29,41,.56);
+  animation: rottenVoice 1.9s ease-in-out infinite;
+}
+.story-fx-red { color: #e16868; }
+.story-fx-screech {
+  color: #dfe3eb;
+  font-style: italic;
+  text-shadow: -3px 0 0 rgba(255,88,88,.32), 3px 0 0 rgba(232,179,90,.24);
+  animation: screechShake .52s linear infinite;
+}
+.story-fx-bell {
+  color: #f1d77e;
+  text-shadow: 0 0 10px rgba(232,179,90,.62);
+  animation: bellRing 1.6s ease-in-out infinite;
+}
+@keyframes storyElectricFlicker { 0%,100%{opacity:.86;transform:skewX(-5deg)} 35%{opacity:1;transform:translateX(1px) skewX(-8deg)} 68%{opacity:.62;transform:translateX(-1px) skewX(-2deg)} }
+@keyframes dreamlandSignFlicker { 0%,100%{opacity:1} 12%{opacity:.55} 14%{opacity:1} 48%{opacity:.72} 52%{opacity:1} }
+@keyframes redSignBlink { 0%,100%{opacity:.98} 50%{opacity:.42} }
+@keyframes windFade { 0%,100%{opacity:.24;transform:translateX(0)} 45%{opacity:.9;transform:translateX(8px)} 70%{opacity:.5;transform:translateX(16px)} }
+@keyframes rottenVoice { 0%,100%{transform:translateX(0) skewX(0);filter:blur(0)} 30%{transform:translateX(1px) skewX(-2deg)} 62%{transform:translateX(-1px) skewX(2deg);filter:blur(.25px)} }
+@keyframes screechShake { 0%,100%{transform:translateX(0) rotate(0)} 25%{transform:translateX(2px) rotate(-1deg)} 50%{transform:translateX(-2px) rotate(1deg)} 75%{transform:translateX(1px) rotate(-.5deg)} }
+@keyframes bellRing { 0%,100%{transform:rotate(0)} 20%{transform:rotate(2deg)} 40%{transform:rotate(-2deg)} 60%{transform:rotate(1deg)} }
+
+
+/* v1.17.4 item detail polish */
+#inventoryDetailBody .item-use-actions,
+#inventoryDetailModal .item-use-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin-top: 1rem !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+#inventoryDetailBody .item-use-actions .primary-action,
+#inventoryDetailModal .item-use-actions .primary-action {
+  margin-left: auto !important;
+}
