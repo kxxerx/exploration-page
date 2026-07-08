@@ -1,10 +1,12 @@
-# pollution-exploration standalone v1.17.16-golteun-shop-consumables-s5-2
+# v1.17.18-natural-system-map-popup-vip-link
+
+# pollution-exploration standalone v1.17.17-map-vip-dlbad001
 
 - SQL 실행 필요 없음.
 - GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 `main` 브랜치 root에 업로드하세요. ZIP 파일 자체를 올리면 안 됩니다.
 - standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.
 
-## v1.17.16 변경 사항
+## v1.17.17-map-vip-dlbad001 변경 사항
 - 시나리오 내 `마스코트 골든` 표기를 `마스코트 골튼`으로 정리했습니다.
 - `마스코트 골튼이 그려진 머그잔`의 아이템 설명과 사용 팝업을 요청 문구로 교체했습니다.
 - 머그잔 사용 시 개인 오염도 +10이 적용되고, 사용 후 인벤토리에서 제거됩니다.
