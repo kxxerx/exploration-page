@@ -2779,3 +2779,33 @@ body.in-room .live-story-card .scenario-image {
   position: relative;
   z-index: 1;
 }
+
+.story-fx-bang {
+  color: #ffd58a;
+  font-style: italic;
+  text-shadow: 0 0 10px rgba(255,92,92,.75), 0 0 24px rgba(232,179,90,.5);
+  animation: bangImpact .72s ease-in-out infinite;
+}
+@keyframes bangImpact { 0%,100%{transform:scale(1)} 35%{transform:scale(1.28) rotate(-1deg)} 55%{transform:scale(.96) rotate(1deg)} }
+.choice-proposal-danger-title {
+  display: inline-block;
+  margin-bottom: .65rem;
+  padding: .35rem .7rem;
+  border: 1px solid rgba(255,82,82,.72);
+  border-radius: 999px;
+  color: #ffd1d1;
+  background: rgba(158,29,41,.35);
+  font-weight: 900;
+  letter-spacing: .18em;
+  animation: redSignBlink .8s infinite;
+}
+.choice-proposal-danger {
+  padding: .9rem 1rem;
+  border: 1px solid rgba(255,82,82,.55);
+  border-radius: 16px;
+  color: #ffe7d6;
+  background: linear-gradient(135deg, rgba(158,29,41,.32), rgba(49,9,14,.82));
+  box-shadow: 0 0 24px rgba(255,65,65,.18);
+  font-weight: 800;
+  line-height: 1.7;
+}

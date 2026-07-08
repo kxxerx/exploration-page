@@ -134,9 +134,10 @@ function getActorDisplayName(name) {
 }
 
 function normalizeSystemMessageTemplate(template = "") {
-  let text = String(template || "");
+  let text = String(template || "").trim();
+  text = text.replace(/마스코트 골든/g, "마스코트 골튼").replace(/골든 리조트/g, "골튼 리조트");
   text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?낡고 이상한 동전\]?을\(를\)\s*획득한다\.?/g, "{actor}이 낡고 이상한 동전을 주웠습니다.");
-  text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?([^\]\n]+)\]?을\(를\)\s*획득한다\.?/g, "{actor}이 [$1]을(를) 획득했습니다.");
+  text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?([^\]\n]+)\]?을\(를\)\s*획득한다\.?/g, "{actor}이 $1을(를) 얻었습니다.");
   text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*(.+?)\s*$/g, "{actor}이 $1");
   return text;
 }
@@ -451,7 +452,7 @@ function choiceConditionMatches(choice = {}, sectionKey = "") {
   if (isGlobalInstantChoice(choice)) {
     return !choice.requires || conditionMatches(choice.requires);
   }
-  if (isChoiceAlreadyTakenByMe(choice)) return false;
+  if (isChoiceAlreadyTakenByMe(choice) && !choice.showWhenTaken) return false;
   const requires = { ...(choice.requires || {}) };
   delete requires.not_state_flag;
   delete requires.not_state_flags;
@@ -558,7 +559,12 @@ function renderStoryText(text = "") {
     ["끼이익", "story-fx story-fx-screech"],
     ["딸랑딸랑", "story-fx story-fx-bell"],
     ["어서오세요, 손님. 찾으시는 물건이 있으신가요?", "story-fx story-fx-uncanny"],
-    ["고맙습니다, 손님! 저희 골든 리조트의 기념품샵을 이용해주셨으니 특별한 공간으로 안내드리겠습니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["고맙습니다, 손님! 저희 골튼 리조트의 기념품샵을 이용해주셨으니 특별한 공간으로 안내드리겠습니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["구매해 주셔서 감사합니다, 손님!", "story-fx story-fx-uncanny story-fx-red"],
+    ["저희 골튼 드림랜드 파라다이스의 정식 일원이 되신 것을 진심으로 환영합니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["고객님께 안전한 쇼핑, 쾌적한 서비스를 제공하기 위해 출입문을 잠시 통제하는 점 양해바랍니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["구매해주신 답례로 [VIP실]에서 계속 쇼핑을 즐기실 수 있도록 안내드리고 있습니다! 사랑합니다, 고객님!", "story-fx story-fx-uncanny story-fx-red"],
+    ["쿵!", "story-fx story-fx-bang"],
     ["손님, 왜 가려고 하세요? 좀 더 둘러보세요.", "story-fx story-fx-red-sign"]
   ];
   for (const [phrase, className] of effects) {
@@ -657,7 +663,23 @@ function buildStatePatchForEffects(effects = [], options = {}) {
           scope: "room"
         };
       }
-      logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
+    }
+    if (effect.type === "remove_item" && effect.itemId) {
+      const itemId = normalizeItemId(effect.itemId);
+      const quantity = Math.max(1, Number(effect.quantity || 1));
+      const roomScoped = effect.scope === "room" || effect.scope === "party" || effect.shared === true;
+      if (!roomScoped && currentProfile?.id) {
+        const userId = String(currentProfile.id);
+        const mine = { ...(memberInventories[userId] || {}) };
+        const currentQty = Number(mine[itemId]?.quantity || 0);
+        if (currentQty <= quantity) delete mine[itemId];
+        else mine[itemId] = { ...mine[itemId], quantity: currentQty - quantity };
+        memberInventories[userId] = mine;
+      } else if (inventory[itemId]) {
+        const currentQty = Number(inventory[itemId]?.quantity || 0);
+        if (currentQty <= quantity) delete inventory[itemId];
+        else inventory[itemId] = { ...inventory[itemId], quantity: currentQty - quantity };
+      }
     }
     if (effect.type === "collector_grade") {
       const delta = Number(effect.amount || 1);
@@ -683,7 +705,6 @@ function buildStatePatchForEffects(effects = [], options = {}) {
         }
         metrics[member.user_id] = metric;
       });
-      logs.push("오염도가 갱신됐습니다.");
     }
     if (effect.type === "mask_collapse") {
       const delta = Number(effect.amount || 0);
@@ -693,7 +714,6 @@ function buildStatePatchForEffects(effects = [], options = {}) {
         metric.mask_collapse_rate = clampMetric(Number(metric.mask_collapse_rate || 0) + delta);
         metrics[member.user_id] = metric;
       });
-      logs.push("오염도가 갱신됐습니다.");
     }
   }
 
@@ -721,6 +741,12 @@ function buildPersonalInstantChoicePatch(choice = {}) {
       memberChoiceFlags[userId] = mine;
     }
     patch = mergePatches(patch, { memberChoiceFlags });
+  }
+
+  if (choice.setRoomState?.flags && typeof choice.setRoomState.flags === "object") {
+    const flags = { ...(state.flags || {}) };
+    Object.entries(choice.setRoomState.flags).forEach(([key, value]) => { flags[key] = value; });
+    patch = mergePatches(patch, { flags });
   }
 
   if (choice.systemMessage) {
@@ -1833,6 +1859,10 @@ function conditionMatches(condition = {}) {
     if (key === "not_state_flag") return !flags?.[expected];
     if (key === "state_flags") return (expected || []).every((flag) => !!flags?.[flag]);
     if (key === "not_state_flags") return (expected || []).every((flag) => !flags?.[flag]);
+    if (key === "member_choice_flag") return !!getMyChoiceFlagsMap()?.[expected];
+    if (key === "not_member_choice_flag") return !getMyChoiceFlagsMap()?.[expected];
+    if (key === "member_choice_flags") return (expected || []).every((flag) => !!getMyChoiceFlagsMap()?.[flag]);
+    if (key === "not_member_choice_flags") return (expected || []).every((flag) => !getMyChoiceFlagsMap()?.[flag]);
     if (key === "min_pollution") return Number(context.pollution || 0) >= Number(expected);
     if (key === "max_pollution") return Number(context.pollution || 0) <= Number(expected);
     if (key === "min_mask_collapse_rate") return Number(context.mask_collapse_rate || 0) >= Number(expected);
@@ -1924,8 +1954,9 @@ async function renderRoom() {
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
     ${choices.map((choice, index) => {
-      const disabled = isChoiceDynamicallyDisabled(choice);
-      const disabledTitle = disabled ? ` title="${safeAttr(getChoiceDisabledReason(choice))}" aria-disabled="true" disabled` : "";
+      const disabled = isChoiceDynamicallyDisabled(choice) || soloBlocked;
+      const reason = soloBlocked ? "혼자서는 진행할 수 없습니다." : getChoiceDisabledReason(choice);
+      const disabledTitle = disabled ? ` title="${safeAttr(reason)}" aria-disabled="true" disabled` : "";
       return `
       <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${isPersonalInstantChoice(choice, sectionKey) ? "instant-choice" : ""} ${disabled ? "disabled-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}"${disabledTitle}>
         ${safeText(cleanChoiceLabel(choice.label))}
@@ -2072,12 +2103,19 @@ async function useRoomInventoryItem(itemId) {
   } catch (error) {
     console.warn("아이템 사용 로그 기록 실패", error);
   }
-  if (rule.setState || rule.effects) {
-    const effectPatch = buildStatePatchForEffects(rule.effects || []);
+  const useEffects = [...(rule.effects || [])];
+  if (rule.consume === true) {
+    useEffects.push({ type: "remove_item", itemId: String(itemId || "").replace(/^shop:/, ""), scope: "self" });
+  }
+  if (rule.setState || useEffects.length) {
+    const effectPatch = buildStatePatchForEffects(useEffects);
     const patch = mergePatches(rule.setState || {}, effectPatch);
     const { error } = await supabase.rpc("patch_exploration_room_state", { p_room_id: currentRoom.id, p_state_patch: patch });
     if (error) showMessage(error.message, "error");
     else await loadRoomBundle(currentRoom.id, { silent: true });
+  }
+  if (rule.closeAfterUse !== false || rule.consume === true) {
+    closeModal("#inventoryDetailModal");
   }
 }
 
@@ -2191,7 +2229,10 @@ function buildChoiceAdvancePayload(choice) {
   return {
     nextSectionKey: choice.next,
     choiceLabel: cleanChoiceLabel(choice.label || ""),
-    statePatch: mergePatches(choice.setState || {}, effectPatch)
+    statePatch: mergePatches(choice.setState || {}, effectPatch),
+    proposalMode: choice.proposalMode || "",
+    proposalMessage: choice.proposalMessage || "",
+    systemMessage: choice.systemMessage || ""
   };
 }
 
@@ -2252,10 +2293,18 @@ function renderChoiceProposalModal() {
   if (body) {
     const proposerName = proposal.proposer_name || "누군가";
     const proposerText = `${proposerName}${josa(proposerName, "이", "가")}`;
-    body.innerHTML = `
-      <p><strong>${safeText(proposerText)}</strong> 아래의 진행을 제안합니다.</p>
-      <div class="choice-proposal-choice">${safeText(proposal.choice_label || "다음 행동")}</div>
-      <p class="small muted">수락하시겠습니까? 모든 참가자가 동의하면 다음으로 넘어가며, 한 명이라도 거절할 경우 다음으로 넘어가지 않습니다.</p>`;
+    if (proposal.proposal_mode === "danger_escape") {
+      const actor = getActorDisplayName(proposerName);
+      const message = formatSystemMessageTemplate(proposal.proposal_message || "{actor}이 혼자 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까?", proposerName);
+      body.innerHTML = `
+        <div class="choice-proposal-danger-title">돌발상황</div>
+        <div class="choice-proposal-danger">${safeText(message)}</div>`;
+    } else {
+      body.innerHTML = `
+        <p><strong>${safeText(proposerText)}</strong> 아래의 진행을 제안합니다.</p>
+        <div class="choice-proposal-choice">${safeText(proposal.choice_label || "다음 행동")}</div>
+        <p class="small muted">수락하시겠습니까? 모든 참가자가 동의하면 다음으로 넘어가며, 한 명이라도 거절할 경우 다음으로 넘어가지 않습니다.</p>`;
+    }
   }
   openModal("#choiceProposalModal");
 }
@@ -2310,6 +2359,9 @@ function buildLocalChoiceProposal(payload) {
     choice_label: payload.choiceLabel || "다음 행동",
     next_section_key: payload.nextSectionKey,
     state_patch: payload.statePatch || {},
+    proposal_mode: payload.proposalMode || "",
+    proposal_message: payload.proposalMessage || "",
+    system_message: payload.systemMessage || "",
     accept_ids: currentProfile?.id ? [String(currentProfile.id)] : [],
     reject_ids: [],
     required_count: activeMembers.length || 1,
@@ -2368,8 +2420,20 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
     }
   } else {
     rejectIds.add(myId);
-    await patchRoomStateLocally({ pendingChoiceProposal: null });
-    await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 제안을 거절했습니다.`);
+    if (proposal.proposal_mode === "danger_escape") {
+      const patch = mergePatches({ pendingChoiceProposal: null });
+      const { error } = await supabase.rpc("advance_exploration_room", {
+        p_room_id: currentRoom.id,
+        p_next_section_key: "s5_2_a",
+        p_choice_label: "VIP손님 전용 휴게실로 안내된다",
+        p_state_patch: patch
+      });
+      if (error) throw error;
+      await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 따라가지 않기로 했습니다.`);
+    } else {
+      await patchRoomStateLocally({ pendingChoiceProposal: null });
+      await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 제안을 거절했습니다.`);
+    }
   }
   if (originalError) console.warn("진행 제안 응답 RPC 실패, 프론트 폴백 사용", originalError);
 }
@@ -2377,6 +2441,20 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
 async function proposeChoice(choice) {
   if (!choice?.next || !currentRoom) return;
   const payload = buildChoiceAdvancePayload(choice);
+  if (payload.proposalMode === "danger_escape") {
+    try {
+      await proposeChoiceFallback(payload);
+      if (choice.systemMessage) {
+        const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+        await logRoomSystemMessage(formatSystemMessageTemplate(choice.systemMessage, actor));
+      }
+      showMessage("돌발상황 제안을 보냈습니다. 다른 참가자의 선택을 기다립니다.", "success");
+      await loadRoomBundle(currentRoom.id, { silent: true });
+    } catch (fallbackError) {
+      showMessage(`진행 제안을 보내지 못했습니다: ${fallbackError.message}`, "error");
+    }
+    return;
+  }
   try {
     const { error } = await supabase.rpc("propose_exploration_choice", {
       p_room_id: currentRoom.id,
@@ -2437,9 +2515,13 @@ async function chooseNext(choice) {
     showMessage(getChoiceDisabledReason(choice), "info");
     return;
   }
+  if (isSoloBlocked()) {
+    showMessage(currentProfile?.role === "admin" ? "혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 입력하면 진행할 수 있습니다." : "혼자서는 진행할 수 없습니다.", "error");
+    return;
+  }
   const sectionKey = currentState?.current_section_key || "";
   if (isPersonalInstantChoice(choice, sectionKey)) {
-    if (isChoiceAlreadyTakenByMe(choice)) return;
+    if (isChoiceAlreadyTakenByMe(choice) && !choice.showWhenTaken) return;
     const statePatch = buildPersonalInstantChoicePatch(choice);
     const { error } = await supabase.rpc("patch_exploration_room_state", {
       p_room_id: currentRoom.id,
@@ -2449,11 +2531,6 @@ async function chooseNext(choice) {
       showMessage(error.message, "error");
       return;
     }
-    if (choice.popupMessage) {
-      await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
-    }
-    // 즉시 선택지는 상태 패치가 끝난 뒤 클릭 잠금을 먼저 해제한다.
-    // 팝업/시스템 로그가 늦어져도 다른 일반 선택지가 먹통처럼 막히지 않게 하기 위한 처리다.
     choiceClickInProgress = false;
     if (choice.popupMessage) {
       await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
@@ -2466,10 +2543,6 @@ async function chooseNext(choice) {
     return;
   }
   if (!choice?.next) return;
-  if (isSoloBlocked()) {
-    showMessage(currentProfile?.role === "admin" ? "혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 입력하면 진행할 수 있습니다." : "혼자서는 진행할 수 없습니다.", "error");
-    return;
-  }
   const payload = buildChoiceAdvancePayload(choice);
   const shouldPropose = getActiveRoomMembers().length > 1 && !choice.noConsensus && !choice.instant;
   if (shouldPropose) {
