@@ -1,4 +1,4 @@
-// exploration-site: v1.15.6 guide-pages-ui-polish
+// exploration-site: v1.15.7 inventory-guide-affiliation-polish
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -32,6 +32,21 @@ const VISITOR_LABELS = {
   infected: "오염자",
   entity: "괴이"
 };
+
+function communityOrgOnlyLabel(row = {}) {
+  const raw = String(row.organization_label || row.affiliation_label || "").trim();
+  const code = row.organization_code;
+  if (raw.includes("■■")) return "■■";
+  if (code && ORG_LABELS[code]) {
+    return code === "entity" ? "■■" : ORG_LABELS[code];
+  }
+  if (raw.includes("초자연 재난관리국")) return "초자연 재난관리국";
+  if (raw.includes("백일몽 주식회사")) return "백일몽 주식회사";
+  if (raw.includes("괴이")) return "■■";
+  if (raw.includes("무소속")) return "무소속";
+  if (raw.includes("기타")) return "기타";
+  return raw || "소속 미상";
+}
 
 let currentProfile = null;
 let scenarioList = [];
@@ -978,7 +993,7 @@ function renderCommunityPosts() {
         <span class="badge public">${safeText(communityStatusLabel(post))}</span>
       </header>
       <div class="community-item-meta">
-        ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(post.organization_label || ORG_LABELS[post.organization_code] || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
+        ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(communityOrgOnlyLabel(post))} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
       </div>
       <p class="community-item-content">${safeText(post.body || "").slice(0, 180)}${String(post.body || "").length > 180 ? "..." : ""}</p>
       <footer class="community-actions">
@@ -1033,7 +1048,7 @@ function renderCommunityDetail(post) {
     </div>
     <p class="kicker">Anonymous Lounge</p>
     <h2>${safeText(post.title || "익명 게시글")}</h2>
-    <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(post.organization_label || ORG_LABELS[post.organization_code] || "소속 미상")} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
+    <div class="room-meta">${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(communityOrgOnlyLabel(post))} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개</div>
     <div class="community-detail-content">${safeText(post.body || "")}</div>
   `;
 }

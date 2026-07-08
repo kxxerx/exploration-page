@@ -2176,3 +2176,24 @@ select {
   .guide-pager { margin-bottom: .2rem; }
   .guide-ui-chip, .guide-ui-input { white-space: normal; }
 }
+
+
+/* v1.15.7: inventory spacing, brighter date icon, guide icon numbers */
+.room-inventory-card .side-card-head {
+  margin-bottom: .72rem;
+}
+.room-inventory-card #refreshRoomInventory {
+  margin-bottom: .18rem;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(2.35) contrast(1.18) drop-shadow(0 0 5px rgba(255, 231, 177, .55)) !important;
+  opacity: 1 !important;
+  background-color: rgba(232,179,90,.16);
+  border-radius: 8px;
+  padding: 3px;
+}
+.guide-card-icon {
+  font-variant-numeric: tabular-nums;
+  font-size: .98rem;
+}

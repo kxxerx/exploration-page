@@ -542,7 +542,7 @@
 
     <div class="guide-page" data-guide-page="1">
       <div class="guide-hero">
-        <div class="guide-hero-icon">?</div>
+        <div class="guide-hero-icon">1</div>
         <div>
           <strong>처음 오셨다면 이 순서대로 확인하면 됩니다.</strong>
           <p class="muted">탐사방 생성, 참가, 파일 저장, 파티 모집, 익명 게시판 이용 방법을 한곳에 정리했습니다.</p>
@@ -559,7 +559,7 @@
           <div class="guide-card-icon">2</div>
           <h3>저장파일로 이어하기</h3>
           <p>탐사를 중간에 멈춰야 한다면 라이브룸에서 <span class="guide-ui-chip">파일 저장</span>을 먼저 누릅니다.</p>
-          <p>다음에 <span class="guide-ui-chip">저장파일로 이어하기</span>를 눌러 저장한 JSON 파일을 선택하면 같은 진행 지점에서 새 방을 만들 수 있습니다.</p>
+          <p>해당 지점에서부터 진행하길 원하신다면 <span class="guide-ui-chip">저장파일로 이어하기</span>를 눌러 저장한 JSON 파일을 선택하면 같은 진행 지점부터 이어하실 수 있습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">3</div>
@@ -578,7 +578,7 @@
 
     <div class="guide-page" data-guide-page="2" hidden>
       <div class="guide-hero">
-        <div class="guide-hero-icon">◆</div>
+        <div class="guide-hero-icon">2</div>
         <div>
           <strong>탐사는 선택지만 누르는 방식이 아닙니다.</strong>
           <p class="muted">대화와 롤플레잉으로 상황을 확인한 뒤, 참가자 동의를 거쳐 다음 장면으로 이동합니다.</p>
@@ -586,25 +586,27 @@
       </div>
       <div class="guide-grid">
         <section class="guide-card">
-          <div class="guide-card-icon">말</div>
+          <div class="guide-card-icon">1</div>
           <h3>진행 전 대화</h3>
           <p>선택지를 누르기 전에 참가자끼리 조사 방향, 사용할 아이템, 위험 요소를 먼저 이야기합니다.</p>
           <p>대화 없이 선택지만 빠르게 누르면 다른 참가자가 상황을 따라가기 어렵습니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">동</div>
+          <div class="guide-card-icon">2</div>
           <h3>선택지 동의</h3>
           <p>누군가 선택지를 누르면 바로 이동하지 않고, 다른 참가자에게 수락/거절 확인이 표시됩니다.</p>
           <p>모두 수락하면 다음 섹션으로 이동하고, 누군가 거절하면 현재 섹션에 머무릅니다.</p>
+          <p>소속에 따라 보이는 선택지가 다를 수 있습니다. 일부 선택지는 동의 없이 바로 확인되는 경우도 있으며, 이런 선택지는 섹션 이동 없이 단서 확인이나 반응 확인만 진행됩니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">물</div>
+          <div class="guide-card-icon">3</div>
           <h3>아이템 사용</h3>
           <p>탐사 인벤토리에서 아이템을 누르면 상세 내용이 열립니다. 사용할 수 있는 아이템은 <span class="guide-ui-chip">사용</span> 버튼이 표시됩니다.</p>
           <p>단서는 확인용이며 사용 버튼이 표시되지 않습니다.</p>
+          <p>특정 아이템이나 조건으로만 확인되는 선택지는 추후 시나리오별 표시 효과를 따로 적용할 수 있습니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">!</div>
+          <div class="guide-card-icon">4</div>
           <h3>금지되는 행동</h3>
           <p>다른 참가자 동의 없이 진행을 밀어붙이거나, 채팅을 도배하거나, 진행을 방해하는 행동은 신고 대상입니다.</p>
           <p>탐사 중 분쟁이 생기면 먼저 대화로 정리하고, 필요하면 신고 기능을 사용합니다.</p>
@@ -614,7 +616,7 @@
 
     <div class="guide-page" data-guide-page="3" hidden>
       <div class="guide-hero">
-        <div class="guide-hero-icon">☉</div>
+        <div class="guide-hero-icon">3</div>
         <div>
           <strong>함께 탐사할 사람이 필요하다면 파티 찾기를 사용합니다.</strong>
           <p class="muted">모집글은 모집 시작 일자, 모집 기간, 탐사 일자, 모집 인원을 정해 올립니다.</p>
@@ -622,25 +624,25 @@
       </div>
       <div class="guide-grid">
         <section class="guide-card">
-          <div class="guide-card-icon">모</div>
+          <div class="guide-card-icon">1</div>
           <h3>모집글 작성</h3>
           <p><span class="guide-ui-chip">파티 찾기</span>에서 <span class="guide-ui-chip">익명 모집 글쓰기</span>를 누릅니다.</p>
           <p>모집 시작 일자와 모집 기간을 정하면 모집 마감 시간이 자동으로 계산됩니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">일</div>
+          <div class="guide-card-icon">2</div>
           <h3>탐사 일자</h3>
           <p>탐사 일자는 실제로 탐사를 시작하고 싶은 날짜와 시간을 입력합니다.</p>
           <p>모집 기간과 별개로 설정할 수 있으므로, 다음 달 일정도 등록할 수 있습니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">방</div>
+          <div class="guide-card-icon">3</div>
           <h3>모집 완료 후 방 만들기</h3>
           <p>참가 신청자가 모이면 작성자가 모집글에서 바로 탐사방을 만들 수 있습니다.</p>
           <p>방을 만들면 모집글은 모집 완료 상태가 됩니다.</p>
         </section>
         <section class="guide-card">
-          <div class="guide-card-icon">익</div>
+          <div class="guide-card-icon">4</div>
           <h3>익명 게시판</h3>
           <p>익명 게시판은 무작위 별명으로 글과 댓글을 작성하는 공간입니다.</p>
           <p>욕설, 비방, 광고, 도배, 진행 방해성 글은 신고 대상입니다.</p>
@@ -658,6 +660,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/exploration.js?v=1.15.6"></script>
+  <script type="module" src="js/exploration.js?v=1.15.7"></script>
 </body>
 </html>
