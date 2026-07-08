@@ -242,7 +242,7 @@ function remainingTimeText(value) {
 function getPartyScheduleHtml(post) {
   const recruitmentStart = post.recruitment_start_at || post.created_at;
   const startText = formatDateOnlyLong(recruitmentStart);
-  const deadline = formatDateLong(post.recruitment_deadline);
+  const deadline = formatDateOnlyLong(post.recruitment_deadline);
   const remaining = post.recruitment_deadline ? remainingPeriodText(recruitmentStart, post.recruitment_deadline) : "남은 시간 확인 불가";
   const explorationStart = post.exploration_starts_at || null;
   const playText = explorationStart ? `${formatDateLong(explorationStart)}부터` : (post.play_time || "미정");
@@ -785,7 +785,7 @@ async function loadScenarioList() {
   const response = await fetch(`scenarios/scenario-list.json?ts=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error("시나리오 목록을 불러오지 못했습니다.");
   const list = await response.json();
-  scenarioList = list.filter((scenario) => scenario.status === "published");
+  scenarioList = list.filter((scenario) => scenario.status === "published" || scenario.status === "active");
   renderScenarioSelect();
 }
 

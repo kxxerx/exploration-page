@@ -2354,3 +2354,37 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   0%, 100% { opacity: .22; filter: blur(0); }
   50% { opacity: .72; filter: blur(.6px); }
 }
+
+
+/* v1.17.1 party/community alignment and scenario dropdown fix polish */
+.party-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.party-item-head strong {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.party-item-head .badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.party-actions,
+.community-actions {
+  justify-content: flex-end !important;
+  align-items: center !important;
+}
+.community-actions {
+  padding: 0 18px 18px !important;
+}
+@media (max-width: 520px) {
+  .party-actions,
+  .community-actions {
+    justify-content: flex-end !important;
+  }
+}
