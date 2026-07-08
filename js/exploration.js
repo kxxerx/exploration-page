@@ -127,6 +127,15 @@ function formatKoreanParticles(value) {
     .replace(/([^\s\"'“”‘’()\[\]{}<>:;,.!?]+)을\(를\)/g, (_, word) => withJosa(word, '을', '를'));
 }
 
+function getActorDisplayName(name) {
+  const base = String(name || currentProfile?.display_name || getMyMemberSnapshot()?.display_name_snapshot || "탐사자").trim() || "탐사자";
+  return base.endsWith("님") ? base : `${base}님`;
+}
+
+function formatSystemMessageTemplate(template, actorName) {
+  return formatKoreanParticles(String(template || "").replaceAll("{actor}", getActorDisplayName(actorName)));
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -370,8 +379,13 @@ function getMyScenarioInventoryMap() {
   return mine && typeof mine === "object" ? mine : {};
 }
 
+function getSharedScenarioInventoryMap() {
+  const room = getRoomInventoryMap();
+  return Object.fromEntries(Object.entries(room).filter(([, item]) => item?.shared === true || item?.scope === "room"));
+}
+
 function getCombinedScenarioInventoryMap() {
-  return { ...getRoomInventoryMap(), ...getMyScenarioInventoryMap() };
+  return { ...getSharedScenarioInventoryMap(), ...getMyScenarioInventoryMap() };
 }
 
 function getMemberChoiceFlagsMap() {
@@ -589,7 +603,8 @@ function buildStatePatchForEffects(effects = [], options = {}) {
       const itemId = normalizeItemId(effect.itemId);
       const meta = getItemMeta(itemId);
       const quantity = Number(effect.quantity || 1);
-      if (options.personalItems && currentProfile?.id) {
+      const roomScoped = effect.scope === "room" || effect.scope === "party" || effect.shared === true;
+      if (!roomScoped && currentProfile?.id) {
         const userId = String(currentProfile.id);
         const mine = { ...(memberInventories[userId] || {}) };
         mine[itemId] = {
@@ -598,7 +613,8 @@ function buildStatePatchForEffects(effects = [], options = {}) {
           type: meta.type || "item",
           quantity: Number(mine[itemId]?.quantity || 0) + quantity,
           acquiredAt: new Date().toISOString(),
-          personal: true
+          personal: true,
+          ownerId: userId
         };
         memberInventories[userId] = mine;
       } else {
@@ -607,7 +623,9 @@ function buildStatePatchForEffects(effects = [], options = {}) {
           name: meta.name || itemId,
           type: meta.type || "item",
           quantity: Number(inventory[itemId]?.quantity || 0) + quantity,
-          acquiredAt: new Date().toISOString()
+          acquiredAt: new Date().toISOString(),
+          shared: true,
+          scope: "room"
         };
       }
       logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
@@ -641,8 +659,7 @@ function buildStatePatchForEffects(effects = [], options = {}) {
     }
   }
 
-  const patch = { roomInventory: inventory, memberMetrics: metrics };
-  if (options.personalItems) patch.memberInventories = memberInventories;
+  const patch = { roomInventory: inventory, memberInventories, memberMetrics: metrics };
   if (logs.length) patch.lastEffectLog = logs;
   return patch;
 }
@@ -659,8 +676,8 @@ function buildPersonalInstantChoicePatch(choice = {}) {
   const effectPatch = buildStatePatchForEffects(choice.effects || [], { personalItems: true });
   const patch = mergePatches(effectPatch, { memberChoiceFlags });
   if (choice.systemMessage) {
-    const actor = currentProfile?.display_name || "탐사자";
-    patch.lastEffectLog = [...(patch.lastEffectLog || []), String(choice.systemMessage).replaceAll("{actor}", actor)];
+    const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+    patch.lastEffectLog = [...(patch.lastEffectLog || []), formatSystemMessageTemplate(choice.systemMessage, actor)];
   }
   return patch;
 }
@@ -1489,7 +1506,9 @@ async function ensureScenarioDefaultItems(scenario) {
   const itemIds = scenario.defaultItemsByOrganization?.[org] || [];
   if (!itemIds.length) return;
   const state = getStateJson();
-  const currentInventory = { ...(state.roomInventory || {}) };
+  const allInventories = { ...(state.memberInventories || {}) };
+  const userId = String(currentProfile.id);
+  const currentInventory = { ...(allInventories[userId] || {}) };
   const additions = {};
   itemIds.forEach((itemId) => {
     const cleanId = normalizeItemId(itemId);
@@ -1500,16 +1519,19 @@ async function ensureScenarioDefaultItems(scenario) {
         name: meta.name || cleanId,
         type: meta.type || "item",
         quantity: 1,
-        acquiredAt: new Date().toISOString()
+        acquiredAt: new Date().toISOString(),
+        personal: true,
+        ownerId: userId
       };
     }
   });
   if (!Object.keys(additions).length) return;
   try {
-    const mergedInventory = { ...(currentInventory || {}), ...additions };
+    const mergedMine = { ...(currentInventory || {}), ...additions };
+    const mergedInventories = { ...allInventories, [userId]: mergedMine };
     const { error } = await supabase.rpc("patch_exploration_room_state", {
       p_room_id: currentRoom.id,
-      p_state_patch: { roomInventory: mergedInventory }
+      p_state_patch: { memberInventories: mergedInventories }
     });
     if (error) throw error;
     const state = getStateJson();
@@ -1517,7 +1539,7 @@ async function ensureScenarioDefaultItems(scenario) {
       ...currentState,
       state_json: {
         ...state,
-        roomInventory: mergedInventory
+        memberInventories: mergedInventories
       }
     };
   } catch (error) {
@@ -1779,6 +1801,7 @@ async function renderRoom() {
   const sectionKey = currentState.current_section_key || scenario.startSection;
   const section = scenario.sections?.[sectionKey];
   const isHost = currentRoom.host_user_id === currentProfile?.id;
+  document.querySelectorAll("#roomPanel .host-only").forEach((node) => { node.hidden = !isHost; });
 
   qs("#roomTitleView").textContent = currentRoom.title;
   qs("#roomMetaView").textContent = `${scenario.title} · ${currentRoom.visibility === "private" ? "비공개" : "공개"} · 초대코드 ${currentRoom.invite_code} · ${currentRoom.status} · 최대 ${currentRoom.max_players}명`;
@@ -1989,7 +2012,7 @@ async function useRoomInventoryItem(itemId) {
   try {
     await supabase.rpc("log_exploration_system_message", {
       p_room_id: currentRoom.id,
-      p_content: `${currentProfile?.display_name || "탐사자"}님이 ${withJosa(name, "을", "를")} 사용했습니다.`
+      p_content: `${withJosa(getActorDisplayName(currentProfile?.display_name || "탐사자"), "이", "가")} ${withJosa(name, "을", "를")} 사용했습니다.`
     });
   } catch (error) {
     console.warn("아이템 사용 로그 기록 실패", error);
@@ -2236,7 +2259,7 @@ function isMissingRpcError(error) {
 async function proposeChoiceFallback(payload, originalError = null) {
   const proposal = buildLocalChoiceProposal(payload);
   await patchRoomStateLocally({ pendingChoiceProposal: proposal });
-  await logRoomSystemMessage(`${withJosa(proposal.proposer_name, "이", "가")} 진행을 제안했습니다.`);
+  await logRoomSystemMessage(`${withJosa(getActorDisplayName(proposal.proposer_name), "이", "가")} 진행을 제안했습니다.`);
   if (originalError) console.warn("진행 제안 RPC 실패, 프론트 폴백 사용", originalError);
 }
 
@@ -2250,7 +2273,7 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
   if (accept) {
     acceptIds.add(myId);
     rejectIds.delete(myId);
-    await logRoomSystemMessage(`${withJosa(myName, "이", "가")} 제안을 수락했습니다.`);
+    await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 제안을 수락했습니다.`);
     const activeIds = getActiveRoomMembers().map((member) => String(member.user_id));
     const allAccepted = activeIds.length > 0 && activeIds.every((id) => acceptIds.has(id));
     if (allAccepted) {
@@ -2270,7 +2293,7 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
   } else {
     rejectIds.add(myId);
     await patchRoomStateLocally({ pendingChoiceProposal: null });
-    await logRoomSystemMessage(`${withJosa(myName, "이", "가")} 제안을 거절했습니다.`);
+    await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 제안을 거절했습니다.`);
   }
   if (originalError) console.warn("진행 제안 응답 RPC 실패, 프론트 폴백 사용", originalError);
 }
@@ -2344,7 +2367,8 @@ async function chooseNext(choice) {
       return;
     }
     if (choice.systemMessage) {
-      await logRoomSystemMessage(String(choice.systemMessage).replaceAll("{actor}", currentProfile?.display_name || "탐사자"));
+      const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+      await logRoomSystemMessage(formatSystemMessageTemplate(choice.systemMessage, actor));
     }
     await loadRoomBundle(currentRoom.id, { silent: true });
     return;
@@ -2361,8 +2385,8 @@ async function chooseNext(choice) {
   }
   let statePatch = payload.statePatch || {};
   if (choice.systemMessage) {
-    const actor = currentProfile?.display_name || "탐사자";
-    statePatch = mergePatches(statePatch, { lastEffectLog: [String(choice.systemMessage).replaceAll("{actor}", actor)] });
+    const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+    statePatch = mergePatches(statePatch, { lastEffectLog: [formatSystemMessageTemplate(choice.systemMessage, actor)] });
   }
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,

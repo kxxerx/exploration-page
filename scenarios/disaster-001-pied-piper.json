@@ -1,7 +1,7 @@
 {
   "id": "disaster-001-pied-piper",
   "title": "드림랜드",
-  "version": "1.17.8-no-scene-images",
+  "version": "1.17.10-personal-inventory-dreamland-header",
   "status": "active",
   "startSection": "s1",
   "sections": {
@@ -40,7 +40,7 @@
               "used_s1_6782d4": true
             }
           },
-          "systemMessage": "{actor}님이 [낡고 이상한 동전]을(를) 획득했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [낡고 이상한 동전]을(를) 획득한다."
         }
       ]
     },
@@ -78,7 +78,7 @@
               "used_s2_51d554": true
             }
           },
-          "systemMessage": "{actor}님이 쓰레기 수거함을 뒤진다 행동을 확인했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : 쓰레기 수거함을 뒤진다."
         }
       ],
       "effects": [
@@ -228,7 +228,7 @@
               "used_s5_1_702dc0": true
             }
           },
-          "systemMessage": "{actor}님이 [LED 반짝이 사자 머리띠]을(를) 획득했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [LED 반짝이 사자 머리띠]을(를) 획득한다."
         },
         {
           "label": "눈이 뒤집힌 사자 인형을 산다",
@@ -249,7 +249,7 @@
               "used_s5_1_fe2a4c": true
             }
           },
-          "systemMessage": "{actor}님이 [눈이 뒤집힌 사자 인형]을(를) 획득했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [눈이 뒤집힌 사자 인형]을(를) 획득한다."
         },
         {
           "label": "마스코트 골든이 그려진 머그잔을 산다",
@@ -270,7 +270,7 @@
               "used_s5_1_4e721e": true
             }
           },
-          "systemMessage": "{actor}님이 [마스코트 골든이 그려진 머그잔]을(를) 획득했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [마스코트 골든이 그려진 머그잔]을(를) 획득한다."
         },
         {
           "label": "정신이 쏙 빠지는 에너지 드링크를 산다",
@@ -291,7 +291,7 @@
               "used_s5_1_419481": true
             }
           },
-          "systemMessage": "{actor}님이 [정신이 쏙 빠지는 에너지 드링크]을(를) 획득했습니다."
+          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [정신이 쏙 빠지는 에너지 드링크]을(를) 획득한다."
         },
         {
           "label": "물건을 사지 않고 시계탑 광장으로 향한다",
@@ -1814,5 +1814,6 @@
     "baekildream": [
       "dream_collector"
     ]
-  }
+  },
+  "coverImage": "assets/scenes/dreamland-night.webp"
 }
