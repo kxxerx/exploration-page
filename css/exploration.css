@@ -1971,3 +1971,13 @@ input[type="file"]::file-selector-button:hover {
     margin-top: 10px;
   }
 }
+
+/* v1.15.4: 선택지 제안/동의 안내 */
+.choice-proposal-notice {
+  margin-bottom: 10px;
+  border-color: rgba(232, 179, 90, 0.28);
+}
+#choiceProposalModal .party-detail-content {
+  display: grid;
+  gap: 10px;
+}

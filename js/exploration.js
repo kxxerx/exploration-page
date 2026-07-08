@@ -1,4 +1,4 @@
-// exploration-site: v1.11 moderation-cleanup-and-my-content
+// exploration-site: v1.15.4 choice-consensus-hotfix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -111,6 +111,15 @@ function addMonths(date, amount) {
   next.setDate(Math.min(originalDay, lastDay));
   return next;
 }
+
+function endOfDayAfterDays(startDate, days) {
+  const base = startDate instanceof Date && !Number.isNaN(startDate.getTime()) ? startDate : new Date();
+  const span = Math.min(7, Math.max(1, Number(days || 7)));
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate() + span, 23, 59, 0, 0);
+}
+
+// 모듈 스코프 밖에서 남아 있는 구형 이벤트가 호출해도 죽지 않게 전역에 노출한다.
+globalThis.endOfDayAfterDays = endOfDayAfterDays;
 
 function shiftDateTimeInput(inputId, months) {
   const input = qs(`#${inputId}`);
@@ -637,7 +646,7 @@ async function loadInventory() {
 
   const { data, error } = await supabase
     .from("inventories")
-    .select("quantity, updated_at, items(id, name, item_kind, category)")
+    .select("quantity, updated_at, items(id, name, description, item_kind, category, effect_type, effect_value)")
     .eq("user_id", currentProfile.id)
     .gt("quantity", 0)
     .order("updated_at", { ascending: false })
@@ -1478,6 +1487,7 @@ async function renderRoom() {
   if (!choices.length) {
     const ending = section.ending ? buildEndingNotice(section.ending) : "";
     qs("#choiceList").innerHTML = `<div class="message">선택지가 없습니다. ${ending}</div>`;
+    await refreshChoiceProposalUi();
     if (section.ending) await settleCurrentEnding(section.ending, sectionKey);
     return;
   }
@@ -1502,6 +1512,7 @@ async function renderRoom() {
       await chooseNext(choice);
     });
   });
+  await refreshChoiceProposalUi();
 }
 
 function renderMembers() {
@@ -1558,13 +1569,63 @@ function renderRoomInventory() {
 }
 
 function openRoomItemDetail(itemId) {
-  const meta = String(itemId || "").startsWith("shop:") ? getShopItemMeta(itemId) : getItemMeta(itemId);
+  const isShopItem = String(itemId || "").startsWith("shop:");
+  const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
+  const canUse = meta?.type !== "clue";
   qs("#inventoryDetailBody").innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>
     <div class="party-detail-content">${safeText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
+    ${canUse ? `<div class="modal-actions"><button type="button" class="primary-action" data-use-room-item="${safeAttr(itemId)}">사용</button></div>` : ""}
   `;
   openModal("#inventoryDetailModal");
+}
+
+function findItemUseRule(itemId) {
+  const scenario = getScenario();
+  const sectionKey = currentState?.current_section_key || "";
+  const cleanId = String(itemId || "").replace(/^shop:/, "");
+  const rules = scenario?.itemUseRules || scenario?.itemUses || {};
+  const direct = rules?.[cleanId];
+  if (!direct) return null;
+  if (direct.sections && direct.sections[sectionKey]) return direct.sections[sectionKey];
+  if (Array.isArray(direct.allowedSections) && direct.allowedSections.includes(sectionKey)) return direct;
+  if (!direct.sections && !direct.allowedSections) return direct;
+  return null;
+}
+
+async function useRoomInventoryItem(itemId) {
+  if (!currentRoom?.id) return showMessage("탐사방 안에서만 사용할 수 있습니다.", "error");
+  const isShopItem = String(itemId || "").startsWith("shop:");
+  const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
+  if (meta?.type === "clue") return showMessage("단서는 사용할 수 없습니다. 내용을 확인하는 용도입니다.", "error");
+
+  if (isShopItem) {
+    const rawId = String(itemId || "").replace(/^shop:/, "");
+    const { data, error } = await supabase.rpc("use_exploration_shop_item", { p_room_id: currentRoom.id, p_item_id: rawId });
+    if (error) { showMessage(error.message, "error"); return; }
+    closeModal("#inventoryDetailModal");
+    showMessage(data?.message || "아이템을 사용했습니다.", "success");
+    await Promise.all([loadInventory(), loadRoomBundle(currentRoom.id, { silent: true })]);
+    return;
+  }
+
+  const rule = findItemUseRule(itemId);
+  const name = meta?.name || itemId;
+  if (!rule) {
+    const fallback = String(name).includes("오방사계반") ? "오방사계반이 사방으로 돌고 있습니다." : `${name}이(가) 지금은 반응하지 않습니다.`;
+    await themedAlert(fallback, "아이템 사용");
+    return;
+  }
+
+  await themedAlert(rule.message || `${name}이(가) 반응했습니다.`, "아이템 사용");
+  if (rule.setState || rule.effects) {
+    const effectPatch = buildStatePatchForEffects(rule.effects || []);
+    const patch = mergePatches(rule.setState || {}, effectPatch);
+    const { error } = await supabase.rpc("patch_exploration_room_state", { p_room_id: currentRoom.id, p_state_patch: patch });
+    if (error) showMessage(error.message, "error");
+    else await loadRoomBundle(currentRoom.id, { silent: true });
+  }
 }
 
 function renderMessages() {
@@ -1621,20 +1682,131 @@ async function settleCurrentEnding(ending = {}, sectionKey = "") {
   }
 }
 
+function getActiveRoomMembers() {
+  return (currentMembers || []).filter((member) => !member.left_at);
+}
+
+function buildChoiceAdvancePayload(choice) {
+  const scenario = getScenario();
+  const nextSection = scenario?.sections?.[choice.next];
+  const effectPatch = buildStatePatchForEffects([...(choice.effects || []), ...((nextSection?.effects) || [])]);
+  return {
+    nextSectionKey: choice.next,
+    choiceLabel: cleanChoiceLabel(choice.label || ""),
+    statePatch: mergePatches(choice.setState || {}, effectPatch)
+  };
+}
+
+function getPendingChoiceProposal() {
+  const proposal = getStateJson().pendingChoiceProposal;
+  return proposal && typeof proposal === "object" ? proposal : null;
+}
+
+function ensureChoiceProposalModal() {
+  let modal = qs("#choiceProposalModal");
+  if (modal) return modal;
+  modal = document.createElement("dialog");
+  modal.id = "choiceProposalModal";
+  modal.className = "modal-card";
+  modal.innerHTML = `
+    <h2>진행 제안</h2>
+    <div id="choiceProposalBody" class="party-detail-content"></div>
+    <div class="modal-actions">
+      <button type="button" class="primary-action" data-choice-proposal-response="accept">수락</button>
+      <button type="button" class="ghost-button" data-choice-proposal-response="reject">거절</button>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function renderChoiceProposalNotice() {
+  const proposal = getPendingChoiceProposal();
+  const oldNotice = qs("#choiceProposalNotice");
+  if (oldNotice) oldNotice.remove();
+  const choiceList = qs("#choiceList");
+  if (!proposal || !choiceList) return;
+  const accepted = Array.isArray(proposal.accept_ids) ? proposal.accept_ids.length : 0;
+  const required = Number(proposal.required_count || getActiveRoomMembers().length || 0);
+  const notice = document.createElement("div");
+  notice.id = "choiceProposalNotice";
+  notice.className = "message subtle choice-proposal-notice";
+  notice.textContent = `${proposal.proposer_name || "누군가"}이(가) 진행을 제안했습니다. (${accepted}/${required} 수락)`;
+  choiceList.prepend(notice);
+}
+
+function renderChoiceProposalModal() {
+  const proposal = getPendingChoiceProposal();
+  const modal = ensureChoiceProposalModal();
+  if (!proposal || !currentProfile?.id || !currentRoom?.id) {
+    if (modal.open) closeModal("#choiceProposalModal");
+    return;
+  }
+  const myId = String(currentProfile.id);
+  const accepted = Array.isArray(proposal.accept_ids) ? proposal.accept_ids.map(String) : [];
+  const rejected = Array.isArray(proposal.reject_ids) ? proposal.reject_ids.map(String) : [];
+  const isMine = String(proposal.proposer_id || "") === myId;
+  if (isMine || accepted.includes(myId) || rejected.includes(myId)) {
+    if (modal.open) closeModal("#choiceProposalModal");
+    return;
+  }
+  const body = qs("#choiceProposalBody");
+  if (body) {
+    body.innerHTML = `
+      <p><strong>${safeText(proposal.proposer_name || "누군가")}</strong>이(가) 이것을 하기를 원합니다.</p>
+      <p class="muted">${safeText(proposal.choice_label || "다음 행동")}</p>
+      <p class="small muted">수락하면 참가자 동의가 기록됩니다. 누군가 거절하면 현재 섹션에 그대로 머뭅니다.</p>`;
+  }
+  openModal("#choiceProposalModal");
+}
+
+async function refreshChoiceProposalUi() {
+  renderChoiceProposalNotice();
+  renderChoiceProposalModal();
+}
+
+async function proposeChoice(choice) {
+  if (!choice?.next || !currentRoom) return;
+  const payload = buildChoiceAdvancePayload(choice);
+  const { error } = await supabase.rpc("propose_exploration_choice", {
+    p_room_id: currentRoom.id,
+    p_next_section_key: payload.nextSectionKey,
+    p_choice_label: payload.choiceLabel,
+    p_state_patch: payload.statePatch
+  });
+  if (error) return showMessage(error.message, "error");
+  showMessage("진행 제안을 보냈습니다. 다른 참가자의 수락을 기다립니다.", "success");
+  await loadRoomBundle(currentRoom.id, { silent: true });
+}
+
+async function respondChoiceProposal(accept) {
+  const proposal = getPendingChoiceProposal();
+  if (!proposal || !currentRoom?.id) return;
+  const { error } = await supabase.rpc("respond_exploration_choice", {
+    p_room_id: currentRoom.id,
+    p_proposal_id: proposal.id,
+    p_accept: !!accept
+  });
+  if (error) return showMessage(error.message, "error");
+  closeModal("#choiceProposalModal");
+  showMessage(accept ? "제안을 수락했습니다." : "제안을 거절했습니다.", accept ? "success" : "info");
+  await loadRoomBundle(currentRoom.id, { silent: true });
+}
+
 async function chooseNext(choice) {
   if (!choice?.next || !currentRoom) return;
   if (isSoloBlocked()) {
     showMessage(currentProfile?.role === "admin" ? "혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 입력하면 진행할 수 있습니다." : "혼자서는 진행할 수 없습니다.", "error");
     return;
   }
-  const scenario = await loadScenario(currentRoom.scenario_id);
-  const nextSection = scenario.sections?.[choice.next];
-  const effectPatch = buildStatePatchForEffects([...(choice.effects || []), ...((nextSection?.effects) || [])]);
+  const payload = buildChoiceAdvancePayload(choice);
+  if (getActiveRoomMembers().length > 1) {
+    return proposeChoice(choice);
+  }
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
-    p_next_section_key: choice.next,
-    p_choice_label: cleanChoiceLabel(choice.label || ""),
-    p_state_patch: mergePatches(choice.setState || {}, effectPatch)
+    p_next_section_key: payload.nextSectionKey,
+    p_choice_label: payload.choiceLabel,
+    p_state_patch: payload.statePatch
   });
   if (error) {
     showMessage(error.message, "error");
@@ -2384,10 +2556,19 @@ document.addEventListener("click", async (event) => {
   if (modeBtn) { await loadNotifications(modeBtn.dataset.notificationMode); markNotificationsRead(modeBtn.dataset.notificationMode); return; }
   const refresh = event.target.closest("#refreshNotifications");
   if (refresh) { await loadNotifications(notificationMode); markNotificationsRead(notificationMode); return; }
-  const detailParty = event.target.closest("#notificationCenterModal [data-detail-party]");
-  if (detailParty) { closeModal("#notificationCenterModal"); await switchTabAndOpenParty(detailParty.dataset.detailParty); return; }
-  const detailCommunity = event.target.closest("#notificationCenterModal [data-detail-community]");
-  if (detailCommunity) { closeModal("#notificationCenterModal"); await switchTabAndOpenCommunity(detailCommunity.dataset.detailCommunity); return; }
+  const detailParty = event.target.closest("[data-detail-party]");
+  if (detailParty) {
+    if (detailParty.closest("#notificationCenterModal")) closeModal("#notificationCenterModal");
+    if (detailParty.closest("#partyDetailModal")) closeModal("#partyDetailModal");
+    await switchTabAndOpenParty(detailParty.dataset.detailParty);
+    return;
+  }
+  const detailCommunity = event.target.closest("[data-detail-community]");
+  if (detailCommunity) {
+    if (detailCommunity.closest("#notificationCenterModal")) closeModal("#notificationCenterModal");
+    await switchTabAndOpenCommunity(detailCommunity.dataset.detailCommunity);
+    return;
+  }
   const openCommunity = event.target.closest("#openCreateCommunityModal");
   if (openCommunity) { ensureCommunityCreateModal(); openModal("#createCommunityModal"); return; }
   const myPageBtn = event.target.closest("[data-my-content-page]");
@@ -2406,6 +2587,10 @@ document.addEventListener("click", async (event) => {
   if (myDeleteAll) { await deleteMyContentItems(myContentCache.map((item) => `${item.kind}:${item.item_id}`)); return; }
   const myRefresh = event.target.closest("#refreshMyContent");
   if (myRefresh) { await loadMyContent(myContentPage); return; }
+  const useRoomItemButton = event.target.closest("[data-use-room-item]");
+  if (useRoomItemButton) { await useRoomInventoryItem(useRoomItemButton.dataset.useRoomItem); return; }
+  const choiceProposalResponse = event.target.closest("[data-choice-proposal-response]");
+  if (choiceProposalResponse) { await respondChoiceProposal(choiceProposalResponse.dataset.choiceProposalResponse === "accept"); return; }
   const reportButton = event.target.closest("[data-report-target]");
   if (reportButton) { openReportModal(reportButton.dataset.reportTarget, reportButton.dataset.reportId); return; }
 });
@@ -2723,7 +2908,7 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       qs("#editPartyTitle").value = post.title || "";
       qs("#editPartyScenarioSelect").value = post.scenario_id || "";
       qs("#editPartyContent").value = post.content || "";
-      qs("#editPartyRecruitmentCapacity").value = String(Math.min(4, Math.max(2, Number(post.recruitment_capacity || 4))));
+      qs("#editPartyRecruitmentCapacity").value = String(Math.min(3, Math.max(2, Number(post.recruitment_capacity || 2))));
       setupPartyDateInputs("editParty", post);
       openModal("#editPartyModal");
       return;
@@ -2742,7 +2927,7 @@ qs("#partyList")?.addEventListener("click", async (event) => {
       if (!post) return;
       qs("#partyRoomPostId").value = post.id;
       qs("#partyRoomTitle").value = post.title || "익명 모집 탐사방";
-      qs("#partyRoomMaxPlayers").value = String(Math.min(4, Math.max(2, Number(post.recruitment_capacity || post.applicant_count || 2))));
+      qs("#partyRoomMaxPlayers").value = String(Math.min(3, Math.max(2, Number(post.recruitment_capacity || post.applicant_count || 2))));
       qs("#partyRoomVisibility").value = "private";
       qs("#partyRoomPasswordField").hidden = false;
       openModal("#partyRoomModal");
