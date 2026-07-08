@@ -255,8 +255,8 @@
           <option value="private">비공개</option>
         </select>
       </label>
-      <label id="roomPasswordField" hidden>비공개 비밀번호 <span class="small muted">숫자만</span>
-        <input id="roomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      <label id="roomPasswordField" hidden>비공개방 비밀번호 <span class="small muted">공개 시 공란</span>
+        <input id="roomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만 (예: 1234)">
       </label>
       <button type="submit" class="primary-action">탐사방 만들기</button>
     </form>
@@ -269,8 +269,8 @@
       <label>초대코드
         <input id="inviteCodeInput" type="text" maxlength="20" placeholder="예: A1B2C3D4" required>
       </label>
-      <label>비공개방 비밀번호 <span class="small muted">공개방이면 비워둬도 됨</span>
-        <input id="joinRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만">
+      <label>비공개방 비밀번호 <span class="small muted">공개 시 공란</span>
+        <input id="joinRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만 (예: 1234)">
       </label>
       <button type="submit" class="primary-action">방 입장</button>
     </form>
@@ -294,7 +294,7 @@
     <h2>익명 파티 모집</h2>
     <form id="createPartyForm" class="stacked-form">
       <label>모집 제목
-        <input id="partyTitle" type="text" maxlength="80" placeholder="예: 주말 밤 2인 탐사 구함" required>
+        <input id="partyTitle" type="text" maxlength="80" placeholder="예: 주말 밤 2인 탐사 모집" required>
       </label>
       <label>희망 시나리오
         <select id="partyScenarioSelect"></select>
@@ -306,12 +306,8 @@
           
         </select>
       </label>
-      <label>모집 시작 시간
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentStartAt" data-shift-months="-1">‹</button>
-          <input id="partyRecruitmentStartAt" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="partyRecruitmentStartAt" data-shift-months="1">›</button>
-        </div>
+      <label>모집 시작 일자
+        <input id="partyRecruitmentStartAt" type="date" required>
       </label>
       <label>모집 기간
         <select id="partyRecruitmentDurationDays" required>
@@ -326,14 +322,10 @@
         <input id="partyRecruitmentDeadline" type="hidden">
       </label>
       <label>탐사 일자
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="partyPlayStartAt" data-shift-months="-1">‹</button>
-          <input id="partyPlayStartAt" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="partyPlayStartAt" data-shift-months="1">›</button>
-        </div>
+        <input id="partyPlayStartAt" type="datetime-local" required>
       </label>
       <label>모집 내용
-        <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기를 적어줘."></textarea>
+        <textarea id="partyContent" rows="5" maxlength="600" placeholder="진행 스타일, 인원, 원하는 분위기 등을 적어주세요."></textarea>
       </label>
       <button type="submit" class="primary-action">모집글 올리기</button>
     </form>
@@ -358,12 +350,8 @@
           
         </select>
       </label>
-      <label>모집 시작 시간
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentStartAt" data-shift-months="-1">‹</button>
-          <input id="editPartyRecruitmentStartAt" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="editPartyRecruitmentStartAt" data-shift-months="1">›</button>
-        </div>
+      <label>모집 시작 일자
+        <input id="editPartyRecruitmentStartAt" type="date" required>
       </label>
       <label>모집 기간
         <select id="editPartyRecruitmentDurationDays" required>
@@ -378,11 +366,7 @@
         <input id="editPartyRecruitmentDeadline" type="hidden">
       </label>
       <label>탐사 일자
-        <div class="datetime-field">
-          <button type="button" class="mini-button" data-shift-datetime="editPartyPlayStartAt" data-shift-months="-1">‹</button>
-          <input id="editPartyPlayStartAt" type="datetime-local" required>
-          <button type="button" class="mini-button" data-shift-datetime="editPartyPlayStartAt" data-shift-months="1">›</button>
-        </div>
+        <input id="editPartyPlayStartAt" type="datetime-local" required>
       </label>
       <label>모집 내용
         <textarea id="editPartyContent" rows="5" maxlength="600"></textarea>
@@ -412,8 +396,8 @@
           <option value="public">공개</option>
         </select>
       </label>
-      <label id="partyRoomPasswordField">비공개 비밀번호 <span class="small muted">숫자만</span>
-        <input id="partyRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      <label id="partyRoomPasswordField">비공개방 비밀번호 <span class="small muted">공개 시 공란</span>
+        <input id="partyRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만 (예: 1234)">
       </label>
       <button type="submit" class="primary-action">방 만들고 모집 완료</button>
     </form>
@@ -436,8 +420,8 @@
           <option value="public">공개</option>
         </select>
       </label>
-      <label id="resumeRoomPasswordField">비공개 비밀번호 <span class="small muted">숫자만</span>
-        <input id="resumeRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      <label id="resumeRoomPasswordField">비공개방 비밀번호 <span class="small muted">공개 시 공란</span>
+        <input id="resumeRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만 (예: 1234)">
       </label>
       <button type="submit" class="primary-action">저장 지점에서 새 방 만들기</button>
     </form>
@@ -464,8 +448,8 @@
           <option value="private">비공개</option>
         </select>
       </label>
-      <label id="settingsPasswordField" hidden>새 비공개 비밀번호 <span class="small muted">숫자만, 비워두면 기존 비밀번호 유지</span>
-        <input id="settingsRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="예: 1234">
+      <label id="settingsPasswordField" hidden>새 비공개방 비밀번호 <span class="small muted">공개 시 공란</span>
+        <input id="settingsRoomPassword" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="숫자만 (예: 1234)">
       </label>
       <button type="submit" class="primary-action">설정 저장</button>
     </form>
@@ -519,7 +503,7 @@
         </select>
       </label>
       <label>상세 내용
-        <textarea id="reportDetail" rows="4" maxlength="500" placeholder="관리자가 판단할 수 있게 간단히 적어줘."></textarea>
+        <textarea id="reportDetail" rows="4" maxlength="500" placeholder="관리자가 판단할 수 있도록 간단히 적어주세요."></textarea>
       </label>
       <button type="submit" class="primary-action">신고 제출</button>
     </form>
@@ -545,6 +529,66 @@
   </dialog>
 
 
-  <script type="module" src="js/exploration.js?v=1.15.4"></script>
+
+  <div id="helpGuideWidget" class="help-guide-widget" hidden>
+    <div id="helpGuideBubble" class="help-guide-bubble">도움이 필요하신가요?</div>
+    <button id="openHelpGuide" type="button" class="help-guide-button" aria-label="탐사 홈페이지 가이드 열기">?</button>
+  </div>
+
+  <dialog id="helpGuideModal" class="modal-card wide-modal guide-modal">
+    <form method="dialog" class="modal-close-form"><button class="mini-button" aria-label="닫기">닫기</button></form>
+    <p class="kicker">Guide</p>
+    <h2>탐사 홈페이지 이용 가이드</h2>
+    <div class="guide-hero">
+      <div class="guide-hero-icon">?</div>
+      <div>
+        <strong>탐사는 선택지를 누르는 게임이 아니라, 대화와 판단으로 진행하는 공동 탐사입니다.</strong>
+        <p class="muted">진행 전 대화, 아이템 확인, 참가자 동의를 거친 뒤 선택지를 확정해 주세요.</p>
+      </div>
+    </div>
+    <div class="guide-grid">
+      <section class="guide-card">
+        <div class="guide-card-icon">⌂</div>
+        <h3>탐사방 만들기</h3>
+        <p>탐사방은 공개방 또는 비공개방으로 만들 수 있습니다. 비공개방은 숫자 비밀번호를 설정해 참가자를 제한할 수 있습니다.</p>
+        <p>중간에 이어서 진행하려면 라이브룸에서 <strong>파일 저장</strong>을 누른 뒤, 나중에 <strong>저장파일로 이어하기</strong>를 사용해 새 방을 만들면 됩니다.</p>
+      </section>
+      <section class="guide-card">
+        <div class="guide-card-icon">◆</div>
+        <h3>탐사 진행</h3>
+        <p>선택지는 바로 확정되지 않습니다. 누군가 선택지를 제안하면 다른 참가자에게 수락/거절 확인이 표시됩니다.</p>
+        <p>선택지를 누르기 전에는 대화나 롤플레잉으로 조사 방향을 정리하는 것을 권장합니다.</p>
+      </section>
+      <section class="guide-card">
+        <div class="guide-card-icon">▣</div>
+        <h3>아이템과 인벤토리</h3>
+        <p>탐사 중 획득한 단서와 아이템은 탐사 인벤토리에 표시됩니다. 사용 가능한 아이템은 상세창의 <strong>사용</strong> 버튼으로 사용할 수 있습니다.</p>
+        <p>상점에서 구입한 물품도 유형에 맞는 경우 탐사 인벤토리에 표시됩니다.</p>
+      </section>
+      <section class="guide-card">
+        <div class="guide-card-icon">◈</div>
+        <h3>괴이 참가 조건</h3>
+        <p>괴이는 인생을 구입해 가면을 착용한 상태에서만 탐사방에 접근할 수 있습니다.</p>
+        <p>탐사 중에는 오염진행도 대신 가면붕괴율이 적용됩니다.</p>
+      </section>
+      <section class="guide-card">
+        <div class="guide-card-icon">☉</div>
+        <h3>파티 모집</h3>
+        <p>파티 찾기에서 모집 시작 일자, 모집 기간, 탐사 일자, 모집 인원을 설정해 모집글을 올릴 수 있습니다.</p>
+        <p>인원이 모이면 모집글 작성자가 신청자 기준으로 탐사방을 만들 수 있습니다.</p>
+      </section>
+      <section class="guide-card">
+        <div class="guide-card-icon">✦</div>
+        <h3>익명 게시판</h3>
+        <p>익명 게시판에서는 무작위 별명으로 글과 댓글을 작성합니다. 같은 글 안에서는 같은 작성자가 같은 별명으로 표시됩니다.</p>
+        <p>욕설, 비방, 광고, 진행 방해성 글은 신고 대상입니다.</p>
+      </section>
+    </div>
+    <div class="guide-warning">
+      <strong>중요:</strong> 마지막 참가자가 탐사방에서 나가면 방이 삭제될 수 있습니다. 진행을 보존하려면 종료 전에 반드시 파일 저장을 해 주세요.
+    </div>
+  </dialog>
+
+  <script type="module" src="js/exploration.js?v=1.15.5"></script>
 </body>
 </html>

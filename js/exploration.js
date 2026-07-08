@@ -1,4 +1,4 @@
-// exploration-site: v1.15.4 choice-consensus-hotfix
+// exploration-site: v1.15.5 guide-party-ui-item-message
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -91,9 +91,33 @@ function formatDateLong(value) {
   return date.toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+function formatDateOnlyLong(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+}
+
 function formatDateTimeLocal(date) {
   const pad = (num) => String(num).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatDateInput(date) {
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function parseLocalDateValue(value) {
+  if (!value) return null;
+  const parts = String(value).split("-").map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+  const date = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function parseRecruitmentStartValue(value) {
+  return parseLocalDateValue(value) || parseLocalDateTimeValue(value);
 }
 
 function parseLocalDateTimeValue(value) {
@@ -170,7 +194,7 @@ function remainingTimeText(value) {
 
 function getPartyScheduleHtml(post) {
   const recruitmentStart = post.recruitment_start_at || post.created_at;
-  const startText = formatDateLong(recruitmentStart);
+  const startText = formatDateOnlyLong(recruitmentStart);
   const deadline = formatDateLong(post.recruitment_deadline);
   const remaining = post.recruitment_deadline ? remainingPeriodText(recruitmentStart, post.recruitment_deadline) : "남은 시간 확인 불가";
   const explorationStart = post.exploration_starts_at || null;
@@ -187,7 +211,7 @@ function getDurationInput(prefix = "party") {
 }
 
 function computeDeadlineFromDuration(prefix = "party") {
-  const start = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentStartAt`)?.value) || new Date();
+  const start = parseRecruitmentStartValue(qs(`#${prefix}RecruitmentStartAt`)?.value) || new Date();
   const duration = Math.min(7, Math.max(1, Number(getDurationInput(prefix)?.value || 7)));
   return endOfDayAfterDays(start, duration);
 }
@@ -209,8 +233,7 @@ function setupPartyDateInputs(prefix = "party", post = null) {
   if (startInput) {
     startInput.removeAttribute("min");
     startInput.removeAttribute("max");
-    startInput.step = "60";
-    startInput.value = formatDateTimeLocal(defaultStart);
+    startInput.value = formatDateInput(defaultStart);
     startInput.dataset.lastValue = startInput.value;
   }
   if (durationInput) durationInput.value = String(inferredDuration);
@@ -242,11 +265,11 @@ function syncPartyDateLimits(prefix = "party", changedField = "") {
 }
 
 function validatePartyDateInputs(prefix = "party") {
-  const recruitmentStart = parseLocalDateTimeValue(qs(`#${prefix}RecruitmentStartAt`)?.value);
+  const recruitmentStart = parseRecruitmentStartValue(qs(`#${prefix}RecruitmentStartAt`)?.value);
   const deadline = computeDeadlineFromDuration(prefix);
   const playStart = parseLocalDateTimeValue(qs(`#${prefix}PlayStartAt`)?.value);
   const capacity = Number(qs(`#${prefix}RecruitmentCapacity`)?.value || 2);
-  if (!recruitmentStart) throw new Error("모집 시작 시간을 입력하세요.");
+  if (!recruitmentStart) throw new Error("모집 시작 일자를 입력하세요.");
   if (!deadline) throw new Error("모집 기간을 선택하세요.");
   if (!playStart) throw new Error("탐사 일자를 입력하세요.");
   const duration = Number(getDurationInput(prefix)?.value || 7);
@@ -1471,11 +1494,7 @@ async function renderRoom() {
     .join("");
   qs("#storyText").innerHTML = `${safeText(cleanEffectText(section.commonText || ""))}${privateBlocks}`;
   const effectBox = qs("#sectionEffectLog");
-  const logs = getStateJson().lastEffectLog || [];
-  if (effectBox && logs.length) {
-    effectBox.hidden = false;
-    effectBox.innerHTML = logs.map((line) => `<span>${safeText(line)}</span>`).join("");
-  } else if (effectBox) {
+  if (effectBox) {
     effectBox.hidden = true;
     effectBox.innerHTML = "";
   }
@@ -1576,7 +1595,7 @@ function openRoomItemDetail(itemId) {
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>
     <div class="party-detail-content">${safeText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
-    ${canUse ? `<div class="modal-actions"><button type="button" class="primary-action" data-use-room-item="${safeAttr(itemId)}">사용</button></div>` : ""}
+    ${canUse ? `<div class="modal-actions item-use-actions"><button type="button" class="primary-action" data-use-room-item="${safeAttr(itemId)}">사용</button></div>` : ""}
   `;
   openModal("#inventoryDetailModal");
 }
@@ -1619,6 +1638,14 @@ async function useRoomInventoryItem(itemId) {
   }
 
   await themedAlert(rule.message || `${name}이(가) 반응했습니다.`, "아이템 사용");
+  try {
+    await supabase.rpc("log_exploration_system_message", {
+      p_room_id: currentRoom.id,
+      p_content: `${currentProfile?.display_name || "탐사자"}님이 ${name}을(를) 사용했습니다.`
+    });
+  } catch (error) {
+    console.warn("아이템 사용 로그 기록 실패", error);
+  }
   if (rule.setState || rule.effects) {
     const effectPatch = buildStatePatchForEffects(rule.effects || []);
     const patch = mergePatches(rule.setState || {}, effectPatch);
@@ -2072,6 +2099,26 @@ async function reviewReport(reportId, action, note = "") {
   await loadAdminReports();
   await updateNotificationBadge();
   await Promise.all([loadPartyPosts(), currentRoom ? loadMessages() : Promise.resolve()]);
+}
+
+function initHelpGuide() {
+  const widget = qs("#helpGuideWidget");
+  const button = qs("#openHelpGuide");
+  const bubble = qs("#helpGuideBubble");
+  if (!widget || !button) return;
+  widget.hidden = false;
+  let seen = false;
+  try {
+    seen = localStorage.getItem("pollution_exploration_help_seen") === "1";
+  } catch (error) {
+    seen = false;
+  }
+  if (bubble) bubble.hidden = seen;
+  button.addEventListener("click", () => {
+    try { localStorage.setItem("pollution_exploration_help_seen", "1"); } catch (error) {}
+    if (bubble) bubble.hidden = true;
+    openModal("#helpGuideModal");
+  });
 }
 
 function openModal(selector) {
@@ -2533,6 +2580,8 @@ qs(".brand-home")?.addEventListener("click", async (event) => {
   const left = await leaveCurrentRoom();
   if (left) window.location.href = href;
 });
+
+initHelpGuide();
 
 document.addEventListener("click", async (event) => {
   const bell = event.target.closest("#notificationBell");
@@ -3202,6 +3251,7 @@ document.addEventListener("submit", async (event) => {
 });
 
 qs("#refreshAdminReports")?.addEventListener("click", () => loadAdminReports());
+
 document.addEventListener("click", async (event) => {
   const reviewButton = event.target.closest("[data-review-report]");
   if (!reviewButton) return;
