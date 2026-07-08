@@ -1,7 +1,7 @@
 {
   "id": "disaster-001-pied-piper",
   "title": "드림랜드",
-  "version": "1.17.16",
+  "version": "1.17.17-map-vip-dlbad001",
   "status": "active",
   "startSection": "s1",
   "sections": {
@@ -168,25 +168,33 @@
           }
         },
         {
-          "label": "녹슨 입간판을 걷어찬다",
+          "label": "[백일몽 전용] 녹슨 입간판을 걷어찬다",
           "next": "s4_1",
           "requires": {
-            "organization_code": "baekildream",
-            "not_state_flag": "used_s4_1_2dd8d2"
+            "organization_code": "baekildream"
           },
+          "disabledWhen": {
+            "state_flag": "dreamland_map_found"
+          },
+          "disabledReason": "이미 누군가가 녹슨 입간판을 걷어차 보관함을 열었습니다.",
           "effects": [
             {
               "type": "add_item",
-              "itemId": "dreamland_map"
+              "itemId": "dreamland_map",
+              "scope": "self"
             }
           ],
           "setState": {
             "flags": {
-              "used_s4_1_2dd8d2": true
+              "dreamland_map_found": true
             }
           },
+          "onceScope": "room",
           "noConsensus": true,
-          "instant": true
+          "instant": true,
+          "popupTitle": "드림랜드 안내 팜플렛(지도)",
+          "popupMessage": "녹슨 입간판을 걷어차자, 우지끈하는 소리와 함께 철로 된 입간판이 넘어가며 그 아래에 있던 보관함이 열립니다. 안에는 [드림랜드 안내 팜플렛(지도)]수십 장이 들어있습니다.",
+          "systemMessage": "{actor}이 녹슨 입간판을 걷어찼습니다."
         }
       ],
       "effects": [
@@ -216,25 +224,33 @@
           }
         },
         {
-          "label": "녹슨 입간판을 걷어찬다",
+          "label": "[백일몽 전용] 녹슨 입간판을 걷어찬다",
           "next": "s4_2",
           "requires": {
-            "organization_code": "baekildream",
-            "not_state_flag": "used_s4_2_2dd8d2"
+            "organization_code": "baekildream"
           },
+          "disabledWhen": {
+            "state_flag": "dreamland_map_found"
+          },
+          "disabledReason": "이미 누군가가 녹슨 입간판을 걷어차 보관함을 열었습니다.",
           "effects": [
             {
               "type": "add_item",
-              "itemId": "dreamland_map"
+              "itemId": "dreamland_map",
+              "scope": "self"
             }
           ],
           "setState": {
             "flags": {
-              "used_s4_2_2dd8d2": true
+              "dreamland_map_found": true
             }
           },
+          "onceScope": "room",
           "noConsensus": true,
-          "instant": true
+          "instant": true,
+          "popupTitle": "드림랜드 안내 팜플렛(지도)",
+          "popupMessage": "녹슨 입간판을 걷어차자, 우지끈하는 소리와 함께 철로 된 입간판이 넘어가며 그 아래에 있던 보관함이 열립니다. 안에는 [드림랜드 안내 팜플렛(지도)]수십 장이 들어있습니다.",
+          "systemMessage": "{actor}이 녹슨 입간판을 걷어찼습니다."
         }
       ]
     },
@@ -380,7 +396,9 @@
       "choices": [
         {
           "label": "VIP손님 전용 휴게실로 들어간다",
-          "next": "s5_2_a"
+          "next": "s5_2_a",
+          "noConsensus": true,
+          "systemMessage": "{actor}이 VIP손님 전용 휴게실로 들어갔습니다."
         },
         {
           "id": "s5_2_obang_compass_hint_disabled",
@@ -1734,14 +1752,22 @@
       }
     },
     "s5_2_a": {
-      "title": "VIP 손님 전용 휴게실",
-      "commonText": "이 구역의 상세 서술은 원본 문서에 아직 별도 섹션으로 정리되어 있지 않습니다. 우선 시계탑 광장으로 이어집니다.",
-      "choices": [
+      "title": "골튼 마스코트의 기념품샵 (VIP실)",
+      "commonText": "당신은 벨벳 커튼을 지나 VIP실 안으로 발을 디뎠습니다.\n상황이 어떻든 은은한 주황빛 조명 아래 펼쳐진 풍경은 휴식을 취하고 싶을 정도로 아늑해 보입니다.\n최고급 가죽 소파, 잔잔하게 흘러나오는 클래식, 그리고 테이블 위에는 따뜻한 김이 피어오르는 차와 앙증맞은 마스코트가 그려진 안내 책자가 올려져 있습니다.\n밖에서 들리던 기괴한 소음들도, 지금까지 당신이 겪은 모든 불길하고 위험한 상황들도 이젠 없습니다.\n이곳이야말로 이 드림랜드에서 찾을 수 있는 완벽한 휴식 공간일 것입니다.\n당신은 직원의 안내에 따라 얼결에 소파에 앉았습니다.\n그리고, 바로 그 순간.\n환영합니다, 고객님! 지금부터 고객님을 위한 특별한 VIP 서비스를 시작합니다!\n당신의 눈앞에 있던 직원의 목소리는 부드럽지만, 그의 말에 거절할 생각조차 들지 않습니다.\n테이블 위의 안내 책자가 스스로 스르륵 넘어가는 것이 눈에 들어옵니다.\n[VIP 명단]\n어쩌면 그 명단에 적힌 사람들은 VIP로 등록되어 어쩌면 이곳에서 영원히 갇혀버렸을지도 모릅니다.\n그 생각을 하면, 정신이 번쩍 들지만, 당신이 앉은 가죽 소파는 천천히 당신의 몸을 옥죄어오기 시작합니다.\n그리고 바로 그 순간.\n치직, 치이이이익—\n달콤하게 흘러나오던 클래식 음악이 기분 나쁜 소음과 함께 늘어지더니 갑자기 뚝 끊깁니다.\n그리고, 공간이 마치 부서질 것처럼 격렬하게 흔들리기 시작합니다.\n이, 이럴 리가. 이럴 리가!\n마스코트 골튼의 기념품샵을 따라하기에만 급급했던 것일까요?\n다른 이의 것을 겉핥기로만 베껴와 누더기처럼 기워 붙인 탓에, 한 가지 중요한 사항을 생각하지 않은 것 같습니다.\n‘손님을 VIP로 등록해 영원히 가둔다’라는 것과 ‘손님은 원하지 않으면 언제든 나갈 수 있다’라는 상반된 규칙을 끼워둔 것을 보면 말입니다.\n그 모순을 견디지 못한 공간이 마구 흔들리다가 그대로 폭발해 버립니다.\n그 폭발에 당신은 피할 틈도 없이 그대로 휘말려 어딘가로 튕겨져나갑니다.\n정신을 잃기 전, 무언가가 비명을 지르는 소리가 들린 것 같았지만 알 수 없는 일입니다.\n눈을 뜨자, 당신은 소속과 연계된 병원에 입원해 있었습니다.\n죽지는 않았지만, 오염에서 회복될 때까지 이곳에 머물러야 합니다.\n영원히 사라지지 않을 [VIP 멤버십 카드]를 간직한 채로 말이죠.",
+      "effects": [
         {
-          "label": "시계탑 광장으로 이동한다.",
-          "next": "s6_1"
+          "type": "add_item",
+          "itemId": "vip_membership_card",
+          "scope": "room",
+          "shared": true
         }
-      ]
+      ],
+      "choices": [],
+      "ending": {
+        "type": "bad",
+        "resultCode": "DLBAD001",
+        "currencyReward": 0
+      }
     },
     "s5_2_b": {
       "title": "직원 전용 통로",
@@ -1810,7 +1836,9 @@
     "dreamland_map": {
       "name": "드림랜드 안내 팜플렛(지도)",
       "type": "item",
-      "detail": "10년 전 폐업한 드림랜드의 전체 구역이 알록달록한 그림으로 인쇄된 종이 지도입니다. 오물과 빗물에 절어 퀴퀴한 곰팡이 냄새가 풍기며, 군데군데 잉크가 번져 있습니다."
+      "detail": "10년 전 폐업한 드림랜드의 전체 구역이 알록달록한 그림으로 인쇄된 종이 지도입니다. 오물과 빗물에 절어 퀴퀴한 곰팡이 냄새가 풍기며, 군데군데 잉크가 번져 있습니다.",
+      "noUse": true,
+      "usable": false
     },
     "led_lion_headband": {
       "name": "LED 반짝이 사자 머리띠",
@@ -1861,6 +1889,15 @@
       "name": "동물 모양 아이싱 쿠키",
       "type": "item",
       "detail": "곰돌이 모양의 쿠키 한 개가 투명한 비닐에 담겨 있습니다. 이 썩어가는 쓰레기통 속에서 혼자만 방금 구운 듯 바삭합니다. 누군가 이곳까지 와서 버리고 간 걸까요?"
+    },
+    "vip_membership_card": {
+      "name": "VIP 멤버십 카드",
+      "type": "item",
+      "detail": "저주받은 누군가의 흔적입니다. 이 카드를 가지고 있는 이상 당신은 당신을 노리는 존재에게서 빠져나갈 수 없습니다. 조심하세요. 그는 당신을 포기하지 않았습니다.",
+      "noUse": true,
+      "usable": false,
+      "permanent": true,
+      "cursed": true
     }
   },
   "itemUseRules": {

@@ -2809,3 +2809,39 @@ body.in-room .live-story-card .scenario-image {
   font-weight: 800;
   line-height: 1.7;
 }
+
+/* v1.17.17: stronger gold aura for section-local instant item choices */
+.choice-button.instant-choice:not(:disabled)::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from 0deg, transparent, rgba(255,220,128,.92), transparent, rgba(232,179,90,.7), transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: instantChoiceOrbit 2.2s linear infinite;
+}
+@keyframes instantChoiceOrbit { to { transform: rotate(360deg); } }
+.story-fx-vip-list {
+  color: #ffe2a1;
+  font-weight: 950;
+  letter-spacing: .18em;
+  text-shadow: 0 0 8px rgba(255,210,110,.75), 0 0 22px rgba(116,32,32,.85);
+  filter: saturate(1.25);
+}
+.story-fx-glitch {
+  color: #d9f6ff;
+  font-weight: 900;
+  text-shadow: 2px 0 rgba(255,0,72,.85), -2px 0 rgba(0,216,255,.85), 0 0 18px rgba(120,220,255,.45);
+  animation: storyGlitch .62s steps(2,end) infinite;
+}
+@keyframes storyGlitch { 0%,100%{transform:translate(0)} 20%{transform:translate(-1px,1px)} 40%{transform:translate(2px,-1px)} 60%{transform:translate(-2px,0)} 80%{transform:translate(1px,2px)} }
+.story-fx-vip-card {
+  color: #ffdddd;
+  font-weight: 950;
+  text-shadow: 0 0 8px rgba(255,0,60,.62), 0 0 22px rgba(30,0,0,.9);
+  letter-spacing: .08em;
+}

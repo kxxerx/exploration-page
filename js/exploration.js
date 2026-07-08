@@ -1,4 +1,4 @@
-// exploration-site: v1.17.8 no-scene-images
+// exploration-site: v1.17.19 actual-hotfix-natural-popup-vip-sql
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -144,6 +144,75 @@ function normalizeSystemMessageTemplate(template = "") {
 
 function formatSystemMessageTemplate(template, actorName) {
   return formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorDisplayName(actorName)));
+}
+
+
+function stripChoiceMetaLabel(label = "") {
+  return String(label || "")
+    .replace(/\[[^\]]+\s*전용\]\s*/g, "")
+    .replace(/^\s*\[[^\]]+\]\s*/g, "")
+    .replace(/[.。\s]+$/g, "")
+    .trim();
+}
+
+function naturalizeChoiceAction(label = "") {
+  let text = stripChoiceMetaLabel(label)
+    .replace(/마스코트 골든/g, "마스코트 골튼")
+    .replace(/골든 리조트/g, "골튼 리조트")
+    .trim();
+  if (!text) return "행동했습니다.";
+  const compact = text.replace(/\s+/g, "");
+  if (compact === "테스트진행코드입력") return "테스트 진행 코드를 입력했습니다.";
+  if (compact === "녹슨입간판걷어차기" || compact === "녹슨입간판을걷어찬다") return "녹슨 입간판을 걷어찼습니다.";
+  if (compact === "쓰레기수거함을뒤진다" || compact === "쓰레기통을뒤진다") return "쓰레기 수거함을 뒤졌습니다.";
+  if (compact === "쓰레기통을걷어찬다") return "쓰레기통을 걷어찼습니다.";
+
+  let match = text.match(/^\[?(.+?)\]?을\(를\)\s*획득한다$/);
+  if (match) return formatKoreanParticles(`${match[1]}을(를) 얻었습니다.`);
+  match = text.match(/^\[?(.+?)\]?을\(를\)\s*주운다$/);
+  if (match) return formatKoreanParticles(`${match[1]}을(를) 주웠습니다.`);
+
+  if (/을\s*산다$/.test(text)) return text.replace(/을\s*산다$/, "을 샀습니다.");
+  if (/를\s*산다$/.test(text)) return text.replace(/를\s*산다$/, "를 샀습니다.");
+  if (/으로\s*향한다$/.test(text)) return text.replace(/으로\s*향한다$/, "으로 향했습니다.");
+  if (/로\s*향한다$/.test(text)) return text.replace(/로\s*향한다$/, "로 향했습니다.");
+  if (/으로\s*들어간다$/.test(text)) return text.replace(/으로\s*들어간다$/, "으로 들어갔습니다.");
+  if (/로\s*들어간다$/.test(text)) return text.replace(/로\s*들어간다$/, "로 들어갔습니다.");
+  if (/으로\s*진입한다$/.test(text)) return text.replace(/으로\s*진입한다$/, "으로 진입했습니다.");
+  if (/로\s*진입한다$/.test(text)) return text.replace(/로\s*진입한다$/, "로 진입했습니다.");
+  if (/사용한다$/.test(text)) return text.replace(/사용한다$/, "사용했습니다.");
+  if (/도망간다$/.test(text)) return text.replace(/도망간다$/, "도망쳤습니다.");
+  if (/시도한다$/.test(text)) return text.replace(/시도한다$/, "시도했습니다.");
+  if (/살핀다$/.test(text)) return text.replace(/살핀다$/, "살폈습니다.");
+  if (/뒤진다$/.test(text)) return text.replace(/뒤진다$/, "뒤졌습니다.");
+  if (/걷어찬다$/.test(text)) return text.replace(/걷어찬다$/, "걷어찼습니다.");
+  if (/획득한다$/.test(text)) return text.replace(/획득한다$/, "얻었습니다.");
+  if (/한다$/.test(text)) return text.replace(/한다$/, "했습니다.");
+  return /[.!?]$/.test(text) ? text : `${text}했습니다.`;
+}
+
+function normalizeActorHonorific(actor = "") {
+  return String(actor || "")
+    .replace(/\s+님$/g, "님")
+    .replace(/님$/g, "님");
+}
+
+function normalizeDisplayedSystemMessage(content = "") {
+  let text = String(content || "")
+    .replace(/마스코트 골든/g, "마스코트 골튼")
+    .replace(/골든 리조트/g, "골튼 리조트")
+    .trim();
+  let match = text.match(/^(.+?\s*님)\s*이\s*선택했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
+  match = text.match(/^(.+?\s*님)\s*이\s*다음과 같이 행동했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
+  match = text.match(/^(.+?\s*님)\s*이\s*아래의 행동을 제안했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
+  match = text.match(/^모든 참가자가 제안을 수락했습니다\s*[:：]\s*(.+)$/);
+  if (match) return formatKoreanParticles(`모든 참가자가 ${naturalizeChoiceAction(match[1]).replace(/했습니다\.$/, "하기로 했습니다.")}`);
+  match = text.match(/^(.+?\s*님)\s*이\s+(.+(?:한다|간다|산다|입력|걷어차기|획득한다))\.?$/);
+  if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
+  return formatKoreanParticles(text);
 }
 
 function formatDate(value) {
@@ -420,7 +489,9 @@ function isPersonalInstantChoice(choice = {}, sectionKey = "") {
   const sameSection = !!choice?.next && String(choice.next) === String(sectionKey || currentState?.current_section_key || "");
   const hasFlag = getChoiceFlagKeys(choice).length > 0;
   const hasItemEffect = (choice.effects || []).some((effect) => effect?.type === "add_item");
-  return !!(choice.noConsensus || choice.instant || (sameSection && (hasFlag || hasItemEffect)));
+  // noConsensus는 "합의 없이 바로 섹션 이동"이라는 뜻이지, "섹션 이동 없는 즉시 선택지"가 아니다.
+  // 이전 버전에서 noConsensus를 instant처럼 취급해서 s5_2 -> s5_2_a 이동이 씹혔다.
+  return !!(choice.instant || (sameSection && (hasFlag || hasItemEffect)));
 }
 
 function isGlobalInstantChoice(choice = {}) {
@@ -565,7 +636,12 @@ function renderStoryText(text = "") {
     ["고객님께 안전한 쇼핑, 쾌적한 서비스를 제공하기 위해 출입문을 잠시 통제하는 점 양해바랍니다!", "story-fx story-fx-uncanny story-fx-red"],
     ["구매해주신 답례로 [VIP실]에서 계속 쇼핑을 즐기실 수 있도록 안내드리고 있습니다! 사랑합니다, 고객님!", "story-fx story-fx-uncanny story-fx-red"],
     ["쿵!", "story-fx story-fx-bang"],
-    ["손님, 왜 가려고 하세요? 좀 더 둘러보세요.", "story-fx story-fx-red-sign"]
+    ["손님, 왜 가려고 하세요? 좀 더 둘러보세요.", "story-fx story-fx-red-sign"],
+    ["환영합니다, 고객님! 지금부터 고객님을 위한 특별한 VIP 서비스를 시작합니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["[VIP 명단]", "story-fx story-fx-vip-list"],
+    ["치직, 치이이이익—", "story-fx story-fx-glitch"],
+    ["이, 이럴 리가. 이럴 리가!", "story-fx story-fx-uncanny story-fx-red"],
+    ["[VIP 멤버십 카드]", "story-fx story-fx-vip-card"]
   ];
   for (const [phrase, className] of effects) {
     const escaped = safeText(phrase);
@@ -2046,7 +2122,7 @@ function openRoomItemDetail(itemId) {
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
   const cleanItemId = String(itemId || "").replace(/^shop:/, "");
   const itemName = String(meta?.name || "").replace(/\s+/g, "");
-  const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || cleanItemId === "glass_pistol" || itemName === "꿈결수집기" || itemName === "낡고이상한동전" || itemName === "유리손포" || itemName === "유리손포도";
+  const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || cleanItemId === "glass_pistol" || cleanItemId === "dreamland_map" || cleanItemId === "vip_membership_card" || itemName === "꿈결수집기" || itemName === "낡고이상한동전" || itemName === "유리손포" || itemName === "유리손포도" || itemName === "드림랜드안내팜플렛(지도)" || itemName === "VIP멤버십카드";
   const canUse = !noUseItem && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
   target.innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
@@ -2169,7 +2245,7 @@ function renderMessages() {
     return `
       <div class="chat-message${systemClass}">
         <strong>${safeText(sender)} · ${formatDate(message.created_at)}</strong>
-        <div>${safeText(formatKoreanParticles(message.content || ""))}</div>
+        <div>${safeText(normalizeDisplayedSystemMessage(message.content || ""))}</div>
         ${message.message_type === "system" ? "" : `<button type="button" class="mini-button danger" data-report-target="room_message" data-report-id="${safeAttr(message.id)}">신고</button>`}
       </div>
     `;
@@ -2533,7 +2609,9 @@ async function chooseNext(choice) {
     }
     choiceClickInProgress = false;
     if (choice.popupMessage) {
-      await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
+      const popupText = formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자");
+      showMessage(popupText, "info");
+      await themedAlert(popupText, choice.popupTitle || "아이템 획득");
     }
     if (choice.systemMessage) {
       const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
@@ -2646,7 +2724,7 @@ function downloadChat() {
   if (!currentRoom) return;
   const lines = currentMessages.map((message) => {
     const sender = message.message_type === "system" ? "시스템" : (message.sender_display_name || "익명");
-    return `[${formatDate(message.created_at)}] ${sender}: ${message.content || ""}`;
+    return `[${formatDate(message.created_at)}] ${sender}: ${normalizeDisplayedSystemMessage(message.content || "")}`;
   });
   makeDownload(`exploration-chat-${currentRoom.id}-${Date.now()}.txt`, lines.join("\n"), "text/plain");
 }
