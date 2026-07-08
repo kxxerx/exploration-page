@@ -1,4 +1,4 @@
-// exploration-site: v1.17.5 live-scroll-inventory-fx-hotfix
+// exploration-site: v1.17.7 inventory-choice-image-hotfix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -1406,9 +1406,10 @@ async function ensureScenarioDefaultItems(scenario) {
   });
   if (!Object.keys(additions).length) return;
   try {
+    const mergedInventory = { ...(currentInventory || {}), ...additions };
     const { error } = await supabase.rpc("patch_exploration_room_state", {
       p_room_id: currentRoom.id,
-      p_state_patch: { roomInventory: additions }
+      p_state_patch: { roomInventory: mergedInventory }
     });
     if (error) throw error;
     const state = getStateJson();
@@ -1416,7 +1417,7 @@ async function ensureScenarioDefaultItems(scenario) {
       ...currentState,
       state_json: {
         ...state,
-        roomInventory: { ...(state.roomInventory || {}), ...additions }
+        roomInventory: mergedInventory
       }
     };
   } catch (error) {
@@ -2086,16 +2087,117 @@ async function refreshChoiceProposalUi() {
   renderChoiceProposalModal();
 }
 
+
+async function logRoomSystemMessage(content) {
+  if (!currentRoom?.id || !content) return;
+  try {
+    const { error } = await supabase.rpc("log_exploration_system_message", {
+      p_room_id: currentRoom.id,
+      p_content: content
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn("시스템 메시지 기록 실패", error);
+  }
+}
+
+function buildLocalChoiceProposal(payload) {
+  const activeMembers = getActiveRoomMembers();
+  return {
+    id: `local_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    room_id: currentRoom?.id || "",
+    proposer_id: currentProfile?.id || "",
+    proposer_name: getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자",
+    choice_label: payload.choiceLabel || "다음 행동",
+    next_section_key: payload.nextSectionKey,
+    state_patch: payload.statePatch || {},
+    accept_ids: currentProfile?.id ? [String(currentProfile.id)] : [],
+    reject_ids: [],
+    required_count: activeMembers.length || 1,
+    created_at: new Date().toISOString(),
+    local_fallback: true
+  };
+}
+
+async function patchRoomStateLocally(statePatch) {
+  if (!currentRoom?.id) throw new Error("탐사방 정보를 찾을 수 없습니다.");
+  const { error } = await supabase.rpc("patch_exploration_room_state", {
+    p_room_id: currentRoom.id,
+    p_state_patch: statePatch || {}
+  });
+  if (error) throw error;
+}
+
+function isMissingRpcError(error) {
+  const msg = String(error?.message || "");
+  return msg.includes("Could not find the function") || msg.includes("function") || msg.includes("schema cache") || msg.includes("PGRST202");
+}
+
+async function proposeChoiceFallback(payload, originalError = null) {
+  const proposal = buildLocalChoiceProposal(payload);
+  await patchRoomStateLocally({ pendingChoiceProposal: proposal });
+  await logRoomSystemMessage(`${withJosa(proposal.proposer_name, "이", "가")} 진행을 제안했습니다.`);
+  if (originalError) console.warn("진행 제안 RPC 실패, 프론트 폴백 사용", originalError);
+}
+
+async function respondChoiceProposalFallback(accept, originalError = null) {
+  const proposal = getPendingChoiceProposal();
+  if (!proposal || !currentRoom?.id || !currentProfile?.id) return;
+  const myId = String(currentProfile.id);
+  const acceptIds = new Set((Array.isArray(proposal.accept_ids) ? proposal.accept_ids : []).map(String));
+  const rejectIds = new Set((Array.isArray(proposal.reject_ids) ? proposal.reject_ids : []).map(String));
+  const myName = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+  if (accept) {
+    acceptIds.add(myId);
+    rejectIds.delete(myId);
+    await logRoomSystemMessage(`${withJosa(myName, "이", "가")} 제안을 수락했습니다.`);
+    const activeIds = getActiveRoomMembers().map((member) => String(member.user_id));
+    const allAccepted = activeIds.length > 0 && activeIds.every((id) => acceptIds.has(id));
+    if (allAccepted) {
+      const patch = mergePatches(proposal.state_patch || {}, { pendingChoiceProposal: null });
+      const { error } = await supabase.rpc("advance_exploration_room", {
+        p_room_id: currentRoom.id,
+        p_next_section_key: proposal.next_section_key,
+        p_choice_label: proposal.choice_label || proposal.next_section_key,
+        p_state_patch: patch
+      });
+      if (error) throw error;
+      await logRoomSystemMessage(`모든 참가자가 제안을 수락했습니다: ${proposal.choice_label || "다음 진행"}`);
+    } else {
+      const updated = { ...proposal, accept_ids: Array.from(acceptIds), reject_ids: Array.from(rejectIds), required_count: activeIds.length };
+      await patchRoomStateLocally({ pendingChoiceProposal: updated });
+    }
+  } else {
+    rejectIds.add(myId);
+    await patchRoomStateLocally({ pendingChoiceProposal: null });
+    await logRoomSystemMessage(`${withJosa(myName, "이", "가")} 제안을 거절했습니다.`);
+  }
+  if (originalError) console.warn("진행 제안 응답 RPC 실패, 프론트 폴백 사용", originalError);
+}
+
 async function proposeChoice(choice) {
   if (!choice?.next || !currentRoom) return;
   const payload = buildChoiceAdvancePayload(choice);
-  const { error } = await supabase.rpc("propose_exploration_choice", {
-    p_room_id: currentRoom.id,
-    p_next_section_key: payload.nextSectionKey,
-    p_choice_label: payload.choiceLabel,
-    p_state_patch: payload.statePatch
-  });
-  if (error) return showMessage(error.message, "error");
+  try {
+    const { error } = await supabase.rpc("propose_exploration_choice", {
+      p_room_id: currentRoom.id,
+      p_next_section_key: payload.nextSectionKey,
+      p_choice_label: payload.choiceLabel,
+      p_state_patch: payload.statePatch
+    });
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingRpcError(error)) {
+      showMessage(`진행 제안을 보내지 못했습니다: ${error.message}`, "error");
+      return;
+    }
+    try {
+      await proposeChoiceFallback(payload, error);
+    } catch (fallbackError) {
+      showMessage(`진행 제안을 보내지 못했습니다: ${fallbackError.message}`, "error");
+      return;
+    }
+  }
   showMessage("진행 제안을 보냈습니다. 다른 참가자의 수락을 기다립니다.", "success");
   await loadRoomBundle(currentRoom.id, { silent: true });
 }
@@ -2103,12 +2205,25 @@ async function proposeChoice(choice) {
 async function respondChoiceProposal(accept) {
   const proposal = getPendingChoiceProposal();
   if (!proposal || !currentRoom?.id) return;
-  const { error } = await supabase.rpc("respond_exploration_choice", {
-    p_room_id: currentRoom.id,
-    p_proposal_id: proposal.id,
-    p_accept: !!accept
-  });
-  if (error) return showMessage(error.message, "error");
+  try {
+    const { error } = await supabase.rpc("respond_exploration_choice", {
+      p_room_id: currentRoom.id,
+      p_proposal_id: proposal.id,
+      p_accept: !!accept
+    });
+    if (error) throw error;
+  } catch (error) {
+    if (!isMissingRpcError(error)) {
+      showMessage(`제안을 처리하지 못했습니다: ${error.message}`, "error");
+      return;
+    }
+    try {
+      await respondChoiceProposalFallback(accept, error);
+    } catch (fallbackError) {
+      showMessage(`제안을 처리하지 못했습니다: ${fallbackError.message}`, "error");
+      return;
+    }
+  }
   closeModal("#choiceProposalModal");
   showMessage(accept ? "제안을 수락했습니다." : "제안을 거절했습니다.", accept ? "success" : "info");
   await loadRoomBundle(currentRoom.id, { silent: true });
@@ -3634,7 +3749,14 @@ qs("#refreshRoomInventory")?.addEventListener("click", async () => {
 qs("#roomInventoryList")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-room-item]");
   if (!button) return;
-  openRoomItemDetail(button.dataset.roomItem);
+  event.preventDefault();
+  event.stopPropagation();
+  try {
+    openRoomItemDetail(button.dataset.roomItem);
+  } catch (error) {
+    console.error("아이템 상세 표시 실패", error);
+    showMessage(`아이템 설명을 불러오지 못했습니다: ${error.message}`, "error");
+  }
 });
 
 
