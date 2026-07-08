@@ -2810,21 +2810,50 @@ body.in-room .live-story-card .scenario-image {
   line-height: 1.7;
 }
 
-/* v1.17.17: stronger gold aura for section-local instant item choices */
+/* v1.17.20: flowing border for section-local instant item choices, not a spinning propeller. Humanity survives another CSS incident. */
 .choice-button.instant-choice:not(:disabled)::before {
   content: "";
   position: absolute;
   inset: -3px;
   border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(from 0deg, transparent, rgba(255,220,128,.92), transparent, rgba(232,179,90,.7), transparent);
+  padding: 2px;
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(255,222,139,.95) 25%, transparent 34%) border-box,
+    linear-gradient(180deg, transparent 0 18%, rgba(255,222,139,.85) 25%, transparent 34%) border-box,
+    linear-gradient(270deg, transparent 0 18%, rgba(255,222,139,.82) 25%, transparent 34%) border-box,
+    linear-gradient(0deg, transparent 0 18%, rgba(255,222,139,.75) 25%, transparent 34%) border-box;
+  background-size: 220% 100%, 100% 220%, 220% 100%, 100% 220%;
+  background-position: 0 0, 100% 0, 100% 100%, 0 100%;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
-  animation: instantChoiceOrbit 2.2s linear infinite;
+  animation: instantChoiceBorderFlow 3.8s linear infinite;
+  opacity: .95;
 }
-@keyframes instantChoiceOrbit { to { transform: rotate(360deg); } }
+@keyframes instantChoiceBorderFlow {
+  0% { background-position: 0 0, 100% 0, 100% 100%, 0 100%; }
+  100% { background-position: 220% 0, 100% 220%, -120% 100%, 0 -120%; }
+}
+.story-text {
+  line-height: 1.82;
+}
+.story-line {
+  min-height: 1.72em;
+  line-height: 1.82;
+}
+.story-line + .story-line {
+  margin-top: .18rem;
+}
+.story-line-fx {
+  margin: .92rem 0;
+}
+.story-line-fx + .story-line-fx {
+  margin-top: .55rem;
+}
+.story-line-blank {
+  min-height: .55rem;
+}
 .story-fx-vip-list {
   color: #ffe2a1;
   font-weight: 950;

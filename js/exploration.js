@@ -647,7 +647,14 @@ function renderStoryText(text = "") {
     const escaped = safeText(phrase);
     html = html.split(escaped).join(`<span class="${className}">${escaped}</span>`);
   }
-  return html;
+  return html
+    .split("\n")
+    .map((line) => {
+      const isFxLine = line.includes('class="story-fx');
+      const isBlank = !line.trim();
+      return `<div class="story-line ${isFxLine ? "story-line-fx" : ""} ${isBlank ? "story-line-blank" : ""}">${isBlank ? "&nbsp;" : line}</div>`;
+    })
+    .join("");
 }
 
 function cleanChoiceLabel(label = "") {
