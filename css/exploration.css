@@ -2334,3 +2334,23 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .community-item-content {
   padding-bottom: 12px !important;
 }
+
+/* v1.17 scenario instant/no-consensus choices */
+.choice-button.instant-choice {
+  position: relative;
+  border-color: rgba(232, 179, 90, 0.72);
+  box-shadow: 0 0 0 1px rgba(232, 179, 90, 0.16), 0 0 18px rgba(232, 179, 90, 0.12);
+}
+.choice-button.instant-choice::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 1px solid rgba(232, 179, 90, 0.55);
+  pointer-events: none;
+  animation: instantChoiceGlow 2.4s linear infinite;
+}
+@keyframes instantChoiceGlow {
+  0%, 100% { opacity: .22; filter: blur(0); }
+  50% { opacity: .72; filter: blur(.6px); }
+}

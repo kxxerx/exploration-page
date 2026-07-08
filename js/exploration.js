@@ -1,4 +1,4 @@
-// exploration-site: v1.16 shared-choice-effects-chat-inventory-scroll
+// exploration-site: v1.17 dreamland-scenario-engine
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -473,10 +473,12 @@ function buildStatePatchForEffects(effects = []) {
   const state = getStateJson();
   const inventory = { ...(state.roomInventory || {}) };
   const metrics = { ...(state.memberMetrics || {}) };
-  const targetMembers = getEffectTargetMembers();
+  const allTargetMembers = getEffectTargetMembers();
+  const selfMember = getMyMemberSnapshot();
   const logs = [];
 
   for (const effect of effects || []) {
+    const targetMembers = effect.scope === "self" && selfMember ? [selfMember] : allTargetMembers;
     if (effect.type === "add_item" && effect.itemId) {
       const itemId = normalizeItemId(effect.itemId);
       const meta = getItemMeta(itemId);
@@ -524,7 +526,19 @@ function buildStatePatchForEffects(effects = []) {
 }
 
 function mergePatches(...patches) {
-  return Object.assign({}, ...patches.filter(Boolean));
+  const merged = {};
+  for (const patch of patches.filter(Boolean)) {
+    for (const [key, value] of Object.entries(patch)) {
+      if (["roomInventory", "memberMetrics", "flags"].includes(key) && value && typeof value === "object" && !Array.isArray(value)) {
+        merged[key] = { ...(merged[key] || {}), ...value };
+      } else if (key === "lastEffectLog" && Array.isArray(value)) {
+        merged[key] = [...(merged[key] || []), ...value];
+      } else {
+        merged[key] = value;
+      }
+    }
+  }
+  return merged;
 }
 
 function metricLabel(profile) {
@@ -1325,6 +1339,40 @@ async function loadScenario(scenarioId) {
   return scenario;
 }
 
+async function ensureScenarioDefaultItems(scenario) {
+  if (!currentRoom?.id || !currentState || !currentProfile?.id || !scenario?.defaultItemsByOrganization) return;
+  const member = getMyMemberSnapshot();
+  const org = member?.organization_code_snapshot || currentProfile?.organization_code;
+  const itemIds = scenario.defaultItemsByOrganization?.[org] || [];
+  if (!itemIds.length) return;
+  const state = getStateJson();
+  const currentInventory = { ...(state.roomInventory || {}) };
+  const additions = {};
+  itemIds.forEach((itemId) => {
+    const cleanId = normalizeItemId(itemId);
+    if (!currentInventory[cleanId]) {
+      const meta = getItemMeta(cleanId);
+      additions[cleanId] = {
+        itemId: cleanId,
+        name: meta.name || cleanId,
+        type: meta.type || "item",
+        quantity: 1,
+        acquiredAt: new Date().toISOString()
+      };
+    }
+  });
+  if (!Object.keys(additions).length) return;
+  try {
+    await supabase.rpc("patch_exploration_room_state", {
+      p_room_id: currentRoom.id,
+      p_state_patch: { roomInventory: additions }
+    });
+    await loadRoomBundle(currentRoom.id, { silent: true, skipDefaultItems: true });
+  } catch (error) {
+    console.warn("기본 지급 아이템 적용 실패", error);
+  }
+}
+
 async function createRoom({ scenarioId, title, maxPlayers, visibility = "public", roomPassword = "", startSectionKey = null, stateJson = {} }) {
   if (!(await requireEntityLifeMask())) return;
   const scenario = await loadScenario(scenarioId);
@@ -1544,6 +1592,8 @@ function getMyMemberSnapshot() {
 function conditionMatches(condition = {}) {
   const member = getMyMemberSnapshot();
   const metric = getMyMetric();
+  const state = getStateJson();
+  const flags = state.flags || {};
   const context = {
     character_key: member?.character_key_snapshot ?? currentProfile?.character_key,
     organization_code: member?.organization_code_snapshot ?? currentProfile?.organization_code,
@@ -1555,6 +1605,10 @@ function conditionMatches(condition = {}) {
   };
 
   return Object.entries(condition || {}).every(([key, expected]) => {
+    if (key === "state_flag") return !!flags?.[expected];
+    if (key === "not_state_flag") return !flags?.[expected];
+    if (key === "state_flags") return (expected || []).every((flag) => !!flags?.[flag]);
+    if (key === "not_state_flags") return (expected || []).every((flag) => !flags?.[flag]);
     if (key === "min_pollution") return Number(context.pollution || 0) >= Number(expected);
     if (key === "max_pollution") return Number(context.pollution || 0) <= Number(expected);
     if (key === "min_mask_collapse_rate") return Number(context.mask_collapse_rate || 0) >= Number(expected);
@@ -1569,6 +1623,7 @@ function conditionMatches(condition = {}) {
 async function renderRoom() {
   if (!currentRoom || !currentState) return;
   const scenario = await loadScenario(currentRoom.scenario_id);
+  await ensureScenarioDefaultItems(scenario);
   const sectionKey = currentState.current_section_key || scenario.startSection;
   const section = scenario.sections?.[sectionKey];
   const isHost = currentRoom.host_user_id === currentProfile?.id;
@@ -1626,7 +1681,7 @@ async function renderRoom() {
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
     ${choices.map((choice, index) => `
-      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""}" data-choice-index="${index}" ${soloBlocked ? "disabled" : ""}>
+      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${choice.noConsensus || choice.instant ? "instant-choice" : ""}" data-choice-index="${index}" ${soloBlocked ? "disabled" : ""}>
         ${safeText(cleanChoiceLabel(choice.label))}
       </button>
     `).join("")}
@@ -1936,14 +1991,20 @@ async function chooseNext(choice) {
     return;
   }
   const payload = buildChoiceAdvancePayload(choice);
-  if (getActiveRoomMembers().length > 1) {
+  const shouldPropose = getActiveRoomMembers().length > 1 && !choice.noConsensus && !choice.instant;
+  if (shouldPropose) {
     return proposeChoice(choice);
+  }
+  let statePatch = payload.statePatch || {};
+  if (choice.systemMessage) {
+    const actor = currentProfile?.display_name || "탐사자";
+    statePatch = mergePatches(statePatch, { lastEffectLog: [String(choice.systemMessage).replaceAll("{actor}", actor)] });
   }
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
     p_next_section_key: payload.nextSectionKey,
     p_choice_label: payload.choiceLabel,
-    p_state_patch: payload.statePatch
+    p_state_patch: statePatch
   });
   if (error) {
     showMessage(error.message, "error");
