@@ -5,15 +5,26 @@ export function qs(selector) {
   return document.querySelector(selector);
 }
 
+let messageHideTimer = null;
+
 export function showMessage(message, type = "info") {
   const box = qs("#message");
   if (!box) {
     alert(message);
     return;
   }
+  if (messageHideTimer) {
+    clearTimeout(messageHideTimer);
+    messageHideTimer = null;
+  }
   box.textContent = message;
   box.className = `message ${type}`;
   box.style.display = "block";
+  messageHideTimer = window.setTimeout(() => {
+    box.style.display = "none";
+    box.textContent = "";
+    messageHideTimer = null;
+  }, 10000);
 }
 
 export function authEmailFromLoginId(loginId) {

@@ -1,4 +1,4 @@
-// exploration-site: v1.15.7 inventory-guide-affiliation-polish
+// exploration-site: v1.15.9 chat-scroll-josa-proposal-polish
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -90,6 +90,36 @@ function safeText(value) {
 
 function safeAttr(value) {
   return safeText(value).replaceAll("'", "&#39;");
+}
+
+
+function getLastHangulSyllable(value) {
+  const chars = Array.from(String(value || '').trim()).reverse();
+  return chars.find((char) => {
+    const code = char.charCodeAt(0);
+    return code >= 0xac00 && code <= 0xd7a3;
+  }) || '';
+}
+
+function hasFinalConsonant(value) {
+  const last = getLastHangulSyllable(value);
+  if (!last) return false;
+  return ((last.charCodeAt(0) - 0xac00) % 28) !== 0;
+}
+
+function josa(value, withBatchim, withoutBatchim) {
+  return hasFinalConsonant(value) ? withBatchim : withoutBatchim;
+}
+
+function withJosa(value, withBatchim, withoutBatchim) {
+  const text = String(value ?? '');
+  return `${text}${josa(text, withBatchim, withoutBatchim)}`;
+}
+
+function formatKoreanParticles(value) {
+  return String(value ?? '')
+    .replace(/([^\s\"'“”‘’()\[\]{}<>:;,.!?]+)이\(가\)/g, (_, word) => withJosa(word, '이', '가'))
+    .replace(/([^\s\"'“”‘’()\[\]{}<>:;,.!?]+)을\(를\)/g, (_, word) => withJosa(word, '을', '를'));
 }
 
 function formatDate(value) {
@@ -816,6 +846,19 @@ async function loadPartyPosts() {
   renderPartyPosts();
 }
 
+function sortPartyPostsForDisplay(posts = []) {
+  const statusRank = { scheduled: 0, open: 1, ended: 2, complete: 3 };
+  return [...posts].sort((a, b) => {
+    const aStatus = getPartyComputedStatus(a);
+    const bStatus = getPartyComputedStatus(b);
+    const rankDiff = (statusRank[aStatus.key] ?? 9) - (statusRank[bStatus.key] ?? 9);
+    if (rankDiff !== 0) return rankDiff;
+    const aCreated = new Date(a.created_at || a.recruitment_start_at || 0).getTime();
+    const bCreated = new Date(b.created_at || b.recruitment_start_at || 0).getTime();
+    return (Number.isFinite(bCreated) ? bCreated : 0) - (Number.isFinite(aCreated) ? aCreated : 0);
+  });
+}
+
 function renderPartyPosts() {
   const box = qs("#partyList");
   if (!box) return;
@@ -824,8 +867,9 @@ function renderPartyPosts() {
     box.classList.add("muted");
     return;
   }
+  const postsForDisplay = sortPartyPostsForDisplay(partyListCache);
   box.classList.remove("muted");
-  box.innerHTML = partyListCache.map((post) => {
+  box.innerHTML = postsForDisplay.map((post) => {
     const scenario = scenarioList.find((item) => item.id === post.scenario_id);
     const isCreator = !!post.is_creator;
     const isAdmin = currentProfile?.role === "admin";
@@ -1647,16 +1691,16 @@ async function useRoomInventoryItem(itemId) {
   const rule = findItemUseRule(itemId);
   const name = meta?.name || itemId;
   if (!rule) {
-    const fallback = String(name).includes("오방사계반") ? "오방사계반이 사방으로 돌고 있습니다." : `${name}이(가) 지금은 반응하지 않습니다.`;
+    const fallback = String(name).includes("오방사계반") ? "오방사계반이 사방으로 돌고 있습니다." : `${withJosa(name, "이", "가")} 지금은 반응하지 않습니다.`;
     await themedAlert(fallback, "아이템 사용");
     return;
   }
 
-  await themedAlert(rule.message || `${name}이(가) 반응했습니다.`, "아이템 사용");
+  await themedAlert(rule.message || `${withJosa(name, "이", "가")} 반응했습니다.`, "아이템 사용");
   try {
     await supabase.rpc("log_exploration_system_message", {
       p_room_id: currentRoom.id,
-      p_content: `${currentProfile?.display_name || "탐사자"}님이 ${name}을(를) 사용했습니다.`
+      p_content: `${currentProfile?.display_name || "탐사자"}님이 ${withJosa(name, "을", "를")} 사용했습니다.`
     });
   } catch (error) {
     console.warn("아이템 사용 로그 기록 실패", error);
@@ -1684,7 +1728,7 @@ function renderMessages() {
     return `
       <div class="chat-message${systemClass}">
         <strong>${safeText(sender)} · ${formatDate(message.created_at)}</strong>
-        <div>${safeText(message.content || "")}</div>
+        <div>${safeText(formatKoreanParticles(message.content || ""))}</div>
         ${message.message_type === "system" ? "" : `<button type="button" class="mini-button danger" data-report-target="room_message" data-report-id="${safeAttr(message.id)}">신고</button>`}
       </div>
     `;
@@ -1772,7 +1816,8 @@ function renderChoiceProposalNotice() {
   const notice = document.createElement("div");
   notice.id = "choiceProposalNotice";
   notice.className = "message subtle choice-proposal-notice";
-  notice.textContent = `${proposal.proposer_name || "누군가"}이(가) 진행을 제안했습니다. (${accepted}/${required} 수락)`;
+  const proposerName = proposal.proposer_name || "누군가";
+  notice.textContent = `${withJosa(proposerName, "이", "가")} 진행을 제안했습니다. (${accepted}/${required} 수락)`;
   choiceList.prepend(notice);
 }
 
@@ -1793,10 +1838,12 @@ function renderChoiceProposalModal() {
   }
   const body = qs("#choiceProposalBody");
   if (body) {
+    const proposerName = proposal.proposer_name || "누군가";
+    const proposerText = `${proposerName}${josa(proposerName, "이", "가")}`;
     body.innerHTML = `
-      <p><strong>${safeText(proposal.proposer_name || "누군가")}</strong>이(가) 이것을 하기를 원합니다.</p>
-      <p class="muted">${safeText(proposal.choice_label || "다음 행동")}</p>
-      <p class="small muted">수락하면 참가자 동의가 기록됩니다. 누군가 거절하면 현재 섹션에 그대로 머뭅니다.</p>`;
+      <p><strong>${safeText(proposerText)}</strong> 아래의 진행을 제안합니다.</p>
+      <div class="choice-proposal-choice">${safeText(proposal.choice_label || "다음 행동")}</div>
+      <p class="small muted">수락하시겠습니까? 모든 참가자가 동의하면 다음으로 넘어가며, 한 명이라도 거절할 경우 다음으로 넘어가지 않습니다.</p>`;
   }
   openModal("#choiceProposalModal");
 }

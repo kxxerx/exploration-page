@@ -2197,3 +2197,77 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   font-variant-numeric: tabular-nums;
   font-size: .98rem;
 }
+
+
+/* v1.15.8: community card footer integration and brighter calendar icon */
+.community-item {
+  overflow: hidden;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+.community-item-head {
+  padding: 18px 18px 0;
+}
+.community-item-meta {
+  padding: 8px 18px 0;
+}
+.community-item-content {
+  padding: 10px 18px 14px;
+}
+.community-actions {
+  margin: 0 !important;
+  padding: 12px 18px 16px !important;
+  border-top: 1px solid rgba(216,183,114,.18) !important;
+  background: linear-gradient(180deg, rgba(216,183,114,.045), rgba(0,0,0,.16));
+  border-radius: 0 0 18px 18px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(3.4) contrast(1.32) drop-shadow(0 0 7px rgba(255,238,185,.82)) !important;
+  opacity: 1 !important;
+  background-color: rgba(255,231,177,.24) !important;
+  border: 1px solid rgba(255,241,210,.34);
+}
+
+/* v1.15.9: fixed live chat height, proposal modal spacing, Korean-particle polish */
+.chat-card {
+  min-height: 0;
+}
+.chat-card .chat-log {
+  min-height: 0;
+}
+.live-chat-card {
+  height: clamp(360px, 48vh, 560px);
+  max-height: 560px;
+  overflow: hidden;
+}
+.live-chat-card .chat-log {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#choiceProposalModal .party-detail-content {
+  gap: 12px;
+}
+.choice-proposal-choice {
+  margin: .2rem 0 .35rem;
+  padding: .78rem .9rem;
+  border: 1px solid rgba(232,179,90,.24);
+  border-radius: 14px;
+  background: rgba(232,179,90,.08);
+  color: var(--text);
+  font-weight: 850;
+  line-height: 1.55;
+}
+#choiceProposalModal .modal-actions {
+  justify-content: flex-start !important;
+  margin-top: 1.05rem !important;
+  gap: .55rem;
+}
+@media (max-width: 720px) {
+  .live-chat-card {
+    height: 46vh;
+    min-height: 330px;
+    max-height: 520px;
+  }
+}
