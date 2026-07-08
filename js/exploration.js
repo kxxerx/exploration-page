@@ -1,4 +1,4 @@
-// exploration-site: v1.17 dreamland-scenario-engine
+// exploration-site: v1.17.5 live-scroll-inventory-fx-hotfix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -55,6 +55,9 @@ let currentRoom = null;
 let currentMembers = [];
 let currentState = null;
 let currentMessages = [];
+let chatUserPinnedToBottom = true;
+let lastRenderedMessageLastId = null;
+let renderedChoices = [];
 let currentInventory = [];
 let roomListCache = [];
 let partyListCache = [];
@@ -1403,11 +1406,19 @@ async function ensureScenarioDefaultItems(scenario) {
   });
   if (!Object.keys(additions).length) return;
   try {
-    await supabase.rpc("patch_exploration_room_state", {
+    const { error } = await supabase.rpc("patch_exploration_room_state", {
       p_room_id: currentRoom.id,
       p_state_patch: { roomInventory: additions }
     });
-    await loadRoomBundle(currentRoom.id, { silent: true, skipDefaultItems: true });
+    if (error) throw error;
+    const state = getStateJson();
+    currentState = {
+      ...currentState,
+      state_json: {
+        ...state,
+        roomInventory: { ...(state.roomInventory || {}), ...additions }
+      }
+    };
   } catch (error) {
     console.warn("기본 지급 아이템 적용 실패", error);
   }
@@ -1721,6 +1732,7 @@ async function renderRoom() {
   updateChatPlaceholder();
 
   const choices = (section.choices || []).filter((choice) => !choice.requires || conditionMatches(choice.requires));
+  renderedChoices = choices;
   const soloBlocked = isSoloBlocked();
   if (!choices.length) {
     const ending = section.ending ? buildEndingNotice(section.ending) : "";
@@ -1745,9 +1757,16 @@ async function renderRoom() {
   `;
 
   qs("#choiceList").querySelectorAll("[data-choice-index]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const choice = choices[Number(button.dataset.choiceIndex)];
-      await chooseNext(choice);
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        const choice = choices[Number(button.dataset.choiceIndex)];
+        await chooseNext(choice);
+      } catch (error) {
+        console.error("선택지 처리 실패", error);
+        showMessage(`선택지를 처리하지 못했습니다: ${error.message}`, "error");
+      }
     });
   });
   await refreshChoiceProposalUi();
@@ -1789,7 +1808,7 @@ function renderRoomInventory() {
   })).filter((item) => item.itemId !== "shop:");
   const entries = [...scenarioEntries, ...shopEntries];
   if (!entries.length) {
-    box.textContent = "아직 획득한 단서나 아이템이 없습니다.";
+    box.innerHTML = `<div class="inventory-empty">아직 획득한 단서나 아이템이 없습니다.</div>`;
     box.classList.add("muted");
     return;
   }
@@ -1810,7 +1829,8 @@ function openRoomItemDetail(itemId) {
   const isShopItem = String(itemId || "").startsWith("shop:");
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
   const cleanItemId = String(itemId || "").replace(/^shop:/, "");
-  const canUse = cleanItemId !== "dream_collector" && meta?.name !== "꿈결수집기" && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
+  const itemName = String(meta?.name || "").replace(/\s+/g, "");
+  const canUse = cleanItemId !== "dream_collector" && itemName !== "꿈결수집기" && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
   qs("#inventoryDetailBody").innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>
@@ -1875,11 +1895,47 @@ async function useRoomInventoryItem(itemId) {
   }
 }
 
+function isChatNearBottom(box) {
+  if (!box) return true;
+  return box.scrollHeight - box.scrollTop - box.clientHeight < 48;
+}
+
+function ensureNewChatButton() {
+  let button = qs("#newChatJumpButton");
+  if (button) return button;
+  const box = qs("#chatLog");
+  const parent = box?.parentElement;
+  if (!parent) return null;
+  button = document.createElement("button");
+  button.id = "newChatJumpButton";
+  button.type = "button";
+  button.className = "new-chat-jump";
+  button.textContent = "새 채팅";
+  button.hidden = true;
+  button.addEventListener("click", () => {
+    const chatBox = qs("#chatLog");
+    if (!chatBox) return;
+    chatUserPinnedToBottom = true;
+    chatBox.scrollTop = chatBox.scrollHeight;
+    button.hidden = true;
+  });
+  parent.insertBefore(button, qs("#chatForm") || null);
+  return button;
+}
+
 function renderMessages() {
   const box = qs("#chatLog");
+  if (!box) return;
+  const wasNearBottom = isChatNearBottom(box) || chatUserPinnedToBottom;
+  const previousScrollTop = box.scrollTop;
+  const previousLastId = lastRenderedMessageLastId;
+  const nextLastId = currentMessages.length ? String(currentMessages[currentMessages.length - 1]?.id || "") : null;
+  const hasNewMessage = !!nextLastId && nextLastId !== previousLastId;
   if (!currentMessages.length) {
     box.textContent = "아직 채팅이 없습니다.";
     box.classList.add("muted");
+    lastRenderedMessageLastId = null;
+    ensureNewChatButton()?.setAttribute("hidden", "");
     return;
   }
   box.classList.remove("muted");
@@ -1894,7 +1950,16 @@ function renderMessages() {
       </div>
     `;
   }).join("");
-  box.scrollTop = box.scrollHeight;
+  const jumpButton = ensureNewChatButton();
+  if (wasNearBottom) {
+    box.scrollTop = box.scrollHeight;
+    if (jumpButton) jumpButton.hidden = true;
+    chatUserPinnedToBottom = true;
+  } else {
+    box.scrollTop = previousScrollTop;
+    if (hasNewMessage && jumpButton) jumpButton.hidden = false;
+  }
+  lastRenderedMessageLastId = nextLastId;
 }
 
 function buildEndingNotice(ending = {}) {
@@ -2835,7 +2900,29 @@ qs(".brand-home")?.addEventListener("click", async (event) => {
 
 initHelpGuide();
 
+qs("#chatLog")?.addEventListener("scroll", () => {
+  const box = qs("#chatLog");
+  chatUserPinnedToBottom = isChatNearBottom(box);
+  if (chatUserPinnedToBottom) {
+    const button = qs("#newChatJumpButton");
+    if (button) button.hidden = true;
+  }
+});
+
 document.addEventListener("click", async (event) => {
+  const delegatedChoiceButton = event.target.closest("[data-choice-index]");
+  if (delegatedChoiceButton && delegatedChoiceButton.closest("#choiceList")) {
+    event.preventDefault();
+    if (delegatedChoiceButton.disabled) return;
+    try {
+      const choice = renderedChoices[Number(delegatedChoiceButton.dataset.choiceIndex)];
+      await chooseNext(choice);
+    } catch (error) {
+      console.error("선택지 처리 실패", error);
+      showMessage(`선택지를 처리하지 못했습니다: ${error.message}`, "error");
+    }
+    return;
+  }
   const bell = event.target.closest("#notificationBell");
   if (bell) { await openNotificationCenter(notificationMode); return; }
   const adminDesk = event.target.closest("#adminDeskButton");
