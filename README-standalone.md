@@ -1,8 +1,10 @@
-# pollution-exploration standalone v1.17.8-no-scene-images
+# pollution-exploration standalone v1.17.9-personal-instant-items
 
 - SQL 실행 필요 없음.
-- v1.17.7 기준에서 장면/섹션 이미지를 전부 제거한 패치입니다.
-- `assets/scenes/` 폴더와 `dreamland-*.webp` 파일을 제거했습니다.
-- `scenarios/disaster-001-pied-piper.json`에서 `coverImage`, 각 섹션의 `image`, `imagePrompt` 참조를 제거했습니다.
-- GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 main/root에 업로드하세요. ZIP 파일 자체를 올리면 안 됩니다. 인간이 압축 파일을 홈페이지라고 믿는 비극은 여기서 끝냅시다.
+- v1.17.8-no-scene-images 기준 패치입니다.
+- 노란색 즉시 선택지는 참가자별로 처리되도록 수정했습니다. 한 사람이 선택해도 다른 참가자의 화면에서는 사라지지 않고, 각자 선택한 뒤 자기 화면에서만 사라집니다.
+- 즉시 선택지로 얻는 시나리오 아이템은 개인별 인벤토리에 들어가도록 수정했습니다.
+- `낡고 이상한 동전`은 아이템으로 유지하되 상세창에서 `사용` 버튼이 뜨지 않도록 수정했습니다.
+- 시나리오 본문에 남아 있던 `획득/변화: 없음 (시작 오염도: 0)` 같은 메타 문구를 제거했고, 혹시 비슷한 문구가 남아도 화면 렌더링 단계에서 숨기도록 보강했습니다.
+- GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 main/root에 업로드하세요. ZIP 파일 자체를 올리면 안 됩니다. 압축 파일을 올리고 홈페이지가 왜 안 열리냐고 묻는 의식은 이제 그만합시다.
 - standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.

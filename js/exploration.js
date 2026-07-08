@@ -354,6 +354,67 @@ function getRoomInventoryMap() {
   return inv && typeof inv === "object" ? inv : {};
 }
 
+function getMyUserId() {
+  return currentProfile?.id ? String(currentProfile.id) : "";
+}
+
+function getMemberInventoriesMap() {
+  const inv = getStateJson().memberInventories || {};
+  return inv && typeof inv === "object" ? inv : {};
+}
+
+function getMyScenarioInventoryMap() {
+  const userId = getMyUserId();
+  const all = getMemberInventoriesMap();
+  const mine = userId ? all[userId] : null;
+  return mine && typeof mine === "object" ? mine : {};
+}
+
+function getCombinedScenarioInventoryMap() {
+  return { ...getRoomInventoryMap(), ...getMyScenarioInventoryMap() };
+}
+
+function getMemberChoiceFlagsMap() {
+  const flags = getStateJson().memberChoiceFlags || {};
+  return flags && typeof flags === "object" ? flags : {};
+}
+
+function getMyChoiceFlagsMap() {
+  const userId = getMyUserId();
+  const all = getMemberChoiceFlagsMap();
+  const mine = userId ? all[userId] : null;
+  return mine && typeof mine === "object" ? mine : {};
+}
+
+function getChoiceFlagKeys(choice = {}) {
+  const flags = choice?.setState?.flags;
+  if (!flags || typeof flags !== "object") return [];
+  return Object.keys(flags).filter((key) => flags[key] === true);
+}
+
+function isPersonalInstantChoice(choice = {}, sectionKey = "") {
+  const sameSection = !!choice?.next && String(choice.next) === String(sectionKey || currentState?.current_section_key || "");
+  const hasFlag = getChoiceFlagKeys(choice).length > 0;
+  const hasItemEffect = (choice.effects || []).some((effect) => effect?.type === "add_item");
+  return !!(choice.noConsensus || choice.instant || (sameSection && (hasFlag || hasItemEffect)));
+}
+
+function isChoiceAlreadyTakenByMe(choice = {}) {
+  const myFlags = getMyChoiceFlagsMap();
+  return getChoiceFlagKeys(choice).some((key) => !!myFlags[key]);
+}
+
+function choiceConditionMatches(choice = {}, sectionKey = "") {
+  if (!isPersonalInstantChoice(choice, sectionKey)) {
+    return !choice.requires || conditionMatches(choice.requires);
+  }
+  if (isChoiceAlreadyTakenByMe(choice)) return false;
+  const requires = { ...(choice.requires || {}) };
+  delete requires.not_state_flag;
+  delete requires.not_state_flags;
+  return conditionMatches(requires);
+}
+
 function getCurrentMemberOrganizationCode() {
   const member = getMyMemberSnapshot();
   return String(member?.organization_code_snapshot || currentProfile?.organization_code || "").toLowerCase();
@@ -415,7 +476,8 @@ function hasShopItem(itemId) {
 
 function hasRoomItem(itemId) {
   const id = normalizeItemId(itemId);
-  return !!id && (Number(getRoomInventoryMap()[id]?.quantity || 0) > 0 || hasShopItem(id));
+  const combinedInventory = getCombinedScenarioInventoryMap();
+  return !!id && (Number(combinedInventory[id]?.quantity || 0) > 0 || hasShopItem(id));
 }
 
 function getMemberMetric(member) {
@@ -436,7 +498,8 @@ function getMyMetric() {
 
 function cleanEffectText(text = "") {
   return String(text)
-    .replace(/\n?\[획득\/변화\][\s\S]*?(?=\n\n|$)/g, "")
+    .replace(new RegExp("\\n?\\[?\\s*획득\\s*\\/\\s*변화\\s*\\]?\\s*[:：][\\s\\S]*?(?=\\n\\n|$)", "g"), "")
+    .replace(new RegExp("\\n?획득\\s*\\/\\s*변화\\s*[:：][^\\n]*", "g"), "")
     .trim();
 }
 
@@ -511,9 +574,10 @@ function getEffectTargetMembers() {
   return mine ? [mine] : [];
 }
 
-function buildStatePatchForEffects(effects = []) {
+function buildStatePatchForEffects(effects = [], options = {}) {
   const state = getStateJson();
   const inventory = { ...(state.roomInventory || {}) };
+  const memberInventories = { ...(state.memberInventories || {}) };
   const metrics = { ...(state.memberMetrics || {}) };
   const allTargetMembers = getEffectTargetMembers();
   const selfMember = getMyMemberSnapshot();
@@ -524,13 +588,28 @@ function buildStatePatchForEffects(effects = []) {
     if (effect.type === "add_item" && effect.itemId) {
       const itemId = normalizeItemId(effect.itemId);
       const meta = getItemMeta(itemId);
-      inventory[itemId] = {
-        itemId,
-        name: meta.name || itemId,
-        type: meta.type || "item",
-        quantity: Number(inventory[itemId]?.quantity || 0) + Number(effect.quantity || 1),
-        acquiredAt: new Date().toISOString()
-      };
+      const quantity = Number(effect.quantity || 1);
+      if (options.personalItems && currentProfile?.id) {
+        const userId = String(currentProfile.id);
+        const mine = { ...(memberInventories[userId] || {}) };
+        mine[itemId] = {
+          itemId,
+          name: meta.name || itemId,
+          type: meta.type || "item",
+          quantity: Number(mine[itemId]?.quantity || 0) + quantity,
+          acquiredAt: new Date().toISOString(),
+          personal: true
+        };
+        memberInventories[userId] = mine;
+      } else {
+        inventory[itemId] = {
+          itemId,
+          name: meta.name || itemId,
+          type: meta.type || "item",
+          quantity: Number(inventory[itemId]?.quantity || 0) + quantity,
+          acquiredAt: new Date().toISOString()
+        };
+      }
       logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
     }
     if (effect.type === "pollution") {
@@ -563,7 +642,26 @@ function buildStatePatchForEffects(effects = []) {
   }
 
   const patch = { roomInventory: inventory, memberMetrics: metrics };
+  if (options.personalItems) patch.memberInventories = memberInventories;
   if (logs.length) patch.lastEffectLog = logs;
+  return patch;
+}
+
+function buildPersonalInstantChoicePatch(choice = {}) {
+  const state = getStateJson();
+  const userId = getMyUserId();
+  const memberChoiceFlags = { ...(state.memberChoiceFlags || {}) };
+  if (userId) {
+    const mine = { ...(memberChoiceFlags[userId] || {}) };
+    getChoiceFlagKeys(choice).forEach((key) => { mine[key] = true; });
+    memberChoiceFlags[userId] = mine;
+  }
+  const effectPatch = buildStatePatchForEffects(choice.effects || [], { personalItems: true });
+  const patch = mergePatches(effectPatch, { memberChoiceFlags });
+  if (choice.systemMessage) {
+    const actor = currentProfile?.display_name || "탐사자";
+    patch.lastEffectLog = [...(patch.lastEffectLog || []), String(choice.systemMessage).replaceAll("{actor}", actor)];
+  }
   return patch;
 }
 
@@ -575,6 +673,8 @@ function mergePatches(...patches) {
         merged[key] = { ...(merged[key] || {}), ...value };
       } else if (key === "lastEffectLog" && Array.isArray(value)) {
         merged[key] = [...(merged[key] || []), ...value];
+      } else if (["memberInventories", "memberChoiceFlags"].includes(key) && value && typeof value === "object" && !Array.isArray(value)) {
+        merged[key] = { ...(merged[key] || {}), ...value };
       } else {
         merged[key] = value;
       }
@@ -1732,7 +1832,7 @@ async function renderRoom() {
   renderRoomInventory();
   updateChatPlaceholder();
 
-  const choices = (section.choices || []).filter((choice) => !choice.requires || conditionMatches(choice.requires));
+  const choices = (section.choices || []).filter((choice) => choiceConditionMatches(choice, sectionKey));
   renderedChoices = choices;
   const soloBlocked = isSoloBlocked();
   if (!choices.length) {
@@ -1751,7 +1851,7 @@ async function renderRoom() {
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
     ${choices.map((choice, index) => `
-      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${choice.noConsensus || choice.instant ? "instant-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}">
+      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${isPersonalInstantChoice(choice, sectionKey) ? "instant-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}">
         ${safeText(cleanChoiceLabel(choice.label))}
       </button>
     `).join("")}
@@ -1799,7 +1899,7 @@ function renderMembers() {
 function renderRoomInventory() {
   const box = qs("#roomInventoryList");
   if (!box) return;
-  const inventory = getRoomInventoryMap();
+  const inventory = getCombinedScenarioInventoryMap();
   const scenarioEntries = Object.values(inventory).filter((item) => Number(item.quantity || 0) > 0 && isPersonalDefaultItemVisible(item.itemId));
   const shopEntries = getVisibleShopInventory().map((row) => ({
     itemId: `shop:${getShopItemId(row)}`,
@@ -1837,7 +1937,7 @@ function openRoomItemDetail(itemId) {
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
   const cleanItemId = String(itemId || "").replace(/^shop:/, "");
   const itemName = String(meta?.name || "").replace(/\s+/g, "");
-  const noUseItem = cleanItemId === "dream_collector" || itemName === "꿈결수집기";
+  const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || itemName === "꿈결수집기" || itemName === "낡고이상한동전";
   const canUse = !noUseItem && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
   target.innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
@@ -2230,7 +2330,26 @@ async function respondChoiceProposal(accept) {
 }
 
 async function chooseNext(choice) {
-  if (!choice?.next || !currentRoom) return;
+  if (!choice || !currentRoom) return;
+  const sectionKey = currentState?.current_section_key || "";
+  if (isPersonalInstantChoice(choice, sectionKey)) {
+    if (isChoiceAlreadyTakenByMe(choice)) return;
+    const statePatch = buildPersonalInstantChoicePatch(choice);
+    const { error } = await supabase.rpc("patch_exploration_room_state", {
+      p_room_id: currentRoom.id,
+      p_state_patch: statePatch
+    });
+    if (error) {
+      showMessage(error.message, "error");
+      return;
+    }
+    if (choice.systemMessage) {
+      await logRoomSystemMessage(String(choice.systemMessage).replaceAll("{actor}", currentProfile?.display_name || "탐사자"));
+    }
+    await loadRoomBundle(currentRoom.id, { silent: true });
+    return;
+  }
+  if (!choice?.next) return;
   if (isSoloBlocked()) {
     showMessage(currentProfile?.role === "admin" ? "혼자서는 진행할 수 없습니다. 관리자 테스트 코드를 입력하면 진행할 수 있습니다." : "혼자서는 진행할 수 없습니다.", "error");
     return;
