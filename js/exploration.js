@@ -1750,7 +1750,7 @@ async function renderRoom() {
   qs("#choiceList").innerHTML = `
     ${soloBlockedMessage}
     ${choices.map((choice, index) => `
-      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${choice.noConsensus || choice.instant ? "instant-choice" : ""}" data-choice-index="${index}" ${soloBlocked ? "disabled" : ""}>
+      <button type="button" class="choice-button ${choice.requires ? "private-choice" : ""} ${choice.noConsensus || choice.instant ? "instant-choice" : ""}" data-choice-index="${index}" data-solo-blocked="${soloBlocked ? "1" : "0"}">
         ${safeText(cleanChoiceLabel(choice.label))}
       </button>
     `).join("")}
@@ -1825,16 +1825,23 @@ function renderRoomInventory() {
   }).join("");
 }
 
+function renderDetailText(text = "") {
+  return safeText(text || "아직 상세 설명이 등록되지 않았습니다.").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+}
+
 function openRoomItemDetail(itemId) {
+  const target = qs("#inventoryDetailBody");
+  if (!target) throw new Error("아이템 상세 모달을 찾지 못했습니다.");
   const isShopItem = String(itemId || "").startsWith("shop:");
   const meta = isShopItem ? getShopItemMeta(itemId) : getItemMeta(itemId);
   const cleanItemId = String(itemId || "").replace(/^shop:/, "");
   const itemName = String(meta?.name || "").replace(/\s+/g, "");
-  const canUse = cleanItemId !== "dream_collector" && itemName !== "꿈결수집기" && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
-  qs("#inventoryDetailBody").innerHTML = `
+  const noUseItem = cleanItemId === "dream_collector" || itemName === "꿈결수집기";
+  const canUse = !noUseItem && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
+  target.innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>
-    <div class="party-detail-content">${safeText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
+    <div class="party-detail-content item-detail-text">${renderDetailText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
     ${canUse ? `<div class="modal-actions item-use-actions"><button type="button" class="primary-action" data-use-room-item="${safeAttr(itemId)}">사용</button></div>` : ""}
   `;
   openModal("#inventoryDetailModal");
@@ -1926,7 +1933,7 @@ function ensureNewChatButton() {
 function renderMessages() {
   const box = qs("#chatLog");
   if (!box) return;
-  const wasNearBottom = isChatNearBottom(box) || chatUserPinnedToBottom;
+  const wasNearBottom = isChatNearBottom(box);
   const previousScrollTop = box.scrollTop;
   const previousLastId = lastRenderedMessageLastId;
   const nextLastId = currentMessages.length ? String(currentMessages[currentMessages.length - 1]?.id || "") : null;
@@ -2910,6 +2917,17 @@ qs("#chatLog")?.addEventListener("scroll", () => {
 });
 
 document.addEventListener("click", async (event) => {
+  const delegatedRoomItem = event.target.closest("[data-room-item]");
+  if (delegatedRoomItem && delegatedRoomItem.closest("#roomInventoryList")) {
+    event.preventDefault();
+    try {
+      openRoomItemDetail(delegatedRoomItem.dataset.roomItem);
+    } catch (error) {
+      console.error("아이템 상세 표시 실패", error);
+      showMessage(`아이템 설명을 불러오지 못했습니다: ${error.message}`, "error");
+    }
+    return;
+  }
   const delegatedChoiceButton = event.target.closest("[data-choice-index]");
   if (delegatedChoiceButton && delegatedChoiceButton.closest("#choiceList")) {
     event.preventDefault();

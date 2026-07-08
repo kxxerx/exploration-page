@@ -2592,3 +2592,73 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   60% { opacity: .7; transform: translateX(8px) translateY(-1px); filter: blur(1px); }
   100% { opacity: 0; transform: translateX(24px) translateY(-4px); filter: blur(4px); }
 }
+
+
+/* v1.17.6: smoother signal effects and interaction fixes */
+.choice-button[data-solo-blocked="1"] {
+  opacity: .78;
+}
+.choice-button[data-solo-blocked="1"]::after {
+  content: "";
+}
+.story-fx-electric {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: max-content;
+  color: #ffd86c !important;
+  font-style: italic;
+  letter-spacing: .045em;
+  transform: skewX(-7deg);
+  text-shadow: 0 0 5px rgba(255,219,116,.86), 0 0 14px rgba(255,186,73,.42), 0 0 22px rgba(255,255,210,.16);
+  animation: electricRevealLeftToRight 2.25s steps(6, end) infinite, electricSoftFlicker 1.2s linear infinite;
+}
+.story-fx-electric::after {
+  left: -8%;
+  right: auto;
+  width: 116%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,210,.86) 44%, rgba(255,214,102,.45) 56%, transparent 100%);
+  animation: electricLineLeftToRight 2.25s ease-in-out infinite;
+}
+.story-fx-wind {
+  display: inline-block;
+  color: rgba(225,236,255,.78) !important;
+  font-style: italic;
+  letter-spacing: .12em;
+  text-shadow: 0 0 12px rgba(220,232,255,.5), 0 0 28px rgba(135,170,214,.22);
+  animation: windSlowSmoke 6.8s ease-in-out infinite;
+}
+.item-detail-text {
+  white-space: pre-wrap;
+}
+@keyframes electricRevealLeftToRight {
+  0% { clip-path: inset(0 100% 0 0); opacity: .3; }
+  16% { clip-path: inset(0 76% 0 0); opacity: .86; }
+  32% { clip-path: inset(0 55% 0 0); opacity: 1; }
+  50% { clip-path: inset(0 32% 0 0); opacity: .78; }
+  70% { clip-path: inset(0 0 0 0); opacity: 1; }
+  88% { clip-path: inset(0 0 0 0); opacity: .76; }
+  100% { clip-path: inset(0 0 0 0); opacity: .42; }
+}
+@keyframes electricSoftFlicker {
+  0%, 100% { filter: brightness(1); }
+  18% { filter: brightness(1.38); }
+  21% { filter: brightness(.88); }
+  43% { filter: brightness(1.18); }
+  65% { filter: brightness(.96); }
+  78% { filter: brightness(1.48); }
+}
+@keyframes electricLineLeftToRight {
+  0% { transform: translate(-90%, -50%); opacity: 0; }
+  22% { opacity: .92; }
+  70% { opacity: .7; }
+  100% { transform: translate(92%, -50%); opacity: 0; }
+}
+@keyframes windSlowSmoke {
+  0% { opacity: 0; transform: translateX(-20px) translateY(5px) scale(.98); filter: blur(8px); }
+  22% { opacity: .44; filter: blur(4px); }
+  42% { opacity: .88; transform: translateX(-2px) translateY(0) scale(1); filter: blur(.7px); }
+  68% { opacity: .66; transform: translateX(14px) translateY(-3px) scale(1.015); filter: blur(2px); }
+  88% { opacity: .28; filter: blur(5px); }
+  100% { opacity: 0; transform: translateX(32px) translateY(-8px) scale(1.03); filter: blur(9px); }
+}

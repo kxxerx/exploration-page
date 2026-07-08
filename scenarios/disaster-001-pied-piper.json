@@ -4,7 +4,7 @@
   "version": "1.17.4",
   "status": "active",
   "startSection": "s1",
-  "coverImage": "",
+  "coverImage": "assets/scenes/dreamland-s1.webp",
   "sections": {
     "s1": {
       "title": "드림랜드 정문 앞",
@@ -45,7 +45,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 드림랜드 정문 앞. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s1.webp"
     },
     "s2": {
       "title": "무너진 방음벽 틈새",
@@ -91,7 +91,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 무너진 방음벽 틈새. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s2.webp"
     },
     "s3": {
       "title": "종합 매표소의 야근자",
@@ -120,7 +120,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 종합 매표소의 야근자. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s3.webp"
     },
     "s4_1": {
       "title": "골든 마스코트 기념품 샵과 시계탑 광장(손님 출입 아닌 경우)",
@@ -168,7 +168,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 골든 마스코트 기념품 샵과 시계탑 광장(손님 출입 아닌 경우). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s4_1.webp"
     },
     "s4_2": {
       "title": "골든 마스코트 기념품 샵과 시계탑 광장(손님인 경우)",
@@ -210,7 +210,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 골든 마스코트 기념품 샵과 시계탑 광장(손님인 경우). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s4_2.webp"
     },
     "s5_1": {
       "title": "마스코트 골든의 기념품 샵",
@@ -306,7 +306,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 마스코트 골든의 기념품 샵. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s5_1.webp"
     },
     "s5_2": {
       "title": "골든 마스코트의 기념품샵 (물건 구입한 사람이 한 사람이라도 있을 때)",
@@ -326,7 +326,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 골든 마스코트의 기념품샵 (물건 구입한 사람이 한 사람이라도 있을 때). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s5_2.webp"
     },
     "s6_1": {
       "title": "시계탑 광장",
@@ -352,7 +352,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 시계탑 광장. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s6_1.webp"
     },
     "s5_3": {
       "title": "폐장 안내문 뒷면 낙서",
@@ -378,7 +378,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 폐장 안내문 뒷면 낙서. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s5_3.webp"
     },
     "s6": {
       "title": "폐장 안내문 뒷면 낙서",
@@ -407,7 +407,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 폐장 안내문 뒷면 낙서. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s6.webp"
     },
     "s7": {
       "title": "말소된 얼굴들의 잔해",
@@ -442,7 +442,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 말소된 얼굴들의 잔해. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s7.webp"
     },
     "s8": {
       "title": "서쪽 분실물 광장",
@@ -465,7 +465,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 서쪽 분실물 광장. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s8.webp"
     },
     "s9": {
       "title": "조형물들의 시선",
@@ -500,7 +500,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 조형물들의 시선. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s9.webp"
     },
     "s10": {
       "title": "물대 낀 분수대 대기석",
@@ -520,7 +520,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 물대 낀 분수대 대기석. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s10.webp"
     },
     "s11": {
       "title": "동화 나라 회전목마",
@@ -550,7 +550,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 동화 나라 회전목마. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s11.webp"
     },
     "s12": {
       "title": "환상의 퍼레이드 스트리트",
@@ -592,7 +592,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 환상의 퍼레이드 스트리트. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s12.webp"
     },
     "s13": {
       "title": "분실물 보관소 유모차 숲",
@@ -618,7 +618,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 분실물 보관소 유모차 숲. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s13.webp"
     },
     "s14": {
       "title": "전광판 뒤편의 사각지대",
@@ -647,7 +647,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 전광판 뒤편의 사각지대. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s14.webp"
     },
     "s15": {
       "title": "분수대 옆 가죽 가방",
@@ -673,7 +673,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 분수대 옆 가죽 가방. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s15.webp"
     },
     "s16": {
       "title": "회전목마 제어실 내부",
@@ -703,7 +703,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 회전목마 제어실 내부. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s16.webp"
     },
     "s17": {
       "title": "목마 위에서의 사투",
@@ -735,7 +735,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 목마 위에서의 사투. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s17.webp"
     },
     "s18": {
       "title": "퍼레이드 카의 서치라이트",
@@ -764,7 +764,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 퍼레이드 카의 서치라이트. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s18.webp"
     },
     "s19": {
       "title": "백일몽 직원의 기록 작업",
@@ -790,7 +790,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 백일몽 직원의 기록 작업. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s19.webp"
     },
     "s20": {
       "title": "자재 창고의 선반",
@@ -810,7 +810,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 자재 창고의 선반. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s20.webp"
     },
     "s21": {
       "title": "드림 양품점과 비인가 자판기",
@@ -834,7 +834,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 드림 양품점과 비인가 자판기. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s21.webp"
     },
     "s22": {
       "title": "퍼레이드 카 하부의 진실",
@@ -863,7 +863,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 퍼레이드 카 하부의 진실. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s22.webp"
     },
     "s23": {
       "title": "야근보상 드링크 2호",
@@ -889,7 +889,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 야근보상 드링크 2호. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s23.webp"
     },
     "s24": {
       "title": "삼재막이 왕소금 알사탕",
@@ -915,7 +915,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 삼재막이 왕소금 알사탕. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s24.webp"
     },
     "s25": {
       "title": "불량 제수용 사이다",
@@ -935,7 +935,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 불량 제수용 사이다. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s25.webp"
     },
     "s26": {
       "title": "박살 난 콘솔반",
@@ -968,7 +968,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 박살 난 콘솔반. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s26.webp"
     },
     "s27": {
       "title": "차단 밸브의 침묵",
@@ -997,7 +997,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 차단 밸브의 침묵. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s27.webp"
     },
     "s28": {
       "title": "당직자의 비상 보관함",
@@ -1023,7 +1023,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 당직자의 비상 보관함. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s28.webp"
     },
     "s29": {
       "title": "거울 미로 포토존",
@@ -1064,7 +1064,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 거울 미로 포토존. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s29.webp"
     },
     "s30": {
       "title": "롤러코스터 레일의 고공",
@@ -1084,7 +1084,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 롤러코스터 레일의 고공. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s30.webp"
     },
     "s31": {
       "title": "대관람차 메인 광장",
@@ -1116,7 +1116,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 대관람차 메인 광장. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s31.webp"
     },
     "s32": {
       "title": "낡은 철제 공구함",
@@ -1142,7 +1142,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 낡은 철제 공구함. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s32.webp"
     },
     "s33": {
       "title": "기념품점 뒷마당의 행렬",
@@ -1172,7 +1172,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 기념품점 뒷마당의 행렬. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s33.webp"
     },
     "s34": {
       "title": "끊어진 쇠사슬의 반동",
@@ -1194,7 +1194,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 끊어진 쇠사슬의 반동. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s34.webp"
     },
     "s35": {
       "title": "종착지의 전조등",
@@ -1217,7 +1217,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 종착지의 전조등. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s35.webp"
     },
     "s36": {
       "title": "전선 차단의 정적",
@@ -1252,7 +1252,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 전선 차단의 정적. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s36.webp"
     },
     "s37": {
       "title": "채용 계약서의 악몽",
@@ -1280,7 +1280,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 채용 계약서의 악몽. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s37.webp"
     },
     "s38": {
       "title": "자아를 잃은 생존자들",
@@ -1309,7 +1309,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 자아를 잃은 생존자들. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s38.webp"
     },
     "s39": {
       "title": "깨진 거울의 파편들",
@@ -1331,7 +1331,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 깨진 거울의 파편들. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s39.webp"
     },
     "s40": {
       "title": "미로의 사각 출구",
@@ -1353,7 +1353,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 미로의 사각 출구. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s40.webp"
     },
     "s41": {
       "title": "대관람차의 녹슨 철골",
@@ -1376,7 +1376,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 대관람차의 녹슨 철골. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s41.webp"
     },
     "s42": {
       "title": "수풀 속의 맨홀 뚜껑",
@@ -1395,7 +1395,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 수풀 속의 맨홀 뚜껑. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s42.webp"
     },
     "s43": {
       "title": "대관람차 하부 기계실",
@@ -1427,7 +1427,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 대관람차 하부 기계실. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s43.webp"
     },
     "s44": {
       "title": "통제된 탑승 캡슐",
@@ -1449,7 +1449,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 통제된 탑승 캡슐. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s44.webp"
     },
     "s45": {
       "title": "퍼레이드 진행자와의 대치",
@@ -1472,7 +1472,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 퍼레이드 진행자와의 대치. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s45.webp"
     },
     "s46": {
       "title": "어두운 지하 배수구",
@@ -1495,7 +1495,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 어두운 지하 배수구. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s46.webp"
     },
     "s47": {
       "title": "과부하의 레버",
@@ -1527,7 +1527,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 과부하의 레버. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s47.webp"
     },
     "s48": {
       "title": "백일몽 수집기의 임계점",
@@ -1549,7 +1549,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 백일몽 수집기의 임계점. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s48.webp"
     },
     "s49": {
       "title": "재난국 요원의 격발",
@@ -1568,7 +1568,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 재난국 요원의 격발. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s49.webp"
     },
     "s50": {
       "title": "사나이의 마지막 합주",
@@ -1593,7 +1593,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 사나이의 마지막 합주. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s50.webp"
     },
     "s51": {
       "title": "푸른 비상구의 불빛",
@@ -1612,7 +1612,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 푸른 비상구의 불빛. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s51.webp"
     },
     "s52": {
       "title": "시설팀의 수동 셔터",
@@ -1634,7 +1634,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 시설팀의 수동 셔터. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s52.webp"
     },
     "s53": {
       "title": "영구 행정 봉쇄 (재난국 GOOD END)",
@@ -1647,7 +1647,7 @@
         "pollutionDelta": -15
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 영구 행정 봉쇄 (재난국 GOOD END). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s53.webp"
     },
     "s54": {
       "title": "생존자들과의 동행 탈출",
@@ -1659,7 +1659,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 생존자들과의 동행 탈출. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s54.webp"
     },
     "s55": {
       "title": "정산서와 아지랑이 (백일몽 HIDDEN END)",
@@ -1672,7 +1672,7 @@
         "pollutionDelta": 20
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 정산서와 아지랑이 (백일몽 HIDDEN END). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s55.webp"
     },
     "s56": {
       "title": "단독 생존의 새벽 (NORMAL END)",
@@ -1685,7 +1685,7 @@
         "pollutionDelta": 10
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 단독 생존의 새벽 (NORMAL END). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s56.webp"
     },
     "s57": {
       "title": "수습반의 보호 조치",
@@ -1703,7 +1703,7 @@
         "pollutionDelta": -5
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 수습반의 보호 조치. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s57.webp"
     },
     "s58": {
       "title": "오염의 임계점 도달",
@@ -1716,7 +1716,7 @@
         "pollutionDelta": 45
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 오염의 임계점 도달. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s58.webp"
     },
     "s59": {
       "title": "수집 실패와 본사의 문책",
@@ -1729,7 +1729,7 @@
         "pollutionDelta": 40
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 수집 실패와 본사의 문책. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s59.webp"
     },
     "s60": {
       "title": "드림랜드의 신입 사원 (BAD END)",
@@ -1742,7 +1742,7 @@
         "pollutionDelta": 35
       },
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 드림랜드의 신입 사원 (BAD END). 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s60.webp"
     },
     "s5_2_a": {
       "title": "VIP 손님 전용 휴게실",
@@ -1754,7 +1754,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: VIP 손님 전용 휴게실. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s5_2_a.webp"
     },
     "s5_2_b": {
       "title": "직원 전용 통로",
@@ -1766,7 +1766,7 @@
         }
       ],
       "imagePrompt": "폐놀이공원 드림랜드의 장면: 직원 전용 통로. 어둡고 사실적인 분위기, 검정과 딥 레드, 낡은 조명, 불길한 금색 잔광.",
-      "imageLabel": "장면 이미지 준비 중"
+      "image": "assets/scenes/dreamland-s5_2_b.webp"
     }
   },
   "itemCatalog": {
