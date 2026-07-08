@@ -40,7 +40,7 @@
               "used_s1_6782d4": true
             }
           },
-          "systemMessage": "{actor}이 다음과 같이 행동했습니다. : [낡고 이상한 동전]을(를) 획득한다."
+          "systemMessage": "{actor}이 낡고 이상한 동전을 주웠습니다."
         }
       ]
     },

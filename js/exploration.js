@@ -133,8 +133,16 @@ function getActorDisplayName(name) {
   return base.endsWith("님") ? base : `${base}님`;
 }
 
+function normalizeSystemMessageTemplate(template = "") {
+  let text = String(template || "");
+  text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?낡고 이상한 동전\]?을\(를\)\s*획득한다\.?/g, "{actor}이 낡고 이상한 동전을 주웠습니다.");
+  text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?([^\]\n]+)\]?을\(를\)\s*획득한다\.?/g, "{actor}이 [$1]을(를) 획득했습니다.");
+  text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*(.+?)\s*$/g, "{actor}이 $1");
+  return text;
+}
+
 function formatSystemMessageTemplate(template, actorName) {
-  return formatKoreanParticles(String(template || "").replaceAll("{actor}", getActorDisplayName(actorName)));
+  return formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorDisplayName(actorName)));
 }
 
 function formatDate(value) {
@@ -2444,9 +2452,15 @@ async function chooseNext(choice) {
     if (choice.popupMessage) {
       await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
     }
+    // 즉시 선택지는 상태 패치가 끝난 뒤 클릭 잠금을 먼저 해제한다.
+    // 팝업/시스템 로그가 늦어져도 다른 일반 선택지가 먹통처럼 막히지 않게 하기 위한 처리다.
+    choiceClickInProgress = false;
+    if (choice.popupMessage) {
+      await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
+    }
     if (choice.systemMessage) {
       const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
-      await logRoomSystemMessage(formatSystemMessageTemplate(choice.systemMessage, actor));
+      logRoomSystemMessage(formatSystemMessageTemplate(choice.systemMessage, actor));
     }
     await loadRoomBundle(currentRoom.id, { silent: true });
     return;
