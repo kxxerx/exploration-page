@@ -1,4 +1,4 @@
-// exploration-site: v1.15.5 guide-party-ui-item-message
+// exploration-site: v1.15.6 guide-pages-ui-polish
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -2101,6 +2101,26 @@ async function reviewReport(reportId, action, note = "") {
   await Promise.all([loadPartyPosts(), currentRoom ? loadMessages() : Promise.resolve()]);
 }
 
+
+function setGuidePage(page = 1) {
+  const pages = Array.from(document.querySelectorAll("[data-guide-page]"));
+  if (!pages.length) return;
+  const total = pages.length;
+  const nextPage = Math.min(total, Math.max(1, Number(page) || 1));
+  pages.forEach((el) => {
+    el.hidden = Number(el.dataset.guidePage) !== nextPage;
+  });
+  const now = qs("#guidePageNow");
+  const totalEl = qs("#guidePageTotal");
+  if (now) now.textContent = String(nextPage);
+  if (totalEl) totalEl.textContent = String(total);
+}
+
+function shiftGuidePage(delta = 1) {
+  const current = Number(qs("#guidePageNow")?.textContent || 1);
+  setGuidePage(current + Number(delta || 0));
+}
+
 function initHelpGuide() {
   const widget = qs("#helpGuideWidget");
   const button = qs("#openHelpGuide");
@@ -2117,10 +2137,13 @@ function initHelpGuide() {
   button.addEventListener("click", () => {
     try { localStorage.setItem("pollution_exploration_help_seen", "1"); } catch (error) {}
     if (bubble) bubble.hidden = true;
+    setGuidePage(1);
     openModal("#helpGuideModal");
   });
+  qs("[data-guide-prev]")?.addEventListener("click", () => shiftGuidePage(-1));
+  qs("[data-guide-next]")?.addEventListener("click", () => shiftGuidePage(1));
+  setGuidePage(1);
 }
-
 function openModal(selector) {
   const modal = qs(selector);
   if (!modal) return;
