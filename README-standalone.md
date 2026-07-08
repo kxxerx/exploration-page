@@ -1,45 +1,31 @@
-# v1.17.18-natural-system-map-popup-vip-link
+# pollution-exploration v1.17.22-shop-code-settlement
 
-# pollution-exploration standalone v1.17.17-map-vip-dlbad001
+## 적용 순서
+1. `pollution-exploration-deploy-only-v1.17.22-shop-code-settlement.zip` 압축을 풉니다.
+2. 압축을 푼 폴더 안의 내용물을 GitHub 저장소 `main` 브랜치 root에 업로드합니다.
+   - ZIP 파일 자체를 올리면 안 됩니다.
+3. Supabase SQL Editor에서 아래 SQL 파일 내용을 전체 실행합니다.
+   - `migrations/upgrade-v1.17.19-natural-message-and-direct-choice-hotfix.sql`
+   - `migrations/upgrade-v1.17.22-shop-code-settlement.sql`
+4. 이미 v1.17.19 SQL을 실행했다면 v1.17.19는 다시 실행하지 않아도 됩니다. v1.17.22 SQL은 새로 실행해야 합니다.
+5. 브라우저에서 `Ctrl + F5`로 강제 새로고침합니다.
 
-- SQL 실행 필요 없음.
-- GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 `main` 브랜치 root에 업로드하세요. ZIP 파일 자체를 올리면 안 됩니다.
-- standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.
+## v1.17.22 변경 사항
+- 탐사 엔딩 `resultCode`를 상점의 `event_codes.code`와 연결하는 `settle_exploration_result` RPC를 추가/교체했습니다.
+- `DLBAD001` 같은 코드가 상점 DB의 `event_codes`에 등록되어 있고 `is_active = true`이면, 해당 코드의 효과가 엔딩 도달자에게 즉시 반영됩니다.
+- 일반/오염자 계정은 `profiles.pollution`에 반영됩니다.
+- 괴이 계정(`visitor_type = 'entity'`)은 `profiles.mask_collapse_rate`에 반영됩니다.
+- `reward_currency`, `pollution_delta`, `reward_item_id`, `reward_item_quantity`도 상점 코드 기준으로 함께 반영됩니다.
+- 같은 방에서 같은 사용자가 같은 결과 코드를 중복 정산하지 않도록 `exploration_result_settlements` 테이블을 추가했습니다.
 
-## v1.17.17-map-vip-dlbad001 변경 사항
-- 시나리오 내 `마스코트 골든` 표기를 `마스코트 골튼`으로 정리했습니다.
-- `마스코트 골튼이 그려진 머그잔`의 아이템 설명과 사용 팝업을 요청 문구로 교체했습니다.
-- 머그잔 사용 시 개인 오염도 +10이 적용되고, 사용 후 인벤토리에서 제거됩니다.
-- 기념품샵에서 산 소모성 아이템과 동물 모양 아이싱 쿠키는 사용 후 인벤토리에서 제거되도록 했습니다.
-- 낡고 이상한 동전으로 자유이용권을 사면 개인 인벤토리에서 낡고 이상한 동전이 제거됩니다.
-- 섹션 1은 혼자 있을 때 선택지가 모두 비활성화되고, 2명 이상 입장하면 활성화됩니다.
-- 기념품샵 구매 선택지 1~4는 개인별 1회 구매 제한으로 바꿨습니다. 한 사람이 하나를 사면 그 사람 화면에서만 1~4가 비활성화되고, 선택지는 계속 보입니다.
-- 기념품샵에서 누군가 한 명이라도 구매한 뒤 이동 선택지를 누르면 섹션 5-2로 이동합니다.
-- 섹션 5-2의 서술, 선택지, 오염도 +5 효과를 요청 내용 기준으로 교체했습니다.
-- 섹션 5-2에서 재난관리국 전용 오방사계반 비활성 선택지와 사용 후 활성 선택지를 추가했습니다.
-- 섹션 5-2에서 백일몽 전용 돌발상황 제안 팝업을 빨간 경고 스타일로 표시하도록 추가했습니다.
+## 상점 페이지 수정 여부
+- 상점 페이지 파일 자체는 수정하지 않아도 됩니다.
+- 단, 상점 DB의 `event_codes`에 `DLBAD001` 코드가 실제로 존재해야 하고, `pollution_delta` 값이 들어 있어야 합니다.
+- 코드가 없으면 탐사 쪽은 `DLBAD001`을 넘기지만 상점 효과를 읽어올 수 없습니다.
 
-## v1.17.20 추가 적용 안내
-
-이번 버전은 프론트 파일 교체만으로 끝나지 않습니다.
-Supabase SQL Editor에서 아래 파일을 반드시 1회 실행해야 합니다.
-
-- `migrations/upgrade-v1.17.20-natural-message-and-direct-choice-hotfix.sql`
-
-이 SQL은 `advance_exploration_room` RPC가 예전처럼 `님이 선택했습니다:` 로그를 저장하지 않도록 고치고, 선택지 로그를 자연문으로 저장합니다.
-SQL을 실행하지 않으면 DB 함수가 여전히 예전 로그를 만들 수 있습니다.
-
-
-## v1.17.20
-- 즉시 선택지 황금 테두리 효과를 풍차형 회전에서 테두리를 따라 흐르는 빛 효과로 수정.
-- 시나리오 본문 줄간격을 정리하고, 효과 문장이 들어간 줄 위아래 여백을 추가.
-- SQL 추가 실행 없음. v1.17.19 SQL을 이미 실행했다면 재실행 불필요.
-
-
-## v1.17.21 변경 사항
+## 이전 v1.17.21 유지 사항
 - 선택지의 `[백일몽 전용]`, `[재난관리국 전용]`, `[초자연 재난관리국 전용]` 노출 문구 제거. 실제 소속 제한 조건은 유지됩니다.
 - `[마스코트 골튼의 기념품샵]` 문구에 황금빛 효과 추가.
 - 섹션 4-1/4-2의 “익숙한 마스코트의 모습”을 “마스코트로 보이는 모습”으로 수정.
 - 녹슨 입간판 팝업 문구에 “그 중 가장 깨끗한 한 장을 챙기기로 합니다.” 추가.
 - 섹션 5-2-A 본문을 한 줄씩 여백이 생기도록 정리.
-- 신규 SQL은 없습니다. 단, v1.17.19 SQL을 아직 실행하지 않았다면 먼저 실행해야 합니다.
