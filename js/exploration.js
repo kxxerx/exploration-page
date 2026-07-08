@@ -1,4 +1,4 @@
-// exploration-site: v1.17.7 inventory-choice-image-hotfix
+// exploration-site: v1.17.8 no-scene-images
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";

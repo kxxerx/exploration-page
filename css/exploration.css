@@ -2594,7 +2594,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 
-/* v1.17.7: softer wind, character-by-character electric reveal, and item/choice fixes */
+/* v1.17.8: softer wind, character-by-character electric reveal, and item/choice fixes */
 .choice-button[data-solo-blocked="1"] {
   opacity: .78;
 }
@@ -2664,7 +2664,7 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 
-/* v1.17.7 final effect tuning */
+/* v1.17.8 final effect tuning */
 .story-fx-electric {
   display: inline-block !important;
   position: relative !important;

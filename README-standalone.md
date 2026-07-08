@@ -1,19 +1,8 @@
-# pollution-exploration standalone v1.17.6
+# pollution-exploration standalone v1.17.8-no-scene-images
 
 - SQL 실행 필요 없음.
-- 채팅 스크롤/새 채팅 버튼, 인벤토리 깜빡임, 선택지 클릭 보강, 드림랜드 텍스트 연출을 수정한 버전입니다.
-- GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 main/root에 업로드하세요.
-- js/config.js는 배포용 ZIP에 포함하지 않습니다. 기존 저장소의 실제 설정 파일을 유지하세요.
-
-
-## v1.17.7
-
-- 동전 등 선택지 획득 아이템이 기본 지급 장비 갱신 과정에서 사라질 수 있던 문제를 수정했습니다.
-- 선택지 진행 제안/수락 RPC를 재생성하는 SQL을 추가했습니다.
-- RPC가 누락된 환경에서도 프론트 폴백으로 진행 제안이 동작하도록 보강했습니다.
-- 탐사 인벤토리 아이템 클릭 시 상세 설명 모달이 안정적으로 열리도록 클릭 처리를 보강했습니다.
-- `삐이이이` 효과를 더 천천히 스르르 나타났다가 사라지는 방식으로 조정했습니다.
-- `지직/지지직` 효과를 왼쪽에서 오른쪽으로 글자가 드러나는 방식으로 조정했습니다.
-- 장면 이미지를 기존 단순 패널보다 더 어둡고 질감 있는 실사풍 분위기 패널로 교체했습니다.
-
-SQL 실행 필요: 있음. `migrations/upgrade-v1.17.7-choice-consensus-and-inventory-hotfix.sql` 실행 후 배포 파일을 적용하세요.
+- v1.17.7 기준에서 장면/섹션 이미지를 전부 제거한 패치입니다.
+- `assets/scenes/` 폴더와 `dreamland-*.webp` 파일을 제거했습니다.
+- `scenarios/disaster-001-pied-piper.json`에서 `coverImage`, 각 섹션의 `image`, `imagePrompt` 참조를 제거했습니다.
+- GitHub에는 deploy-only ZIP의 압축을 푼 내용물만 main/root에 업로드하세요. ZIP 파일 자체를 올리면 안 됩니다. 인간이 압축 파일을 홈페이지라고 믿는 비극은 여기서 끝냅시다.
+- standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.
