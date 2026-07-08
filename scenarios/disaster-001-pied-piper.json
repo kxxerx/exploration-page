@@ -1,7 +1,7 @@
 {
   "id": "disaster-001-pied-piper",
   "title": "드림랜드",
-  "version": "1.17.11-obang-disabled-choice",
+  "version": "1.17.13",
   "status": "active",
   "startSection": "s1",
   "sections": {
@@ -79,15 +79,31 @@
           "next": "s2",
           "requires": {
             "organization_code": "baekildream",
-            "not_state_flag": "used_s2_51d554"
+            "not_state_flag": "used_s2_trash_bin_cookie"
           },
           "noConsensus": true,
           "instant": true,
+          "globalOnce": true,
+          "onceScope": "room",
           "setState": {
             "flags": {
-              "used_s2_51d554": true
+              "used_s2_trash_bin_cookie": true
             }
           },
+          "effects": [
+            {
+              "type": "add_item",
+              "itemId": "animal_icing_cookie",
+              "scope": "self"
+            },
+            {
+              "type": "collector_grade",
+              "amount": 1,
+              "scope": "self"
+            }
+          ],
+          "popupTitle": "아이템 획득",
+          "popupMessage": "더러운 쓰레기 수거함에서 [동물 모양 아이싱 쿠키]를 주웠습니다.",
           "systemMessage": "{actor}이 다음과 같이 행동했습니다. : 쓰레기 수거함을 뒤진다."
         }
       ],

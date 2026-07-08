@@ -414,13 +414,21 @@ function isPersonalInstantChoice(choice = {}, sectionKey = "") {
   return !!(choice.noConsensus || choice.instant || (sameSection && (hasFlag || hasItemEffect)));
 }
 
+function isGlobalInstantChoice(choice = {}) {
+  return choice.onceScope === "room" || choice.globalOnce === true || choice.sharedOnce === true;
+}
+
 function isChoiceAlreadyTakenByMe(choice = {}) {
+  if (isGlobalInstantChoice(choice)) return false;
   const myFlags = getMyChoiceFlagsMap();
   return getChoiceFlagKeys(choice).some((key) => !!myFlags[key]);
 }
 
 function choiceConditionMatches(choice = {}, sectionKey = "") {
   if (!isPersonalInstantChoice(choice, sectionKey)) {
+    return !choice.requires || conditionMatches(choice.requires);
+  }
+  if (isGlobalInstantChoice(choice)) {
     return !choice.requires || conditionMatches(choice.requires);
   }
   if (isChoiceAlreadyTakenByMe(choice)) return false;
@@ -631,6 +639,15 @@ function buildStatePatchForEffects(effects = [], options = {}) {
       }
       logs.push(`${meta.type === "clue" ? "단서" : "아이템"} 획득: ${meta.name || itemId}`);
     }
+    if (effect.type === "collector_grade") {
+      const delta = Number(effect.amount || 1);
+      targetMembers.forEach((member) => {
+        if (!member?.user_id) return;
+        const metric = { ...getMemberMetric(member), ...(metrics[member.user_id] || {}) };
+        metric.collector_grade_bonus = Number(metric.collector_grade_bonus || 0) + delta;
+        metrics[member.user_id] = metric;
+      });
+    }
     if (effect.type === "pollution") {
       targetMembers.forEach((member) => {
         if (!member?.user_id) return;
@@ -668,14 +685,24 @@ function buildStatePatchForEffects(effects = [], options = {}) {
 function buildPersonalInstantChoicePatch(choice = {}) {
   const state = getStateJson();
   const userId = getMyUserId();
-  const memberChoiceFlags = { ...(state.memberChoiceFlags || {}) };
-  if (userId) {
-    const mine = { ...(memberChoiceFlags[userId] || {}) };
-    getChoiceFlagKeys(choice).forEach((key) => { mine[key] = true; });
-    memberChoiceFlags[userId] = mine;
-  }
   const effectPatch = buildStatePatchForEffects(choice.effects || [], { personalItems: true });
-  const patch = mergePatches(effectPatch, { memberChoiceFlags });
+  let patch = mergePatches(effectPatch);
+  const flagKeys = getChoiceFlagKeys(choice);
+
+  if (isGlobalInstantChoice(choice)) {
+    const flags = { ...(state.flags || {}) };
+    flagKeys.forEach((key) => { flags[key] = true; });
+    patch = mergePatches(patch, { flags });
+  } else {
+    const memberChoiceFlags = { ...(state.memberChoiceFlags || {}) };
+    if (userId) {
+      const mine = { ...(memberChoiceFlags[userId] || {}) };
+      flagKeys.forEach((key) => { mine[key] = true; });
+      memberChoiceFlags[userId] = mine;
+    }
+    patch = mergePatches(patch, { memberChoiceFlags });
+  }
+
   if (choice.systemMessage) {
     const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
     patch.lastEffectLog = [...(patch.lastEffectLog || []), formatSystemMessageTemplate(choice.systemMessage, actor)];
@@ -2378,6 +2405,9 @@ async function chooseNext(choice) {
     if (error) {
       showMessage(error.message, "error");
       return;
+    }
+    if (choice.popupMessage) {
+      await themedAlert(formatSystemMessageTemplate(choice.popupMessage, getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자"), choice.popupTitle || "아이템 획득");
     }
     if (choice.systemMessage) {
       const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
