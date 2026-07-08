@@ -58,6 +58,7 @@ let currentMessages = [];
 let currentInventory = [];
 let roomListCache = [];
 let partyListCache = [];
+let partyPage = 1;
 let realtimeChannel = null;
 let fallbackPollTimer = null;
 let heartbeatTimer = null;
@@ -72,6 +73,7 @@ let currentCommunityCommentsExpanded = false;
 let notificationMode = "party";
 let notificationPage = 1;
 const ROOM_PAGE_SIZE = 10;
+const PARTY_PAGE_SIZE = 10;
 const COMMUNITY_PAGE_SIZE = 10;
 const COMMENT_PREVIEW_LIMIT = 5;
 let currentAccessToken = null;
@@ -814,10 +816,23 @@ function renderRoomList() {
     return;
   }
   box.classList.remove("muted");
-  const totalPages = Math.max(1, Math.ceil(roomListCache.length / ROOM_PAGE_SIZE));
+  const sortedRooms = [...roomListCache].sort((a, b) => {
+    const roomRank = (room) => {
+      const isPrivate = room.visibility === "private";
+      const isFull = Number(room.current_players || 0) >= Number(room.max_players || 0);
+      const isEnded = room.status === "ended";
+      if (!isPrivate && !isFull && !isEnded) return 0;
+      if (!isFull && !isEnded) return 1;
+      return 2;
+    };
+    const rankDiff = roomRank(a) - roomRank(b);
+    if (rankDiff !== 0) return rankDiff;
+    return String(a.title || "").localeCompare(String(b.title || ""), "ko-KR", { numeric: true, sensitivity: "base" });
+  });
+  const totalPages = Math.max(1, Math.ceil(sortedRooms.length / ROOM_PAGE_SIZE));
   roomPage = Math.min(Math.max(1, roomPage), totalPages);
   const start = (roomPage - 1) * ROOM_PAGE_SIZE;
-  const pagedRooms = roomListCache.slice(start, start + ROOM_PAGE_SIZE);
+  const pagedRooms = sortedRooms.slice(start, start + ROOM_PAGE_SIZE);
   const listHtml = pagedRooms.map((room) => {
     const scenario = scenarioList.find((item) => item.id === room.scenario_id);
     const isPrivate = room.visibility === "private";
@@ -864,11 +879,12 @@ async function loadPartyPosts() {
     return;
   }
   partyListCache = data || [];
+  partyPage = Math.min(Math.max(1, partyPage), Math.max(1, Math.ceil(partyListCache.length / PARTY_PAGE_SIZE)));
   renderPartyPosts();
 }
 
 function sortPartyPostsForDisplay(posts = []) {
-  const statusRank = { scheduled: 0, open: 1, ended: 2, complete: 3 };
+  const statusRank = { open: 0, scheduled: 1, ended: 2, complete: 3 };
   return [...posts].sort((a, b) => {
     const aStatus = getPartyComputedStatus(a);
     const bStatus = getPartyComputedStatus(b);
@@ -889,8 +905,12 @@ function renderPartyPosts() {
     return;
   }
   const postsForDisplay = sortPartyPostsForDisplay(partyListCache);
+  const totalPages = Math.max(1, Math.ceil(postsForDisplay.length / PARTY_PAGE_SIZE));
+  partyPage = Math.min(Math.max(1, partyPage), totalPages);
+  const start = (partyPage - 1) * PARTY_PAGE_SIZE;
+  const pagedPosts = postsForDisplay.slice(start, start + PARTY_PAGE_SIZE);
   box.classList.remove("muted");
-  box.innerHTML = postsForDisplay.map((post) => {
+  const listHtml = pagedPosts.map((post) => {
     const scenario = scenarioList.find((item) => item.id === post.scenario_id);
     const isCreator = !!post.is_creator;
     const isAdmin = currentProfile?.role === "admin";
@@ -931,6 +951,13 @@ function renderPartyPosts() {
       </article>
     `;
   }).join("");
+  const pagerHtml = totalPages > 1 ? `
+    <div class="pager party-pager">
+      <button type="button" class="ghost-button" data-party-page="prev" ${partyPage <= 1 ? "disabled" : ""}>이전</button>
+      <span>${partyPage} / ${totalPages}</span>
+      <button type="button" class="ghost-button" data-party-page="next" ${partyPage >= totalPages ? "disabled" : ""}>다음</button>
+    </div>` : "";
+  box.innerHTML = listHtml + pagerHtml;
 }
 
 async function loadPartyComments(postId) {
@@ -3026,6 +3053,12 @@ qs("#createPartyForm")?.addEventListener("submit", async (event) => {
 
 
 qs("#partyList")?.addEventListener("click", async (event) => {
+  const pageButton = event.target.closest("[data-party-page]");
+  if (pageButton) {
+    partyPage += pageButton.dataset.partyPage === "next" ? 1 : -1;
+    renderPartyPosts();
+    return;
+  }
   const applyButton = event.target.closest("[data-apply-party]");
   const cancelButton = event.target.closest("[data-cancel-party]");
   const editButton = event.target.closest("[data-edit-party]");

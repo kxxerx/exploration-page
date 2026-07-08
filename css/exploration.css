@@ -2303,3 +2303,34 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     max-height: 300px;
   }
 }
+
+/* v1.16.1: list alignment, pagination, room sorting polish */
+.my-content-toolbar {
+  align-items: center !important;
+}
+.my-content-toolbar > strong {
+  line-height: 1.2 !important;
+  padding-top: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+}
+.party-pager,
+#roomList .pager {
+  margin-top: 12px;
+}
+.community-item {
+  border: 1px solid rgba(214, 182, 108, 0.18) !important;
+  border-radius: 18px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.018)) !important;
+}
+.community-actions {
+  border-top: 0 !important;
+  background: transparent !important;
+  padding: 0 18px 18px !important;
+  justify-content: flex-start !important;
+  border-radius: 0 !important;
+}
+.community-item-content {
+  padding-bottom: 12px !important;
+}
