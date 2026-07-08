@@ -631,6 +631,7 @@ function renderStoryText(text = "") {
     ["딸랑딸랑", "story-fx story-fx-bell"],
     ["어서오세요, 손님. 찾으시는 물건이 있으신가요?", "story-fx story-fx-uncanny"],
     ["고맙습니다, 손님! 저희 골튼 리조트의 기념품샵을 이용해주셨으니 특별한 공간으로 안내드리겠습니다!", "story-fx story-fx-uncanny story-fx-red"],
+    ["[마스코트 골튼의 기념품샵]", "story-fx story-fx-golden-shop"],
     ["구매해 주셔서 감사합니다, 손님!", "story-fx story-fx-uncanny story-fx-red"],
     ["저희 골튼 드림랜드 파라다이스의 정식 일원이 되신 것을 진심으로 환영합니다!", "story-fx story-fx-uncanny story-fx-red"],
     ["고객님께 안전한 쇼핑, 쾌적한 서비스를 제공하기 위해 출입문을 잠시 통제하는 점 양해바랍니다!", "story-fx story-fx-uncanny story-fx-red"],
@@ -659,6 +660,7 @@ function renderStoryText(text = "") {
 
 function cleanChoiceLabel(label = "") {
   return String(label)
+    .replace(/^\[(?:백일몽|재난관리국|초자연 재난관리국) 전용\]\s*/g, "")
     .replace(/^\[만약 현재 누적 오염도가 [^\]]+\]\s*/g, "")
     .replace(/\s*\(오염도 [^)]+\)/g, "")
     .replace(/\s*\(효과: [^)]+\)/g, "")

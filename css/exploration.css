@@ -2874,3 +2874,26 @@ body.in-room .live-story-card .scenario-image {
   text-shadow: 0 0 8px rgba(255,0,60,.62), 0 0 22px rgba(30,0,0,.9);
   letter-spacing: .08em;
 }
+
+/* v1.17.21: scenario text visibility polish */
+.story-fx-golden-shop {
+  display: inline-block;
+  color: #ffe59b;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-shadow:
+    0 0 5px rgba(255,236,163,.95),
+    0 0 14px rgba(255,188,65,.8),
+    0 0 28px rgba(146,79,8,.85);
+  background: linear-gradient(90deg, #fff3bd, #f6bf45, #fff0a8, #b8791d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 8px rgba(255,190,67,.35));
+}
+.story-line-blank {
+  min-height: .78rem;
+}
+.story-line-fx {
+  margin: 1.05rem 0;
+}
