@@ -2759,3 +2759,23 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .choice-button:disabled.disabled-choice:hover {
   transform: none;
 }
+
+
+/* v1.17.12: Dreamland image stays as a normal top banner, not a floating overlay */
+.live-story-card .scenario-image,
+body.in-room .live-story-card .scenario-image {
+  position: relative !important;
+  top: auto !important;
+  z-index: 0 !important;
+  flex: 0 0 auto;
+  pointer-events: none;
+  margin: 0 0 1rem 0;
+}
+.live-story-card #scenarioTitle,
+.live-story-card #sectionTitle,
+.live-story-card #storyText,
+.live-story-card #sectionEffectLog,
+.live-story-card #choiceList {
+  position: relative;
+  z-index: 1;
+}

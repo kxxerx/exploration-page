@@ -58,6 +58,7 @@ let currentMessages = [];
 let chatUserPinnedToBottom = true;
 let lastRenderedMessageLastId = null;
 let renderedChoices = [];
+let choiceClickInProgress = false;
 let currentInventory = [];
 let roomListCache = [];
 let partyListCache = [];
@@ -1889,6 +1890,7 @@ async function renderRoom() {
       event.preventDefault();
       event.stopPropagation();
       try {
+        if (button.disabled) return;
         const choice = choices[Number(button.dataset.choiceIndex)];
         await chooseNext(choice);
       } catch (error) {
@@ -2357,7 +2359,10 @@ async function respondChoiceProposal(accept) {
 }
 
 async function chooseNext(choice) {
+  if (choiceClickInProgress) return;
   if (!choice || !currentRoom) return;
+  choiceClickInProgress = true;
+  try {
   if (choice.disabled) {
     showMessage(choice.disabledReason || "아직 선택할 수 없습니다.", "info");
     return;
@@ -2407,6 +2412,9 @@ async function chooseNext(choice) {
     return;
   }
   await loadRoomBundle(currentRoom.id, { silent: true });
+  } finally {
+    choiceClickInProgress = false;
+  }
 }
 
 async function setupRealtime(roomId) {

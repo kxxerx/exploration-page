@@ -1,4 +1,4 @@
-# pollution-exploration standalone v1.17.11-obang-disabled-choice
+# pollution-exploration standalone v1.17.12-dreamland-banner-coin-choice
 
 - SQL 실행 필요 없음.
 - v1.17.9-personal-instant-items 기준 패치입니다.
@@ -11,6 +11,11 @@
 - standalone ZIP은 백업/전체 확인용이고, 실제 배포는 deploy-only ZIP을 쓰면 됩니다.
 
 
-## v1.17.11-obang-disabled-choice
+## v1.17.12-dreamland-banner-coin-choice
 - 섹션 2에서 재난관리국 요원에게 `오방사계반을 사용한다` 선택지가 비활성 상태로 보이도록 추가했습니다.
 - 인벤토리에서 오방사계반을 사용해 단서 상태가 활성화되면 기존 `직원용 출입구로 진입한다` 선택지가 표시/활성화됩니다.
+
+
+## v1.17.12 수정
+- 드림랜드 이미지를 시나리오 본문을 가리지 않는 상단 배너 방식으로 고정했습니다.
+- 선택지 클릭 처리 중복/연타 방지 처리를 추가해 동전 획득 직후 다른 선택지가 먹통처럼 보이는 문제를 줄였습니다.
