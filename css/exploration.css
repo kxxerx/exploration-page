@@ -3008,3 +3008,26 @@ body.is-logged-out .tab-panel.is-active { margin-top: 0; }
   color: var(--muted, #b8a99a);
   font-size: .94em;
 }
+
+/* v1.17.29: force urgent proposal action buttons to the right.
+   Earlier #choiceProposalModal .modal-actions used !important, because apparently CSS specificity also enjoys psychological warfare. */
+#choiceProposalModal .modal-card.choice-proposal-danger-modal .modal-actions,
+#choiceProposalModal .choice-proposal-danger-modal .modal-actions {
+  justify-content: flex-end !important;
+  align-items: center !important;
+  text-align: right !important;
+}
+
+
+/* v1.17.30: emergency modal buttons actually on the right, because apparently selectors also stage rebellions. */
+#choiceProposalModal.choice-proposal-danger-modal .modal-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: .75rem !important;
+  width: 100% !important;
+  text-align: right !important;
+}
+#choiceProposalModal.choice-proposal-danger-modal .modal-actions button {
+  margin-left: 0 !important;
+}

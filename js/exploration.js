@@ -2453,7 +2453,7 @@ function renderChoiceProposalNotice() {
   notice.id = "choiceProposalNotice";
   notice.className = "message subtle choice-proposal-notice";
   const proposerName = getActorDisplayName(proposal.proposer_name || "누군가");
-  notice.textContent = `${getActorDisplayName(proposerName)}이 진행을 제안했습니다. (${accepted}/${required} 수락)`;
+  notice.textContent = `${getActorDisplayName(proposerName)}님이 진행을 제안했습니다. (${accepted}/${required} 수락)`;
   choiceList.prepend(notice);
 }
 
@@ -2481,7 +2481,7 @@ function renderChoiceProposalModal() {
     const proposerName = proposal.proposer_name || "누군가";
     const proposerText = getActorDisplayName(proposerName);
     if (isDanger) {
-      const message = formatSystemMessageTemplate(proposal.proposal_message || "{actor}이 혼자 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까?", proposerName);
+      const message = formatSystemMessageTemplate(proposal.proposal_message || "{actor}님이 혼자 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까?", proposerName);
       body.innerHTML = `
         <div class="choice-proposal-danger-title"><span class="danger-siren" aria-hidden="true">🚨</span><span>돌발상황</span><span class="danger-siren" aria-hidden="true">🚨</span></div>
         <div class="choice-proposal-danger">${safeText(message)}</div>`;
@@ -2575,7 +2575,12 @@ function isMissingRpcError(error) {
 async function proposeChoiceFallback(payload, originalError = null) {
   const proposal = buildLocalChoiceProposal(payload);
   await patchRoomStateLocally({ pendingChoiceProposal: proposal });
-  await logRoomSystemMessage(`${withJosa(getActorDisplayName(proposal.proposer_name), "이", "가")} 진행을 제안했습니다.`);
+  if (proposal.proposal_mode === "danger_escape") {
+    const actor = proposal.proposer_name || "탐사자";
+    await logRoomSystemMessage(proposal.system_message ? formatSystemMessageTemplate(proposal.system_message, actor) : `${getActorDisplayName(actor)}님이 아직 잠기지 않은 직원 전용 출입구로 홀로 도망을 시도합니다!`);
+  } else {
+    await logRoomSystemMessage(`${getActorDisplayName(proposal.proposer_name)}님이 진행을 제안했습니다.`);
+  }
   if (originalError) console.warn("진행 제안 RPC 실패, 프론트 폴백 사용", originalError);
 }
 
@@ -2601,7 +2606,11 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
         p_state_patch: patch
       });
       if (error) throw error;
-      await logRoomSystemMessage(`모든 참가자가 제안을 수락했습니다: ${proposal.choice_label || "다음 진행"}`);
+      if (proposal.proposal_mode === "danger_escape") {
+        await logRoomSystemMessage("모든 참가자가 그 뒤를 따라 도망치는 것에 성공했습니다.");
+      } else {
+        await logRoomSystemMessage(`모든 참가자가 제안을 수락했습니다: ${proposal.choice_label || "다음 진행"}`);
+      }
     } else {
       const updated = { ...proposal, accept_ids: Array.from(acceptIds), reject_ids: Array.from(rejectIds), required_count: activeIds.length };
       await patchRoomStateLocally({ pendingChoiceProposal: updated });
@@ -2617,7 +2626,8 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
         p_state_patch: patch
       });
       if (error) throw error;
-      await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 따라가지 않기로 했습니다.`);
+      await logRoomSystemMessage(`${getActorDisplayName(proposal.proposer_name || "탐사자")}님의 도주는 실패로 돌아갔습니다.`);
+      await logRoomSystemMessage("모든 참가자가 VIP실로 강제로 안내됩니다.");
     } else {
       await patchRoomStateLocally({ pendingChoiceProposal: null });
       await logRoomSystemMessage(`${withJosa(getActorDisplayName(myName), "이", "가")} 제안을 거절했습니다.`);
@@ -2632,10 +2642,6 @@ async function proposeChoice(choice) {
   if (payload.proposalMode === "danger_escape") {
     try {
       await proposeChoiceFallback(payload);
-      if (choice.systemMessage) {
-        const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
-        await logRoomSystemMessage(formatSystemMessageTemplate(choice.systemMessage, actor));
-      }
       showMessage("돌발상황 제안을 보냈습니다. 다른 참가자의 선택을 기다립니다.", "success");
       await loadRoomBundle(currentRoom.id, { silent: true });
     } catch (fallbackError) {
@@ -2669,7 +2675,7 @@ async function proposeChoice(choice) {
 
 async function respondDangerChoiceProposal(proposal, accept) {
   if (!proposal || !currentRoom?.id || !currentProfile?.id) return;
-  const myName = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+  const proposerName = getActorDisplayName(proposal.proposer_name || "탐사자");
   const nextKey = accept ? (proposal.next_section_key || "s8_2") : "s5_2_a";
   const choiceLabel = accept ? "직원 전용 출입구로 따라간다" : "VIP손님 전용 휴게실로 안내된다";
   const patch = mergePatches(proposal.state_patch || {}, { pendingChoiceProposal: null });
@@ -2680,7 +2686,12 @@ async function respondDangerChoiceProposal(proposal, accept) {
     p_state_patch: patch
   });
   if (error) throw error;
-  await logRoomSystemMessage(`${getActorDisplayName(myName)}이 ${accept ? "직원 전용 출입구로 따라갔습니다." : "따라가지 않기로 했습니다."}`);
+  if (accept) {
+    await logRoomSystemMessage("모든 참가자가 그 뒤를 따라 도망치는 것에 성공했습니다.");
+  } else {
+    await logRoomSystemMessage(`${proposerName}님의 도주는 실패로 돌아갔습니다.`);
+    await logRoomSystemMessage("모든 참가자가 VIP실로 강제로 안내됩니다.");
+  }
 }
 
 async function respondChoiceProposal(accept) {

@@ -443,8 +443,8 @@
             "organization_code": "baekildream"
           },
           "proposalMode": "danger_escape",
-          "proposalMessage": "{actor}이 가게를 빠져나가기 위해 혼자 가게 한쪽에 있던 아직 잠기지 않은 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까? (단, 따라가지 않을 시 자동으로 VIP손님 전용 휴게실로 안내됩니다.)",
-          "systemMessage": "{actor}이 아직 잠기지 않은 직원 전용 출입구로 홀로 도망쳤습니다."
+          "proposalMessage": "{actor}님이 가게를 빠져나가기 위해 혼자 가게 한쪽에 있던 아직 잠기지 않은 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까? (단, 따라가지 않을 시 자동으로 VIP손님 전용 휴게실로 안내됩니다.)",
+          "systemMessage": "{actor}님이 아직 잠기지 않은 직원 전용 출입구로 홀로 도망을 시도합니다!"
         }
       ],
       "effects": [
