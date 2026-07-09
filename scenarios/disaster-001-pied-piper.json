@@ -403,8 +403,7 @@
         {
           "label": "VIP손님 전용 휴게실로 들어간다",
           "next": "s5_2_a",
-          "noConsensus": true,
-          "systemMessage": "{actor}님이 VIP손님 전용 휴게실로 들어갔습니다."
+          "systemMessage": "모든 참가자가 VIP손님 전용 휴게실로 향하기로 했습니다."
         },
         {
           "id": "s5_2_obang_compass_hint_disabled",

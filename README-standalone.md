@@ -1,3 +1,10 @@
+# v1.17.36 - VIP 진행 제안 메시지 핫픽스
+
+- VIP손님 전용 휴게실 이동은 진행 제안/수락 흐름으로 처리되도록 수정했습니다.
+- 모두 수락 시 `모든 참가자가 VIP손님 전용 휴게실로 향하기로 했습니다.`만 보이도록 보정했습니다.
+- 돌발상황 거절 시 `VIP손님 전용 휴게실로 안내된다했습니다`류의 이상한 시스템 메시지가 표시되지 않도록 숨김/생성 방지했습니다.
+- standalone에는 `migrations/upgrade-v1.17.36-vip-proposal-message-hotfix.sql`이 포함되어 있습니다. deploy-only에는 migrations 폴더를 포함하지 않습니다.
+
 # pollution-exploration v1.17.30-danger-response-messages-right-actions
 
 ## 적용 순서

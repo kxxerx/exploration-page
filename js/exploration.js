@@ -252,7 +252,13 @@ function normalizeDisplayedSystemMessage(content = "") {
   match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s*아래의 행동을 제안했습니다\s*\.?\s*[:：]\s*(.+)$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
   match = text.match(/^모든 참가자가 제안을 수락했습니다\s*[:：]\s*(.+)$/);
-  if (match) return formatKoreanParticles(`모든 참가자가 ${naturalizeChoiceAction(match[1]).replace(/했습니다\.$/, "하기로 했습니다.")}`);
+  if (match) {
+    const choiceText = stripChoiceMetaLabel(match[1] || "").replace(/마스코트 골든/g, "마스코트 골튼").trim();
+    if (/VIP손님 전용 휴게실/.test(choiceText)) {
+      return "모든 참가자가 VIP손님 전용 휴게실로 향하기로 했습니다.";
+    }
+    return formatKoreanParticles(`모든 참가자가 ${naturalizeChoiceAction(match[1]).replace(/했습니다\.$/, "하기로 했습니다.")}`);
+  }
   match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s+(.+(?:한다|간다|산다|입력|걷어차기|획득한다))\.?$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
   text = normalizeKnownMemberHonorifics(text);
@@ -275,7 +281,11 @@ function normalizeDisplayedSystemMessage(content = "") {
       text = `${normalizeActorHonorific(actor)}이 ${action}`;
     }
   }
-  return cleanupHonorificDupes(formatKoreanParticles(text));
+  text = cleanupHonorificDupes(formatKoreanParticles(text));
+  if (/VIP손님 전용 휴게실로\s*안내된다했습니다\.?$/.test(text) || /__silent_danger_reject_vip__/.test(text)) {
+    return "__SUPPRESS_SYSTEM_MESSAGE__";
+  }
+  return text;
 }
 
 function formatDate(value) {
@@ -2342,12 +2352,23 @@ function normalizeEntryMessageKey(text = "") {
   return m ? `entry:${m[1]}` : "";
 }
 
+function shouldSuppressSystemMessageContent(text = "") {
+  const clean = String(text || "").trim();
+  if (!clean) return true;
+  if (clean === "__SUPPRESS_SYSTEM_MESSAGE__") return true;
+  if (/__silent_danger_reject_vip__/.test(clean)) return true;
+  if (/VIP손님 전용 휴게실로\s*안내된다했습니다\.?$/.test(clean)) return true;
+  if (/님이\s*VIP손님 전용 휴게실로\s*(?:들어갔습니다|향했습니다|안내된다했습니다|안내되었습니다|안내됩니다)\.?$/.test(clean)) return true;
+  return false;
+}
+
 function getRenderableMessages(messages = []) {
   const result = [];
   const recentEntryBySender = new Map();
   for (const message of messages || []) {
     const content = normalizeDisplayedSystemMessage(message?.content || "");
     if (message?.message_type === "system") {
+      if (shouldSuppressSystemMessageContent(content)) continue;
       const entryKey = normalizeEntryMessageKey(content);
       if (entryKey) {
         const senderKey = `${message.sender_id || "system"}:${entryKey}`;
@@ -2668,6 +2689,8 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
       if (error) throw error;
       if (proposal.proposal_mode === "danger_escape") {
         await logRoomSystemMessage("모든 참가자가 그 뒤를 따라 도망치는 것에 성공했습니다.");
+      } else if (/VIP손님 전용 휴게실/.test(proposal.choice_label || "")) {
+        await logRoomSystemMessage("모든 참가자가 VIP손님 전용 휴게실로 향하기로 했습니다.");
       } else {
         await logRoomSystemMessage(`모든 참가자가 제안을 수락했습니다: ${proposal.choice_label || "다음 진행"}`);
       }
@@ -2682,7 +2705,7 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
       const { error } = await supabase.rpc("advance_exploration_room", {
         p_room_id: currentRoom.id,
         p_next_section_key: "s5_2_a",
-        p_choice_label: "VIP손님 전용 휴게실로 안내된다",
+        p_choice_label: "__silent_danger_reject_vip__",
         p_state_patch: patch
       });
       if (error) throw error;
@@ -2737,7 +2760,7 @@ async function respondDangerChoiceProposal(proposal, accept) {
   if (!proposal || !currentRoom?.id || !currentProfile?.id) return;
   const proposerName = getActorDisplayName(proposal.proposer_name || "탐사자");
   const nextKey = accept ? (proposal.next_section_key || "s8_2") : "s5_2_a";
-  const choiceLabel = accept ? "직원 전용 출입구로 따라간다" : "VIP손님 전용 휴게실로 안내된다";
+  const choiceLabel = accept ? "직원 전용 출입구로 따라간다" : "__silent_danger_reject_vip__";
   const patch = mergePatches(proposal.state_patch || {}, { pendingChoiceProposal: null });
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
