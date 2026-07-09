@@ -3062,3 +3062,34 @@ body.is-logged-out .tab-panel.is-active { margin-top: 0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* v1.17.37 party status badge alignment hotfix */
+.party-item-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+.party-item-head strong {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  display: block !important;
+}
+.party-item-head .badge,
+.party-item-head .badge.full {
+  width: auto !important;
+  max-width: max-content !important;
+  justify-self: end !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+@media (max-width: 520px) {
+  .party-item-head {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+  }
+}
+
