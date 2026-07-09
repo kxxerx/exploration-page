@@ -143,7 +143,8 @@ function normalizeSystemMessageTemplate(template = "") {
 }
 
 function formatSystemMessageTemplate(template, actorName) {
-  return formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorDisplayName(actorName)));
+  const content = formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorDisplayName(actorName)));
+  return normalizeDisplayedSystemMessage(content);
 }
 
 
@@ -192,9 +193,30 @@ function naturalizeChoiceAction(label = "") {
 }
 
 function normalizeActorHonorific(actor = "") {
-  return String(actor || "")
-    .replace(/\s+님$/g, "님")
-    .replace(/님$/g, "님");
+  const base = String(actor || "")
+    .trim()
+    .replace(/\s+님$/g, "")
+    .replace(/님$/g, "")
+    .trim();
+  return base ? `${base}님` : "탐사자님";
+}
+
+function normalizeKnownMemberHonorifics(content = "") {
+  let text = String(content || "");
+  const names = [
+    ...(Array.isArray(currentMembers) ? currentMembers.map((member) => member.display_name_snapshot) : []),
+    currentProfile?.display_name,
+    getMyMemberSnapshot()?.display_name_snapshot
+  ]
+    .filter(Boolean)
+    .map((name) => String(name).trim().replace(/\s+님$/g, "").replace(/님$/g, ""))
+    .filter((name, index, arr) => name && arr.indexOf(name) === index)
+    .sort((a, b) => b.length - a.length);
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    text = text.replace(new RegExp(`^${escaped}\\s*(?:님)?\\s*[이가]\\s+`), `${name}님이 `);
+  }
+  return text.replace(/(.+?)\s+님이/g, "$1님이");
 }
 
 function normalizeDisplayedSystemMessage(content = "") {
@@ -202,16 +224,36 @@ function normalizeDisplayedSystemMessage(content = "") {
     .replace(/마스코트 골든/g, "마스코트 골튼")
     .replace(/골든 리조트/g, "골튼 리조트")
     .trim();
-  let match = text.match(/^(.+?\s*님)\s*이\s*선택했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  let match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s*선택했습니다\s*\.?\s*[:：]\s*(.+)$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
-  match = text.match(/^(.+?\s*님)\s*이\s*다음과 같이 행동했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s*다음과 같이 행동했습니다\s*\.?\s*[:：]\s*(.+)$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
-  match = text.match(/^(.+?\s*님)\s*이\s*아래의 행동을 제안했습니다\s*\.?\s*[:：]\s*(.+)$/);
+  match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s*아래의 행동을 제안했습니다\s*\.?\s*[:：]\s*(.+)$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
   match = text.match(/^모든 참가자가 제안을 수락했습니다\s*[:：]\s*(.+)$/);
   if (match) return formatKoreanParticles(`모든 참가자가 ${naturalizeChoiceAction(match[1]).replace(/했습니다\.$/, "하기로 했습니다.")}`);
-  match = text.match(/^(.+?\s*님)\s*이\s+(.+(?:한다|간다|산다|입력|걷어차기|획득한다))\.?$/);
+  match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s+(.+(?:한다|간다|산다|입력|걷어차기|획득한다))\.?$/);
   if (match) return formatKoreanParticles(`${normalizeActorHonorific(match[1])}이 ${naturalizeChoiceAction(match[2])}`);
+  text = normalizeKnownMemberHonorifics(text);
+  match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s+(.+(?:했습니다|했습니다\.|했습니다|했습니다|했습니다|했습니다|했습니다|입장했습니다|퇴장했습니다|수락했습니다|거절했습니다|제안했습니다|주웠습니다|얻었습니다|샀습니다|들어갔습니다|향했습니다|도망쳤습니다|진입했습니다|사용했습니다|안내됩니다|따라갔습니다|따라가지 않기로 했습니다)\.?)$/);
+  if (match) {
+    const actor = String(match[1] || "").trim();
+    const action = String(match[2] || "").trim();
+    if (actor && !/^(모든 참가자|전체 참가자|시스템|관리자|방장|누군가)$/.test(actor)) {
+      text = `${normalizeActorHonorific(actor)}이 ${action}`;
+    }
+  }
+  // v1.17.28: last-mile honorific cleanup. If any remaining system/popup line starts with
+  // "이름이/이름가 + action", force it to "이름님이 + action" unless it is a collective/system actor.
+  match = text.match(/^(.+?)(?:\s*님)?\s*[이가]\s+(.+)$/);
+  if (match) {
+    const actor = String(match[1] || "").trim();
+    const action = String(match[2] || "").trim();
+    const looksLikeAction = /(했습니다|했습니다\.|합니다|했습니다|했습니다|했습니다|했습니다|했습니다|했습니다|했습니다|주웠습니다|얻었습니다|샀습니다|들어갔습니다|향했습니다|도망쳤습니다|진입했습니다|사용했습니다|수락했습니다|거절했습니다|퇴장했습니다|입장했습니다|안내됩니다|반응했습니다|따라갔습니다|따라가지 않기로 했습니다|진행을 제안했습니다)\.?$/.test(action);
+    if (actor && looksLikeAction && !/^(모든 참가자|전체 참가자|시스템|관리자|방장|누군가)$/.test(actor)) {
+      text = `${normalizeActorHonorific(actor)}이 ${action}`;
+    }
+  }
   return formatKoreanParticles(text);
 }
 
@@ -2410,8 +2452,8 @@ function renderChoiceProposalNotice() {
   const notice = document.createElement("div");
   notice.id = "choiceProposalNotice";
   notice.className = "message subtle choice-proposal-notice";
-  const proposerName = proposal.proposer_name || "누군가";
-  notice.textContent = `${withJosa(proposerName, "이", "가")} 진행을 제안했습니다. (${accepted}/${required} 수락)`;
+  const proposerName = getActorDisplayName(proposal.proposer_name || "누군가");
+  notice.textContent = `${getActorDisplayName(proposerName)}이 진행을 제안했습니다. (${accepted}/${required} 수락)`;
   choiceList.prepend(notice);
 }
 
@@ -2431,18 +2473,21 @@ function renderChoiceProposalModal() {
     return;
   }
   const body = qs("#choiceProposalBody");
+  const titleNode = qs("#choiceProposalModal h2");
+  const isDanger = proposal.proposal_mode === "danger_escape";
+  modal.classList.toggle("choice-proposal-danger-modal", isDanger);
+  if (titleNode) titleNode.hidden = isDanger;
   if (body) {
     const proposerName = proposal.proposer_name || "누군가";
-    const proposerText = `${proposerName}${josa(proposerName, "이", "가")}`;
-    if (proposal.proposal_mode === "danger_escape") {
-      const actor = getActorDisplayName(proposerName);
+    const proposerText = getActorDisplayName(proposerName);
+    if (isDanger) {
       const message = formatSystemMessageTemplate(proposal.proposal_message || "{actor}이 혼자 직원 전용 출입구로 도망쳤습니다! 따라가시겠습니까?", proposerName);
       body.innerHTML = `
-        <div class="choice-proposal-danger-title">돌발상황</div>
+        <div class="choice-proposal-danger-title"><span class="danger-siren" aria-hidden="true">🚨</span><span>돌발상황</span><span class="danger-siren" aria-hidden="true">🚨</span></div>
         <div class="choice-proposal-danger">${safeText(message)}</div>`;
     } else {
       body.innerHTML = `
-        <p><strong>${safeText(proposerText)}</strong> 아래의 진행을 제안합니다.</p>
+        <p><strong>${safeText(proposerText)}이</strong> 아래의 진행을 제안합니다.</p>
         <div class="choice-proposal-choice">${safeText(proposal.choice_label || "다음 행동")}</div>
         <p class="small muted">수락하시겠습니까? 모든 참가자가 동의하면 다음으로 넘어가며, 한 명이라도 거절할 경우 다음으로 넘어가지 않습니다.</p>`;
     }
@@ -2458,10 +2503,11 @@ async function refreshChoiceProposalUi() {
 
 async function logRoomSystemMessage(content) {
   if (!currentRoom?.id || !content) return;
+  const normalizedContent = normalizeDisplayedSystemMessage(content);
   try {
     const { error } = await supabase.rpc("log_exploration_system_message", {
       p_room_id: currentRoom.id,
-      p_content: content
+      p_content: normalizedContent
     });
     if (error) throw error;
   } catch (error) {
@@ -2471,10 +2517,11 @@ async function logRoomSystemMessage(content) {
 
 async function logRoomSystemMessageToRoom(roomId, content) {
   if (!roomId || !content) return;
+  const normalizedContent = normalizeDisplayedSystemMessage(content);
   try {
     const { error } = await supabase.rpc("log_exploration_system_message", {
       p_room_id: roomId,
-      p_content: content
+      p_content: normalizedContent
     });
     if (error) throw error;
   } catch (error) {
@@ -2620,9 +2667,36 @@ async function proposeChoice(choice) {
   await loadRoomBundle(currentRoom.id, { silent: true });
 }
 
+async function respondDangerChoiceProposal(proposal, accept) {
+  if (!proposal || !currentRoom?.id || !currentProfile?.id) return;
+  const myName = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+  const nextKey = accept ? (proposal.next_section_key || "s8_2") : "s5_2_a";
+  const choiceLabel = accept ? "직원 전용 출입구로 따라간다" : "VIP손님 전용 휴게실로 안내된다";
+  const patch = mergePatches(proposal.state_patch || {}, { pendingChoiceProposal: null });
+  const { error } = await supabase.rpc("advance_exploration_room", {
+    p_room_id: currentRoom.id,
+    p_next_section_key: nextKey,
+    p_choice_label: choiceLabel,
+    p_state_patch: patch
+  });
+  if (error) throw error;
+  await logRoomSystemMessage(`${getActorDisplayName(myName)}이 ${accept ? "직원 전용 출입구로 따라갔습니다." : "따라가지 않기로 했습니다."}`);
+}
+
 async function respondChoiceProposal(accept) {
   const proposal = getPendingChoiceProposal();
   if (!proposal || !currentRoom?.id) return;
+  if (proposal.proposal_mode === "danger_escape") {
+    try {
+      await respondDangerChoiceProposal(proposal, !!accept);
+      closeModal("#choiceProposalModal");
+      showMessage(accept ? "돌발상황을 따라가기로 했습니다." : "거절했습니다. VIP실로 안내됩니다.", accept ? "success" : "info");
+      await loadRoomBundle(currentRoom.id, { silent: true });
+    } catch (error) {
+      showMessage(`제안을 처리하지 못했습니다: ${error.message}`, "error");
+    }
+    return;
+  }
   try {
     const { error } = await supabase.rpc("respond_exploration_choice", {
       p_room_id: currentRoom.id,
@@ -2695,6 +2769,13 @@ async function chooseNext(choice) {
   if (choice.systemMessage) {
     const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
     statePatch = mergePatches(statePatch, { lastEffectLog: [formatSystemMessageTemplate(choice.systemMessage, actor)] });
+  }
+  if (choice.autoPopupMessage) {
+    const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+    showTimedScenarioPopup(formatSystemMessageTemplate(choice.autoPopupMessage, actor), {
+      variant: choice.autoPopupVariant || "",
+      durationMs: choice.autoPopupDurationMs || 15000
+    });
   }
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
@@ -3027,6 +3108,21 @@ function closeModal(selector) {
   if (!modal) return;
   if (typeof modal.close === "function" && modal.open) modal.close();
   else modal.removeAttribute("open");
+}
+
+function showTimedScenarioPopup(message, options = {}) {
+  const text = String(message || "").trim();
+  if (!text) return;
+  const duration = Number(options.durationMs || 15000);
+  const old = qs("#timedScenarioPopup");
+  if (old) old.remove();
+  const node = document.createElement("div");
+  node.id = "timedScenarioPopup";
+  node.className = `timed-scenario-popup ${options.variant === "shop-warning" ? "shop-warning" : ""}`;
+  node.innerHTML = `<div class="timed-scenario-popup-inner">${safeText(text)}</div>`;
+  document.body.appendChild(node);
+  window.setTimeout(() => node.classList.add("is-closing"), Math.max(0, duration - 650));
+  window.setTimeout(() => node.remove(), duration);
 }
 
 function ensureThemedConfirmModal() {

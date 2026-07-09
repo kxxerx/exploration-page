@@ -2904,3 +2904,107 @@ body.is-logged-out .side-rail { align-content: start; }
 body.is-logged-out .side-card.requires-login { display: none !important; }
 body.is-logged-out .broadcast-stage { min-height: 0; }
 body.is-logged-out .tab-panel.is-active { margin-top: 0; }
+
+
+/* v1.17.27: urgent proposal popup and timed shop warning. Because apparently the UI needed an air-raid siren. */
+.timed-scenario-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(40, 0, 0, .18);
+  animation: timedPopupEnter .28s ease-out both;
+}
+.timed-scenario-popup-inner {
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 1.35rem 1.8rem;
+  border: 2px solid rgba(255, 70, 70, .9);
+  border-radius: 22px;
+  color: #fff4f4;
+  background: linear-gradient(135deg, rgba(178, 0, 18, .95), rgba(70, 0, 8, .98));
+  box-shadow: 0 0 34px rgba(255, 0, 0, .45), inset 0 0 22px rgba(255, 190, 190, .16);
+  font-size: clamp(1.15rem, 2.3vw, 1.85rem);
+  font-weight: 900;
+  font-style: italic;
+  text-align: center;
+  letter-spacing: -.02em;
+  text-shadow: 0 0 10px rgba(255,255,255,.42), 0 0 18px rgba(255,60,60,.72);
+  animation: shopWarningPulse .9s ease-in-out infinite;
+}
+.timed-scenario-popup.is-closing { animation: timedPopupExit .65s ease-in both; }
+@keyframes timedPopupEnter { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+@keyframes timedPopupExit { to { opacity: 0; transform: scale(1.03); } }
+@keyframes shopWarningPulse { 0%,100% { transform: scale(1); } 45% { transform: scale(1.035); } }
+
+.modal-card.choice-proposal-danger-modal {
+  border: 2px solid rgba(255, 58, 58, .92);
+  color: #fff;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,.16), transparent 28%),
+    linear-gradient(135deg, rgba(188, 0, 24, .98), rgba(72, 0, 8, .98) 58%, rgba(22,0,4,.98));
+  box-shadow: 0 0 44px rgba(255,0,0,.45), inset 0 0 32px rgba(255,255,255,.08);
+  animation: dangerModalAlarm .72s ease-in-out infinite;
+}
+.modal-card.choice-proposal-danger-modal .modal-actions {
+  justify-content: flex-end;
+  border-top-color: rgba(255,255,255,.25);
+}
+.modal-card.choice-proposal-danger-modal .ghost-button,
+.modal-card.choice-proposal-danger-modal .primary-action {
+  border-color: rgba(255,255,255,.55);
+  color: #fff;
+}
+.modal-card.choice-proposal-danger-modal .primary-action {
+  background: rgba(255,255,255,.18);
+  box-shadow: 0 0 18px rgba(255,255,255,.22);
+}
+.choice-proposal-danger-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  margin-bottom: .85rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: transparent;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 1000;
+  letter-spacing: .18em;
+  text-shadow: 0 0 8px rgba(255,255,255,.75), 0 0 24px rgba(255,0,0,.95), 0 0 42px rgba(255,0,0,.75);
+  animation: dangerTitleBlink .5s steps(2, end) infinite;
+}
+.danger-siren {
+  color: #ffefef;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,.65)) drop-shadow(0 0 16px rgba(255,0,0,.9));
+}
+.choice-proposal-danger {
+  border-color: rgba(255,255,255,.38);
+  color: #fff;
+  background: rgba(30,0,4,.34);
+  box-shadow: inset 0 0 20px rgba(255,255,255,.08);
+  font-size: 1.02rem;
+  font-weight: 850;
+  line-height: 1.85;
+}
+@keyframes dangerModalAlarm {
+  0%, 100% { transform: translateX(0); box-shadow: 0 0 38px rgba(255,0,0,.38), inset 0 0 26px rgba(255,255,255,.08); }
+  25% { transform: translateX(-1px); }
+  50% { transform: translateX(1px); box-shadow: 0 0 58px rgba(255,30,30,.58), inset 0 0 36px rgba(255,255,255,.12); }
+  75% { transform: translateX(-1px); }
+}
+@keyframes dangerTitleBlink { 0%, 100% { opacity: 1; } 50% { opacity: .56; } }
+
+/* v1.17.27: guide inline emphasis for instant-choice explanation */
+.guide-instant-choice-mark {
+  color: #ffe49a;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(255, 212, 101, .75), 0 0 18px rgba(197, 122, 20, .55);
+}
+.guide-inline-note {
+  color: var(--muted, #b8a99a);
+  font-size: .94em;
+}
