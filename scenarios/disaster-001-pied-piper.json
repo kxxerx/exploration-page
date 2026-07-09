@@ -387,12 +387,12 @@
           "requires": {
             "state_flag": "used_s5_1_any_purchase"
           },
-          "noConsensus": true,
           "autoPopupMessage": "손님, 왜 가려고 하세요? 좀 더 둘러보세요.",
           "autoPopupVariant": "shop-warning",
           "autoPopupDurationMs": 15000,
           "systemMessage": "{actor}님이 물건을 사지 않고 시계탑 광장으로 향하려 했습니다.",
-          "autoPopupBroadcast": true
+          "autoPopupBroadcast": true,
+          "proposalRequired": true
         }
       ]
     },

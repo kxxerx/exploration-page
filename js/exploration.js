@@ -1,4 +1,4 @@
-// exploration-site: v1.17.32-entry-dedup-shop-route-hotfix
+// exploration-site: v1.17.34-honorific-shop-exit-proposal-fix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -129,13 +129,32 @@ function formatKoreanParticles(value) {
     .replace(/([^\s\"'“”‘’()\[\]{}<>:;,.!?]+)을\(를\)/g, (_, word) => withJosa(word, '을', '를'));
 }
 
+function getActorBaseName(name) {
+  return String(name || currentProfile?.display_name || getMyMemberSnapshot()?.display_name_snapshot || "탐사자")
+    .trim()
+    .replace(/(?:\s*님)+$/g, "")
+    .trim() || "탐사자";
+}
+
 function getActorDisplayName(name) {
-  const base = String(name || currentProfile?.display_name || getMyMemberSnapshot()?.display_name_snapshot || "탐사자").trim() || "탐사자";
-  return base.endsWith("님") ? base : `${base}님`;
+  return `${getActorBaseName(name)}님`;
+}
+
+function cleanupHonorificDupes(value = "") {
+  return String(value || "")
+    .replace(/님(?:\s*님)+/g, "님")
+    .replace(/님\s+님/g, "님")
+    .replace(/님님의/g, "님의")
+    .replace(/님님이/g, "님이")
+    .replace(/님님가/g, "님이")
+    .replace(/님님은/g, "님은")
+    .replace(/님님을/g, "님을")
+    .replace(/님님를/g, "님을");
 }
 
 function normalizeSystemMessageTemplate(template = "") {
   let text = String(template || "").trim();
+  text = cleanupHonorificDupes(text);
   text = text.replace(/마스코트 골든/g, "마스코트 골튼").replace(/골든 리조트/g, "골튼 리조트");
   text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?낡고 이상한 동전\]?을\(를\)\s*획득한다\.?/g, "{actor}이 낡고 이상한 동전을 주웠습니다.");
   text = text.replace(/\{actor\}이\s*다음과 같이 행동했습니다\.\s*:\s*\[?([^\]\n]+)\]?을\(를\)\s*획득한다\.?/g, "{actor}이 $1을(를) 얻었습니다.");
@@ -144,7 +163,9 @@ function normalizeSystemMessageTemplate(template = "") {
 }
 
 function formatSystemMessageTemplate(template, actorName) {
-  const content = formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorDisplayName(actorName)));
+  // Templates often already contain "{actor}님이". Replace {actor} with the base name,
+  // then let the display normalizer add exactly one "님". Humanity survives another suffix.
+  const content = formatKoreanParticles(normalizeSystemMessageTemplate(template).replaceAll("{actor}", getActorBaseName(actorName)));
   return normalizeDisplayedSystemMessage(content);
 }
 
@@ -196,8 +217,7 @@ function naturalizeChoiceAction(label = "") {
 function normalizeActorHonorific(actor = "") {
   const base = String(actor || "")
     .trim()
-    .replace(/\s+님$/g, "")
-    .replace(/님$/g, "")
+    .replace(/(?:\s*님)+$/g, "")
     .trim();
   return base ? `${base}님` : "탐사자님";
 }
@@ -210,7 +230,7 @@ function normalizeKnownMemberHonorifics(content = "") {
     getMyMemberSnapshot()?.display_name_snapshot
   ]
     .filter(Boolean)
-    .map((name) => String(name).trim().replace(/\s+님$/g, "").replace(/님$/g, ""))
+    .map((name) => String(name).trim().replace(/(?:\s*님)+$/g, ""))
     .filter((name, index, arr) => name && arr.indexOf(name) === index)
     .sort((a, b) => b.length - a.length);
   for (const name of names) {
@@ -221,7 +241,7 @@ function normalizeKnownMemberHonorifics(content = "") {
 }
 
 function normalizeDisplayedSystemMessage(content = "") {
-  let text = String(content || "")
+  let text = cleanupHonorificDupes(String(content || ""))
     .replace(/마스코트 골든/g, "마스코트 골튼")
     .replace(/골든 리조트/g, "골튼 리조트")
     .trim();
@@ -255,7 +275,7 @@ function normalizeDisplayedSystemMessage(content = "") {
       text = `${normalizeActorHonorific(actor)}이 ${action}`;
     }
   }
-  return formatKoreanParticles(text);
+  return cleanupHonorificDupes(formatKoreanParticles(text));
 }
 
 function formatDate(value) {
@@ -1461,7 +1481,6 @@ function renderCommunityPosts() {
     <article class="community-item">
       <header class="community-item-head">
         <strong>${safeText(post.title || "익명 게시글")}</strong>
-        <span class="badge public">${safeText(communityStatusLabel(post))}</span>
       </header>
       <div class="community-item-meta">
         ${safeText(post.anonymous_alias || "익명 탐사자")} · ${safeText(communityOrgOnlyLabel(post))} · ${formatDate(post.created_at)} · 댓글 ${Number(post.comment_count || 0)}개
@@ -2441,10 +2460,19 @@ function buildChoiceAdvancePayload(choice) {
   const scenario = getScenario();
   const nextSection = scenario?.sections?.[choice.next];
   const effectPatch = buildStatePatchForEffects([...(choice.effects || []), ...((nextSection?.effects) || [])]);
+  let statePatch = mergePatches(choice.setState || {}, effectPatch);
+  if (choice.autoPopupMessage && choice.autoPopupBroadcast) {
+    const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
+    const popupMessage = formatSystemMessageTemplate(choice.autoPopupMessage, actor);
+    statePatch = mergePatches(statePatch, buildTimedRoomPopupPatch(popupMessage, {
+      variant: choice.autoPopupVariant || "",
+      durationMs: choice.autoPopupDurationMs || 15000
+    }));
+  }
   return {
     nextSectionKey: choice.next,
     choiceLabel: cleanChoiceLabel(choice.label || ""),
-    statePatch: mergePatches(choice.setState || {}, effectPatch),
+    statePatch,
     proposalMode: choice.proposalMode || "",
     proposalMessage: choice.proposalMessage || "",
     systemMessage: choice.systemMessage || ""
@@ -2485,7 +2513,7 @@ function renderChoiceProposalNotice() {
   notice.id = "choiceProposalNotice";
   notice.className = "message subtle choice-proposal-notice";
   const proposerName = getActorDisplayName(proposal.proposer_name || "누군가");
-  notice.textContent = `${getActorDisplayName(proposerName)}님이 진행을 제안했습니다. (${accepted}/${required} 수락)`;
+  notice.textContent = `${withJosa(proposerName, "이", "가")} 진행을 제안했습니다. (${accepted}/${required} 수락)`;
   choiceList.prepend(notice);
 }
 
@@ -2535,7 +2563,7 @@ async function refreshChoiceProposalUi() {
 
 async function logRoomSystemMessage(content) {
   if (!currentRoom?.id || !content) return;
-  const normalizedContent = normalizeDisplayedSystemMessage(content);
+  const normalizedContent = cleanupHonorificDupes(normalizeDisplayedSystemMessage(content));
   try {
     const { error } = await supabase.rpc("log_exploration_system_message", {
       p_room_id: currentRoom.id,
@@ -2549,7 +2577,7 @@ async function logRoomSystemMessage(content) {
 
 async function logRoomSystemMessageToRoom(roomId, content) {
   if (!roomId || !content) return;
-  const normalizedContent = normalizeDisplayedSystemMessage(content);
+  const normalizedContent = cleanupHonorificDupes(normalizeDisplayedSystemMessage(content));
   try {
     const { error } = await supabase.rpc("log_exploration_system_message", {
       p_room_id: roomId,
@@ -2609,9 +2637,9 @@ async function proposeChoiceFallback(payload, originalError = null) {
   await patchRoomStateLocally({ pendingChoiceProposal: proposal });
   if (proposal.proposal_mode === "danger_escape") {
     const actor = proposal.proposer_name || "탐사자";
-    await logRoomSystemMessage(proposal.system_message ? formatSystemMessageTemplate(proposal.system_message, actor) : `${getActorDisplayName(actor)}님이 아직 잠기지 않은 직원 전용 출입구로 홀로 도망을 시도합니다!`);
+    await logRoomSystemMessage(proposal.system_message ? formatSystemMessageTemplate(proposal.system_message, actor) : `${withJosa(getActorDisplayName(actor), "이", "가")} 아직 잠기지 않은 직원 전용 출입구로 홀로 도망을 시도합니다!`);
   } else {
-    await logRoomSystemMessage(`${getActorDisplayName(proposal.proposer_name)}님이 진행을 제안했습니다.`);
+    await logRoomSystemMessage(`${withJosa(getActorDisplayName(proposal.proposer_name), "이", "가")} 진행을 제안했습니다.`);
   }
   if (originalError) console.warn("진행 제안 RPC 실패, 프론트 폴백 사용", originalError);
 }
@@ -2658,7 +2686,7 @@ async function respondChoiceProposalFallback(accept, originalError = null) {
         p_state_patch: patch
       });
       if (error) throw error;
-      await logRoomSystemMessage(`${getActorDisplayName(proposal.proposer_name || "탐사자")}님의 도주는 실패로 돌아갔습니다.`);
+      await logRoomSystemMessage(`${getActorDisplayName(proposal.proposer_name || "탐사자")}의 도주는 실패로 돌아갔습니다.`);
       await logRoomSystemMessage("모든 참가자가 VIP실로 강제로 안내됩니다.");
     } else {
       await patchRoomStateLocally({ pendingChoiceProposal: null });
@@ -2721,7 +2749,7 @@ async function respondDangerChoiceProposal(proposal, accept) {
   if (accept) {
     await logRoomSystemMessage("모든 참가자가 그 뒤를 따라 도망치는 것에 성공했습니다.");
   } else {
-    await logRoomSystemMessage(`${proposerName}님의 도주는 실패로 돌아갔습니다.`);
+    await logRoomSystemMessage(`${proposerName}의 도주는 실패로 돌아갔습니다.`);
     await logRoomSystemMessage("모든 참가자가 VIP실로 강제로 안내됩니다.");
   }
 }
@@ -2804,7 +2832,7 @@ async function chooseNext(choice) {
   }
   if (!choice?.next) return;
   const payload = buildChoiceAdvancePayload(choice);
-  const shouldPropose = getActiveRoomMembers().length > 1 && !choice.noConsensus && !choice.instant;
+  const shouldPropose = getActiveRoomMembers().length > 1 && (choice.proposalRequired || (!choice.noConsensus && !choice.instant));
   if (shouldPropose) {
     return proposeChoice(choice);
   }

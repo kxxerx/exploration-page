@@ -3031,3 +3031,34 @@ body.is-logged-out .tab-panel.is-active { margin-top: 0; }
 #choiceProposalModal.choice-proposal-danger-modal .modal-actions button {
   margin-left: 0 !important;
 }
+
+
+/* v1.17.35 party/community layout hotfix */
+.party-item-head {
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  min-width: 0 !important;
+}
+.party-item-head strong {
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+}
+.party-item-head .badge {
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+.community-item-head {
+  justify-content: flex-start !important;
+}
+.community-item-head strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
