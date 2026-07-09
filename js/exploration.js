@@ -1783,7 +1783,8 @@ async function joinRoomByCode(inviteCode, roomPassword = "") {
   closeModal("#joinRoomModal");
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
-  await logRoomSystemMessageToRoom(data.room_id, `${getActorDisplayName(getCurrentActorNameForLog())}이 입장했습니다.`);
+  // 입장 시스템 메시지는 Supabase RPC에서 이미 1회 생성한다.
+  // 프론트에서 추가 기록하지 않아 중복을 막는다.
   await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
@@ -1793,7 +1794,8 @@ async function joinPublicRoomById(roomId) {
   if (error) throw error;
   showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
-  await logRoomSystemMessageToRoom(data.room_id, `${getActorDisplayName(getCurrentActorNameForLog())}이 입장했습니다.`);
+  // 입장 시스템 메시지는 Supabase RPC에서 이미 1회 생성한다.
+  // 프론트에서 추가 기록하지 않아 중복을 막는다.
   await Promise.all([loadMyRooms(), loadRoomList()]);
 }
 
