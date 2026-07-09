@@ -1,4 +1,4 @@
-// exploration-site: v1.17.23 persistent-vip-card-flags
+// exploration-site: v1.17.32-entry-dedup-shop-route-hotfix
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -85,6 +85,7 @@ const SOLO_TEST_CODES = new Set(["/테스트 재난001", "/테스트 재난 001"
 const ROOM_EXIT_NOTICE_TEXT = "라이브 룸에서 나가시겠습니까? 진행 내역을 보존하려면 파일을 내려받는 것을 권장합니다. 마지막 참가자가 나가면 방이 영구적으로 삭제될 수 있습니다.";
 let roomExitNoticeShownFor = null;
 let endingSettlementInFlight = false;
+const handledTimedRoomPopups = new Set();
 
 function safeText(value) {
   return String(value ?? "")
@@ -1781,7 +1782,6 @@ async function joinRoomByCode(inviteCode, roomPassword = "") {
   });
   if (error) throw error;
   closeModal("#joinRoomModal");
-  showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
   // 입장 시스템 메시지는 Supabase RPC에서 이미 1회 생성한다.
   // 프론트에서 추가 기록하지 않아 중복을 막는다.
@@ -1792,7 +1792,6 @@ async function joinPublicRoomById(roomId) {
   if (!(await requireEntityLifeMask())) return;
   const { data, error } = await supabase.rpc("join_exploration_room_by_id", { p_room_id: roomId });
   if (error) throw error;
-  showMessage("탐사방에 입장했습니다.", "success");
   await openRoom(data.room_id);
   // 입장 시스템 메시지는 Supabase RPC에서 이미 1회 생성한다.
   // 프론트에서 추가 기록하지 않아 중복을 막는다.
@@ -2083,6 +2082,7 @@ async function renderRoom() {
   }
   renderRoomInventory();
   updateChatPlaceholder();
+  showPendingTimedRoomPopup();
 
   const choices = (section.choices || []).filter((choice) => choiceConditionMatches(choice, sectionKey));
   renderedChoices = choices;
@@ -2317,15 +2317,45 @@ function ensureNewChatButton() {
   return button;
 }
 
+function normalizeEntryMessageKey(text = "") {
+  const clean = String(text || "").replace(/\s+/g, "").trim();
+  const m = clean.match(/^(.+?)(?:님)?(?:이|가)?(?:탐사방에)?입장했습니다\.?$/);
+  return m ? `entry:${m[1]}` : "";
+}
+
+function getRenderableMessages(messages = []) {
+  const result = [];
+  const recentEntryBySender = new Map();
+  for (const message of messages || []) {
+    const content = normalizeDisplayedSystemMessage(message?.content || "");
+    if (message?.message_type === "system") {
+      const entryKey = normalizeEntryMessageKey(content);
+      if (entryKey) {
+        const senderKey = `${message.sender_id || "system"}:${entryKey}`;
+        const prevIndex = recentEntryBySender.get(senderKey);
+        if (prevIndex !== undefined) {
+          // 같은 입장 메시지가 RPC/구버전 프론트에서 동시에 찍힌 경우 최신 표준 문장 1개만 표시한다.
+          result[prevIndex] = { ...message, content };
+          continue;
+        }
+        recentEntryBySender.set(senderKey, result.length);
+      }
+    }
+    result.push({ ...message, content });
+  }
+  return result;
+}
+
 function renderMessages() {
   const box = qs("#chatLog");
   if (!box) return;
   const wasNearBottom = isChatNearBottom(box);
   const previousScrollTop = box.scrollTop;
   const previousLastId = lastRenderedMessageLastId;
-  const nextLastId = currentMessages.length ? String(currentMessages[currentMessages.length - 1]?.id || "") : null;
+  const renderableMessages = getRenderableMessages(currentMessages);
+  const nextLastId = renderableMessages.length ? String(renderableMessages[renderableMessages.length - 1]?.id || "") : null;
   const hasNewMessage = !!nextLastId && nextLastId !== previousLastId;
-  if (!currentMessages.length) {
+  if (!renderableMessages.length) {
     box.textContent = "아직 채팅이 없습니다.";
     box.classList.add("muted");
     lastRenderedMessageLastId = null;
@@ -2333,7 +2363,7 @@ function renderMessages() {
     return;
   }
   box.classList.remove("muted");
-  box.innerHTML = currentMessages.map((message) => {
+  box.innerHTML = renderableMessages.map((message) => {
     const systemClass = message.message_type === "system" ? " system" : "";
     const sender = message.message_type === "system" ? "시스템" : (message.sender_display_name || "익명");
     return `
@@ -2785,10 +2815,18 @@ async function chooseNext(choice) {
   }
   if (choice.autoPopupMessage) {
     const actor = getMyMemberSnapshot()?.display_name_snapshot || currentProfile?.display_name || "탐사자";
-    showTimedScenarioPopup(formatSystemMessageTemplate(choice.autoPopupMessage, actor), {
-      variant: choice.autoPopupVariant || "",
-      durationMs: choice.autoPopupDurationMs || 15000
-    });
+    const popupMessage = formatSystemMessageTemplate(choice.autoPopupMessage, actor);
+    if (choice.autoPopupBroadcast) {
+      statePatch = mergePatches(statePatch, buildTimedRoomPopupPatch(popupMessage, {
+        variant: choice.autoPopupVariant || "",
+        durationMs: choice.autoPopupDurationMs || 15000
+      }));
+    } else {
+      showTimedScenarioPopup(popupMessage, {
+        variant: choice.autoPopupVariant || "",
+        durationMs: choice.autoPopupDurationMs || 15000
+      });
+    }
   }
   const { error } = await supabase.rpc("advance_exploration_room", {
     p_room_id: currentRoom.id,
@@ -3121,6 +3159,30 @@ function closeModal(selector) {
   if (!modal) return;
   if (typeof modal.close === "function" && modal.open) modal.close();
   else modal.removeAttribute("open");
+}
+
+function showPendingTimedRoomPopup() {
+  const popup = getStateJson()?.timedRoomPopup;
+  if (!popup || typeof popup !== "object") return;
+  const popupId = String(popup.id || "");
+  if (!popupId || handledTimedRoomPopups.has(popupId)) return;
+  handledTimedRoomPopups.add(popupId);
+  showTimedScenarioPopup(popup.message || "", {
+    variant: popup.variant || "",
+    durationMs: popup.durationMs || 15000
+  });
+}
+
+function buildTimedRoomPopupPatch(message, options = {}) {
+  return {
+    timedRoomPopup: {
+      id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+      message,
+      variant: options.variant || "",
+      durationMs: Number(options.durationMs || 15000),
+      createdAt: new Date().toISOString()
+    }
+  };
 }
 
 function showTimedScenarioPopup(message, options = {}) {
