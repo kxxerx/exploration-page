@@ -129,7 +129,7 @@
           <div id="profileCard"></div>
         </section>
 
-        <section class="side-card">
+        <section class="side-card requires-login">
           <div class="side-card-head">
             <p class="kicker">My Bag</p>
             <button id="refreshInventory" type="button" class="mini-button">갱신</button>
@@ -137,7 +137,7 @@
           <div id="inventoryPreview" class="inventory-preview muted">로그인 후 보입니다.</div>
         </section>
 
-        <section class="side-card action-card">
+        <section class="side-card action-card requires-login">
           <p class="kicker">Lounge Desk</p>
           <button id="openCreateRoomModal" type="button" class="primary-action full">탐사방 만들기</button>
           <button id="openJoinRoomModal" type="button" class="secondary-action full">코드로 참여하기</button>
@@ -177,13 +177,11 @@
 
         <aside class="live-side-stack">
           <section class="participant-card">
-            <h3>참가자</h3>
             <div id="memberList" class="member-list muted">불러오는 중...</div>
           </section>
 
           <section class="room-inventory-card">
             <div class="side-card-head">
-              <h3>탐사 인벤토리</h3>
               <button id="refreshRoomInventory" type="button" class="mini-button">갱신</button>
             </div>
             <div id="roomInventoryList" class="room-inventory-list muted">아직 획득한 단서나 아이템이 없습니다.</div>
@@ -191,7 +189,6 @@
         </aside>
 
         <section class="chat-card live-chat-card">
-          <h3>대화</h3>
           <div id="chatLog" class="chat-log muted">채팅을 불러오는 중...</div>
           <form id="chatForm" class="chat-form">
             <input id="chatInput" type="text" maxlength="500" placeholder="메시지 입력" autocomplete="off">
@@ -551,25 +548,21 @@
       <div class="guide-grid">
         <section class="guide-card">
           <div class="guide-card-icon">1</div>
-          <h3>탐사방 만들기</h3>
           <p><span class="guide-ui-chip">탐사방 만들기</span> 버튼을 누른 뒤 방 제목, 공개 여부, 최대 인원을 정합니다.</p>
           <p>비공개방은 <span class="guide-ui-input">숫자만 (예: 1234)</span> 형식의 비밀번호를 입력합니다. 공개방은 비밀번호를 비워둡니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">2</div>
-          <h3>저장파일로 이어하기</h3>
           <p>탐사를 중간에 멈춰야 한다면 라이브룸에서 <span class="guide-ui-chip">파일 저장</span>을 먼저 누릅니다.</p>
           <p>해당 지점에서부터 진행하길 원하신다면 <span class="guide-ui-chip">저장파일로 이어하기</span>를 눌러 저장한 JSON 파일을 선택하면 같은 진행 지점부터 이어하실 수 있습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">3</div>
-          <h3>코드로 참여하기</h3>
           <p>비공개방은 초대코드와 비밀번호가 필요합니다. 공개방이면 비밀번호 칸은 비워둡니다.</p>
           <p>괴이는 인생을 구입해 가면을 착용한 상태에서만 탐사방에 접근할 수 있습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">4</div>
-          <h3>방이 사라지는 경우</h3>
           <p>마지막 참가자가 방에서 나가면 탐사방이 삭제될 수 있습니다.</p>
           <p>진행을 보존하려면 나가기 전에 반드시 <span class="guide-ui-chip">파일 저장</span>을 사용합니다.</p>
         </section>
@@ -587,27 +580,23 @@
       <div class="guide-grid">
         <section class="guide-card">
           <div class="guide-card-icon">1</div>
-          <h3>진행 전 대화</h3>
           <p>선택지를 누르기 전에 참가자끼리 조사 방향, 사용할 아이템, 위험 요소를 먼저 이야기합니다.</p>
           <p>대화 없이 선택지만 빠르게 누르면 다른 참가자가 상황을 따라가기 어렵습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">2</div>
-          <h3>선택지 동의</h3>
           <p>누군가 선택지를 누르면 바로 이동하지 않고, 다른 참가자에게 수락/거절 확인이 표시됩니다.</p>
           <p>모두 수락하면 다음 섹션으로 이동하고, 누군가 거절하면 현재 섹션에 머무릅니다.</p>
-          <p>소속에 따라 보이는 선택지가 다를 수 있습니다. 다른 사용자들의 동의가 필요 없는 선택지도 일부 존재합니다. 단, 이런 선택지는 별도 섹션 이동이 이루어지지 않으며, 다른 사용자에게는 시스템 메시지 정도만 출력됩니다. 해당 선택은 아이템 획득이나 오염도 상승의 결과로 이어질 수 있습니다.</p>
+          <p>소속에 따라 보이는 선택지가 다를 수 있습니다. 다른 사용자들의 동의가 필요 없는 선택지는 별도 표시(버튼 모양, 선택지에 황금색 표시 되어있는 것처럼 버튼 테두리 따라 빙빙 도는 효과)가 되어있습니다. 이런 선택지는 섹션 이동이 이루어지지 않으며, 다른 사용자에게는 시스템 메시지 정도만 출력됩니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">3</div>
-          <h3>아이템 사용</h3>
           <p>탐사 인벤토리에서 아이템을 누르면 상세 내용이 열립니다. 사용할 수 있는 아이템은 <span class="guide-ui-chip">사용</span> 버튼이 표시됩니다.</p>
           <p>단서는 확인용이며 사용 버튼이 표시되지 않습니다.</p>
           <p>탐사 중 특정 장소에서의 아이템 구입은 개별적으로 할 수 있습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">4</div>
-          <h3>금지되는 행동</h3>
           <p>다른 참가자 동의 없이 진행을 밀어붙이거나, 채팅을 도배하거나, 진행을 방해하는 행동은 신고 대상입니다.</p>
           <p>탐사 중 분쟁이 생기면 먼저 대화로 정리하고, 필요하면 신고 기능을 사용합니다.</p>
         </section>
@@ -625,25 +614,21 @@
       <div class="guide-grid">
         <section class="guide-card">
           <div class="guide-card-icon">1</div>
-          <h3>모집글 작성</h3>
           <p><span class="guide-ui-chip">파티 찾기</span>에서 <span class="guide-ui-chip">익명 모집 글쓰기</span>를 누릅니다.</p>
           <p>모집 시작 일자와 모집 기간을 정하면 모집 마감 시간이 자동으로 계산됩니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">2</div>
-          <h3>탐사 일자</h3>
           <p>탐사 일자는 실제로 탐사를 시작하고 싶은 날짜와 시간을 입력합니다.</p>
           <p>모집 기간과 별개로 설정할 수 있으므로, 다음 달 일정도 등록할 수 있습니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">3</div>
-          <h3>모집 완료 후 방 만들기</h3>
           <p>참가 신청자가 모이면 작성자가 모집글에서 바로 탐사방을 만들 수 있습니다.</p>
           <p>방을 만들면 모집글은 모집 완료 상태가 됩니다.</p>
         </section>
         <section class="guide-card">
           <div class="guide-card-icon">4</div>
-          <h3>익명 게시판</h3>
           <p>익명 게시판은 무작위 별명으로 글과 댓글을 작성하는 공간입니다.</p>
           <p>욕설, 비방, 광고, 도배, 진행 방해성 글은 신고 대상입니다.</p>
         </section>
@@ -660,6 +645,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="js/exploration.js?v=1.17.8"></script>
+  <script type="module" src="js/exploration.js?v=1.17.24"></script>
 </body>
 </html>

@@ -2897,3 +2897,10 @@ body.in-room .live-story-card .scenario-image {
 .story-line-fx {
   margin: 1.05rem 0;
 }
+
+/* v1.17.25 logged-out lounge cleanup */
+body.is-logged-out .login-screen { display: none !important; }
+body.is-logged-out .side-rail { align-content: start; }
+body.is-logged-out .side-card.requires-login { display: none !important; }
+body.is-logged-out .broadcast-stage { min-height: 0; }
+body.is-logged-out .tab-panel.is-active { margin-top: 0; }

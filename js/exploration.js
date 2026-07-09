@@ -1,4 +1,4 @@
-// exploration-site: v1.17.19 actual-hotfix-natural-popup-vip-sql
+// exploration-site: v1.17.23 persistent-vip-card-flags
 // 기존 기념품샵의 Supabase Auth/site_id 로그인 구조를 그대로 사용합니다.
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabaseClient.js";
 import { qs, showMessage, authEmailFromLoginId, revealMemberLinks, applyVisitorModeClass } from "./common.js";
@@ -910,7 +910,8 @@ function showOnAirSplash() {
 function showLoggedOutView() {
   currentProfile = null;
   document.body.classList.remove("in-room");
-  setVisible("#loginPanel", true);
+  document.body.classList.add("is-logged-out");
+  setVisible("#loginPanel", false);
   setVisible("#sideLoginPanel", true);
   setVisible("#profilePanel", false);
   setVisible("#appPanel", true);
@@ -918,6 +919,7 @@ function showLoggedOutView() {
   setVisible("#mainNav", true);
   setVisible("#notificationBell", false);
   setVisible("#adminDeskButton", false);
+  document.querySelectorAll(".requires-login").forEach((node) => { node.hidden = true; });
   qs("#roomList") && (qs("#roomList").textContent = "방 목록은 회원만 보실 수 있습니다.");
   qs("#partyList") && (qs("#partyList").textContent = "파티 모집글은 회원만 보실 수 있습니다.");
   qs("#communityList") && (qs("#communityList").textContent = "익명 게시판은 회원만 보실 수 있습니다.");
@@ -926,12 +928,14 @@ function showLoggedOutView() {
 
 function showLoggedInLounge() {
   if (currentRoom) return;
+  document.body.classList.remove("is-logged-out");
   forceLoungeMode();
   setVisible("#loginPanel", false);
   setVisible("#sideLoginPanel", false);
   setVisible("#appPanel", true);
   setVisible("#mainNav", true);
   setVisible("#profilePanel", true);
+  document.querySelectorAll(".requires-login").forEach((node) => { node.hidden = false; });
   setVisible("#notificationBell", true);
 }
 
@@ -1878,6 +1882,7 @@ async function loadRoomBundle(roomId, options = {}) {
   forceRoomMode();
   await loadScenario(room.scenario_id);
   await Promise.all([loadMembers(), loadRoomState(), loadMessages()]);
+  await restorePersistentExplorationFlags();
   renderRoom();
   if (!silent) showMessage("탐사방 정보를 불러왔습니다.", "success");
 }
@@ -1917,6 +1922,21 @@ async function loadMessages() {
   if (error) throw error;
   currentMessages = data || [];
   renderMessages();
+}
+
+async function restorePersistentExplorationFlags() {
+  if (!currentRoom?.id || !currentProfile?.id) return;
+  try {
+    const { data, error } = await supabase.rpc("restore_exploration_persistent_flags", { p_room_id: currentRoom.id });
+    if (error) throw error;
+    if (data?.restored) {
+      await loadRoomState();
+      showMessage("이전 탐사의 흔적이 소지창에 복원되었습니다.", "info");
+    }
+  } catch (error) {
+    // v1.17.23 SQL을 아직 적용하지 않은 경우에도 탐사방 로딩 자체는 막지 않는다.
+    console.warn("지속 플래그 복원 실패", error);
+  }
 }
 
 function getMyMemberSnapshot() {
@@ -2133,11 +2153,16 @@ function openRoomItemDetail(itemId) {
   const itemName = String(meta?.name || "").replace(/\s+/g, "");
   const noUseItem = cleanItemId === "dream_collector" || cleanItemId === "strange_old_coin" || cleanItemId === "glass_pistol" || cleanItemId === "dreamland_map" || cleanItemId === "vip_membership_card" || itemName === "꿈결수집기" || itemName === "낡고이상한동전" || itemName === "유리손포" || itemName === "유리손포도" || itemName === "드림랜드안내팜플렛(지도)" || itemName === "VIP멤버십카드";
   const canUse = !noUseItem && meta?.type !== "clue" && meta?.usable !== false && meta?.noUse !== true && meta?.equipmentOnly !== true;
+  const isVipCard = cleanItemId === "vip_membership_card" || itemName === "VIP멤버십카드";
+  const adminVipActions = isVipCard && currentProfile?.role === "admin"
+    ? `<div class="modal-actions item-use-actions"><button type="button" class="ghost-button danger" data-admin-clear-vip-card="1">저주받은 VIP 카드 삭제</button></div>`
+    : "";
   target.innerHTML = `
     <p class="kicker">${safeText(meta?.type === "clue" ? "Clue" : (meta?.type === "shop" ? "Bag Item" : "Item"))}</p>
     <h2>${safeText(meta?.name || itemId)}</h2>
     <div class="party-detail-content item-detail-text">${renderDetailText(meta?.detail || "아직 상세 설명이 등록되지 않았습니다.")}</div>
     ${canUse ? `<div class="modal-actions item-use-actions"><button type="button" class="primary-action" data-use-room-item="${safeAttr(itemId)}">사용</button></div>` : ""}
+    ${adminVipActions}
   `;
   openModal("#inventoryDetailModal");
 }
@@ -2201,6 +2226,22 @@ async function useRoomInventoryItem(itemId) {
   }
   if (rule.closeAfterUse !== false || rule.consume === true) {
     closeModal("#inventoryDetailModal");
+  }
+}
+
+async function adminClearVipMembershipCard() {
+  if (!currentRoom?.id) return showMessage("탐사방 안에서만 삭제할 수 있습니다.", "error");
+  if (currentProfile?.role !== "admin") return showMessage("관리자만 삭제할 수 있습니다.", "error");
+  const confirmed = await themedConfirm("현재 파티 조합에 연결된 저주받은 VIP 카드 기록을 삭제할까요? 현재 탐사방 소지창에서도 제거됩니다.", "VIP 카드 삭제");
+  if (!confirmed) return;
+  try {
+    const { data, error } = await supabase.rpc("admin_clear_exploration_vip_membership_flags", { p_room_id: currentRoom.id });
+    if (error) throw error;
+    closeModal("#inventoryDetailModal");
+    showMessage(`VIP 카드 기록을 삭제했습니다. 비활성화 ${Number(data?.cleared_flags || 0)}건, 현재 방 제거 ${data?.room_inventory_cleared ? "완료" : "처리 없음"}.`, "success");
+    await loadRoomBundle(currentRoom.id, { silent: true });
+  } catch (error) {
+    showMessage(`VIP 카드를 삭제하지 못했습니다: ${error.message}`, "error");
   }
 }
 
@@ -2291,6 +2332,21 @@ async function settleCurrentEnding(ending = {}, sectionKey = "") {
       p_set_pollution_to: ending.setPollutionTo == null ? null : Number(ending.setPollutionTo)
     });
     if (error) throw error;
+    if (String(resultCode).toUpperCase() === "DLBAD001") {
+      try {
+        const { data: flagData, error: flagError } = await supabase.rpc("grant_exploration_vip_membership_flag", {
+          p_room_id: currentRoom.id,
+          p_scenario_id: currentRoom.scenario_id,
+          p_source_section_key: sectionKey || null
+        });
+        if (flagError) throw flagError;
+        if (flagData?.granted_count || flagData?.existing_count) {
+          await restorePersistentExplorationFlags();
+        }
+      } catch (flagError) {
+        showMessage(`VIP 카드 지속 기록은 아직 적용되지 않았습니다: ${flagError.message}`, "error");
+      }
+    }
     if (data?.applied) {
       showMessage("탐사 결과가 상점 계정에 정산되었습니다.", "success");
       await loadProfile();
@@ -3507,6 +3563,8 @@ document.addEventListener("click", async (event) => {
   if (myDeleteAll) { await deleteMyContentItems(myContentCache.map((item) => `${item.kind}:${item.item_id}`)); return; }
   const myRefresh = event.target.closest("#refreshMyContent");
   if (myRefresh) { await loadMyContent(myContentPage); return; }
+  const adminClearVipButton = event.target.closest("[data-admin-clear-vip-card]");
+  if (adminClearVipButton) { await adminClearVipMembershipCard(); return; }
   const useRoomItemButton = event.target.closest("[data-use-room-item]");
   if (useRoomItemButton) { await useRoomInventoryItem(useRoomItemButton.dataset.useRoomItem); return; }
   const choiceProposalResponse = event.target.closest("[data-choice-proposal-response]");
