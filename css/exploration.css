@@ -3093,3 +3093,37 @@ body.is-logged-out .tab-panel.is-active { margin-top: 0; }
   }
 }
 
+
+
+/* v1.17.38: section 5-3 and clocktower broadcast effects */
+.story-fx-lion-courage {
+  display: inline-block;
+  color: #ffe8e8;
+  font-weight: 950;
+  letter-spacing: .055em;
+  text-shadow:
+    0 0 4px rgba(255,255,255,.65),
+    0 0 10px rgba(178,0,28,.9),
+    0 0 26px rgba(38,0,0,.95);
+  filter: drop-shadow(0 0 7px rgba(120,0,16,.85));
+  animation: lionCourageUnease 2.8s ease-in-out infinite;
+}
+@keyframes lionCourageUnease {
+  0%, 100% { transform: translateX(0); opacity: .98; }
+  17% { transform: translateX(.6px); }
+  33% { transform: translateX(-.4px); opacity: .88; }
+  58% { transform: translateX(.3px); }
+  72% { transform: translateX(-.7px); opacity: 1; }
+}
+.story-fx-broadcast-uncanny {
+  display: inline;
+  color: #f5efe1;
+  font-weight: 720;
+  text-shadow:
+    0 0 5px rgba(255,240,190,.22),
+    0 0 13px rgba(141,25,30,.18);
+  filter: saturate(1.05);
+}
+.story-line-fx:has(.story-fx-broadcast-uncanny) {
+  margin: .62rem 0;
+}

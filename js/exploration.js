@@ -715,7 +715,19 @@ function renderStoryText(text = "") {
     ["[VIP 명단]", "story-fx story-fx-vip-list"],
     ["치직, 치이이이익—", "story-fx story-fx-glitch"],
     ["이, 이럴 리가. 이럴 리가!", "story-fx story-fx-uncanny story-fx-red"],
-    ["[VIP 멤버십 카드]", "story-fx story-fx-vip-card"]
+    ["[VIP 멤버십 카드]", "story-fx story-fx-vip-card"],
+    ["용기를 얻고 싶었던 겁쟁이 사자는,", "story-fx story-fx-lion-courage"],
+    ["결국 피리 소리를 따라온 구원자에게", "story-fx story-fx-lion-courage"],
+    ["자신의 심장과 고기를 남김없이 주고 나서야", "story-fx story-fx-lion-courage"],
+    ["비로소 비명을 지르지 않을 수 있는 ‘용기’를 얻었답니다.", "story-fx story-fx-lion-courage"],
+    ["어서 오세요, 고객님! 환영합니다! 피와 ■■가 가득한 신비의 나라, 드림랜드입니다!", "story-fx story-fx-broadcast-uncanny"],
+    ["오늘도 여러분의 간절한 ■■를 읽어드리는 시간이 돌아왔어요~", "story-fx story-fx-broadcast-uncanny"],
+    ["겁쟁이에서 벗어나 진정한 용기를 갖고 싶다던 '김민준' 어린이는 우리 놀이공원의 다정한 사자 마스코트가 기다리는 [광대 분수대 앞의 포토존]을 찾아주셨어요~ 민준 어린이에게는 비명조차 지르지 못할 완벽한 ‘용기’를 선물해 드렸답니다! 포토존 벤치에서 환하게 웃고 있는 민준이 어린이와 함께 예쁜 기념사진을 남겨보세요!", "story-fx story-fx-broadcast-uncanny"],
+    ["세상에서 가장 아름다운 목소리로 노래하고 싶다던 '최지아' 어린이는 [안개 호수]에 몸을 던져 새로운 '세이렌'이 되었답니다! 지아 어린이가 아름다운 비명을 질러 온 구역에 안개를 퍼트리는 아름다운 악기로 변화한 모습을 구경하러 오세요!", "story-fx story-fx-broadcast-uncanny"],
+    ["매일 밤 지치지 않고 즐겁게 춤을 추고 싶다던 '이서연' 어린이는 화려하게 움직이는 [잔혹 회전목마]를 찾아주셨어요~ 서연 어린이가 매일매일 지치지 않고 춤을 출 수 있도록 해드렸답니다? 회전목마에 와서 서연 어린이의 아름다운 춤을 구경해 보세요!", "story-fx story-fx-broadcast-uncanny"],
+    ["맛있는 과자집에서 살고 싶다던 '박우진' 어린이는 [환영 레스토랑]을 방문해 주셨어요~ 우진 어린이를 맛있게 구워 과자집에 장식해 드렸답니다!", "story-fx story-fx-broadcast-uncanny"],
+    ["세상에서 가장 아름다운 공주님이 되어 모두의 시선을 독차지하고 싶다던 '윤아름' 어린이는 [환상의 미로 거울의 방]에서 소원을 성취했어요~ 아름 어린이의 아름다운 모습을 거울 액자에 박제해 두었으니, 언제든 구경하러 오세요~", "story-fx story-fx-broadcast-uncanny"],
+    ["아참! 미아가 된 아이를 찾고 계신 분들께서는 [미아보호센터]를 방문해 주세요! 아이들이 어떻게 지내고 있는지 보시면 무척이나 자랑스러우실 거랍니다~", "story-fx story-fx-broadcast-uncanny"]
   ];
   for (const [phrase, className] of effects) {
     const escaped = safeText(phrase);
